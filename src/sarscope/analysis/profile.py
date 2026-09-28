@@ -1,16 +1,16 @@
-"""Descriptor statistics by activity group (Table 2) and property PCA (Table 3).
+"""Descriptor statistics by activity group, and the property PCA.
 
 **Skewness and kurtosis are pandas' ``Series.skew()`` / ``Series.kurt()``**:
-bias-corrected, and kurtosis is Fisher *excess* kurtosis (normal = 0). Two
-reasons: the paper states it computed these in pandas, and it reports a
-negative kurtosis for Group 1 NumHDonors, which only excess kurtosis can
-produce. ``scipy.stats.kurtosis`` defaults to ``bias=True`` and gives different
-numbers, so do not substitute it.
+bias-corrected, and kurtosis is Fisher *excess* kurtosis, so a normal
+distribution scores 0 and a flat one scores negative.
+``scipy.stats.kurtosis`` defaults to ``bias=True`` and returns different
+numbers, so the two are not interchangeable; this module documents which it
+uses because a reader comparing against another tool will need to know.
 
-**The PCA standardises first** (z-score each property, then PCA). The paper does
-not say so, but its Table 3 does: PC1 loads MW 0.498, TPSA 0.485, RB 0.484.
-Unscaled, MW's variance (hundreds of Da squared) would swamp everything and PC1
-would be MW alone.
+**The PCA standardises first** (z-score each property, then PCA). Without it,
+molecular weight's variance - hundreds of daltons squared against single digits
+for hydrogen-bond counts - would swamp everything and PC1 would be molecular
+weight alone.
 
 Principal-component signs are arbitrary, so fix them: flip each component so
 its largest-magnitude loading is positive. Otherwise two runs, or two scikit-
@@ -28,7 +28,7 @@ from scipy.stats import mannwhitneyu
 from sklearn.decomposition import PCA
 from sklearn.preprocessing import StandardScaler
 
-from sarscope.analysis.descriptors import PAPER_DESCRIPTORS
+from sarscope.analysis.descriptors import CORE_DESCRIPTORS
 
 
 @dataclass
@@ -56,10 +56,10 @@ class PcaResult:
 
 def describe_groups(
     table: pd.DataFrame,
-    columns: Sequence[str] = PAPER_DESCRIPTORS,
+    columns: Sequence[str] = CORE_DESCRIPTORS,
     group_col: str = "group",
 ) -> GroupProfile:
-    """Table 2. Exactly two groups must be present, else ValueError.
+    """Per-group descriptor statistics. Exactly two groups, else ValueError.
 
     p-values from ``scipy.stats.mannwhitneyu(g1, g2, alternative="two-sided")``.
     A property that is constant across both groups has no defined test; report
@@ -98,10 +98,10 @@ def describe_groups(
 
 def property_pca(
     table: pd.DataFrame,
-    columns: Sequence[str] = PAPER_DESCRIPTORS,
+    columns: Sequence[str] = CORE_DESCRIPTORS,
     n_components: int = 3,
 ) -> PcaResult:
-    """Table 3 and the Fig. 5 scatter. ``n_components`` is capped at len(columns)."""
+    """Loadings and scores. ``n_components`` is capped at len(columns)."""
     k = min(n_components, len(columns))
     X = StandardScaler().fit_transform(table[list(columns)].astype(float).to_numpy())
     pca = PCA(n_components=k).fit(X)

@@ -1,10 +1,11 @@
 """Raw activity records -> one standardised molecule, one potency, one class.
 
 Three stages, each returning the step-by-step counts that become the curation
-log in the report. Those counts are the point: the reference paper describes
-curation in two sentences, and on BRAF the unstated choices alone move the
-dataset between roughly 3,400 and 6,650 molecules. Every record that leaves the
-pipeline leaves through a named step.
+log in the report. Those counts are the point. Curation is usually described in
+a sentence or two and then forgotten, yet on BRAF these settings alone move the
+dataset between roughly 2,900 and 6,700 molecules - the single largest source of
+variation in everything downstream. Every record that leaves the pipeline leaves
+through a named step, and the count is kept.
 
 1. ``filter_chembl_records`` - record-level filters driven by CurationParams,
    then conversion to -log10(M). ChEMBL-specific.
@@ -14,11 +15,11 @@ pipeline leaves through a named step.
 
 ``curate_chembl`` and ``curate_table`` chain them.
 
-Identity is decided by structure, not by ID. ChEMBL gives salt forms separate
-molecule IDs (33 BRAF records sit under a salt whose parent is a different ID),
-and the paper deduplicated on molecule ID, which keeps those as separate
-compounds. Here the parent ID is used first and the standardised InChIKey
-second, so a hydrochloride and its free base are one molecule.
+Identity is decided by structure, not by ID. ChEMBL gives salt forms their own
+molecule IDs, so deduplicating on the ID alone counts a hydrochloride and its
+free base as two compounds with two potencies. Here the parent ID is used
+first and the standardised InChIKey second, so they collapse into one molecule
+whose measurements are pooled.
 """
 
 from __future__ import annotations

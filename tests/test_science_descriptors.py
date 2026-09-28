@@ -4,15 +4,15 @@ import pandas as pd
 import pytest
 from rdkit import Chem
 
-from sarscope.analysis.descriptors import PAPER_DESCRIPTORS, add_descriptors, compute_descriptors
+from sarscope.analysis.descriptors import CORE_DESCRIPTORS, add_descriptors, compute_descriptors
 
 pytestmark = pytest.mark.science
 
 VEMURAFENIB = "CCCS(=O)(=O)Nc1ccc(F)c(C(=O)c2c[nH]c3ncc(-c4ccc(Cl)cc4)cc23)c1F"
 
 
-def test_keys_are_exactly_the_paper_descriptors():
-    assert tuple(compute_descriptors(Chem.MolFromSmiles("CCO"))) == PAPER_DESCRIPTORS
+def test_keys_are_exactly_the_core_descriptors():
+    assert tuple(compute_descriptors(Chem.MolFromSmiles("CCO"))) == CORE_DESCRIPTORS
 
 
 def test_vemurafenib_values():
@@ -24,7 +24,8 @@ def test_vemurafenib_values():
 
 
 def test_acceptors_are_rdkit_numhacceptors_not_sorbents_nocount():
-    # NumHAcceptors = 4; Lipinski.NOCount (Sorbent's hba) = 6.
+    # NumHAcceptors applies Lipinski's rules and gives 4; Lipinski.NOCount,
+    # which Sorbent uses for catalogue matching, counts N+O and gives 6.
     assert compute_descriptors(Chem.MolFromSmiles(VEMURAFENIB))["NumHAcceptors"] == 4
 
 
@@ -37,7 +38,7 @@ def test_add_descriptors_returns_a_copy_with_new_columns():
     table = pd.DataFrame({"molecule_id": ["a", "b"], "smiles": ["CCO", VEMURAFENIB]})
     out = add_descriptors(table)
     assert list(table.columns) == ["molecule_id", "smiles"]
-    assert list(out.columns) == ["molecule_id", "smiles", *PAPER_DESCRIPTORS]
+    assert list(out.columns) == ["molecule_id", "smiles", *CORE_DESCRIPTORS]
     assert out.loc[1, "NumHAcceptors"] == 4
 
 

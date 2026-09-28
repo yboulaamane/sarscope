@@ -42,7 +42,8 @@ def test_stats_match_pandas(table):
 
 
 def test_kurtosis_is_excess_so_it_can_be_negative():
-    # A uniform distribution has excess kurtosis -1.2; the paper reports negatives.
+    # A uniform distribution has excess kurtosis -1.2. Fisher's definition can go
+    # negative; Pearson's cannot, so this pins down which one is in use.
     frame = pd.DataFrame({"x": np.linspace(0, 1, 200), "group": [1, 2] * 100})
     assert describe_groups(frame, ("x",)).stats.loc[("x", 1), "kurtosis"] < 0
 

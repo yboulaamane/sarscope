@@ -102,9 +102,15 @@ def cmd_run(args: argparse.Namespace) -> int:
     params = build_params(args)
     from sarscope import pipeline, report
 
+    read_kwargs = {
+        "id_col": args.input_id_col,
+        "smiles_col": args.input_smiles_col,
+        "value_col": args.input_value_col,
+        "unit": args.input_unit,
+    }
     try:
         if args.input is not None:
-            results = pipeline.run_table(args.input, params)
+            results = pipeline.run_table(args.input, params, **read_kwargs)
         else:
             with _client(args) as client:
                 _describe_target(client, args.target)
@@ -140,6 +146,14 @@ def parser() -> argparse.ArgumentParser:
     r = sub.add_parser("run", parents=[common], help="full analysis and report")
     r.add_argument("target", nargs="?")
     r.add_argument("--input", type=Path, help="your own CSV/TSV instead of ChEMBL")
+    r.add_argument("--input-id-col", default="molecule_id", help="with --input")
+    r.add_argument("--input-smiles-col", default="smiles", help="with --input")
+    r.add_argument("--input-value-col", default="pactivity", help="with --input")
+    r.add_argument(
+        "--input-unit",
+        default="p",
+        help='unit of --input-value-col: "p" for a -log10(M) value, or nM/uM/mM/M/pM',
+    )
     r.add_argument("--out", type=Path, required=True)
     r.add_argument(
         "--variant", help='mutant to keep, e.g. V600E; "any" pools all (default: wild-type)'
