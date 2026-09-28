@@ -73,23 +73,9 @@ streamlit run streamlit_app.py
 ```
 
 Deploying to Streamlit Community Cloud: pick **Python 3.12** in Advanced
-settings when creating the app (it does not read `runtime.txt`), and keep
-`packages.txt` — RDKit's drawing extension links against system X11 libraries
-that a minimal container does not have. Without them the app still runs, but
-structures fall back to SMILES text and say so.
-
-`fetch` prints the distribution of every field curation acts on, which shows
-what you are about to filter:
-
-```text
-CHEMBL5145  Serine/threonine-protein kinase B-raf  (Homo sapiens, SINGLE PROTEIN)  [ChEMBL_37]
-11017 records, 6703 molecules
-
-  standard_relation        =: 9115, <: 1008, >: 554, None: 172, <=: 114, >=: 54
-  assay_variant_mutation   None: 6523, V600E: 4494
-  potential_duplicate      0: 8581, 1: 2436
-  bao_label                single protein format: 7437, cell-based format: 2011, ...
-```
+settings when creating the app, and keep `packages.txt`. See
+[`docs/deploying.md`](docs/deploying.md) — it records what each config file
+does and how to read a failed build log.
 
 ## What it produces
 
