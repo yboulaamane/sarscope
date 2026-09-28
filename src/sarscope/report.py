@@ -376,7 +376,12 @@ def _render(
     images: dict[str, str],
 ) -> str:
     source = record.get("source", {})
-    title = source.get("target_name") or source.get("path") or "SARscope report"
+    target_name = source.get("target_name")
+    target_id = source.get("target_id")
+    if target_name and target_id:
+        title = f"{target_name} — {target_id}"
+    else:
+        title = target_name or target_id or source.get("path") or "SARscope report"
     table = results.table
     parts: list[str] = []
 
