@@ -12,6 +12,7 @@ import collections
 import io
 import sys
 import zipfile
+from importlib import resources
 from pathlib import Path
 from tempfile import TemporaryDirectory
 from typing import Any
@@ -144,6 +145,7 @@ def build_params(settings: dict[str, Any]) -> RunParams:
             features=FeatureParams(fingerprint=settings["model_fp"]),
             algorithms=tuple(settings["algorithms"]),
             split=settings["split"],
+            time_cutoff=settings["time_cutoff"],
             cv_folds=settings["cv_folds"],
             leakage_audit=settings["audit"],
         ),
@@ -609,6 +611,20 @@ def show_models(results: RunResults) -> None:
     )
     st.markdown(f"Best model by cross-validated MCC: **{results.models.best_algorithm}**")
 
+    if results.regression is not None:
+        st.markdown("**Continuous pActivity regression**")
+        st.caption(
+            "Fits the measured potency directly instead of discarding information at class "
+            "boundaries. The winner is selected by cross-validated RMSE."
+        )
+        st.dataframe(results.regression.scores, hide_index=True, width="stretch")
+        st.markdown(
+            f"Best regressor by cross-validated RMSE: **{results.regression.best_algorithm}**"
+        )
+    if not results.cliff_model_performance.empty:
+        st.markdown("**Held-out error on cliff compounds versus the rest**")
+        st.dataframe(results.cliff_model_performance, hide_index=True, width="stretch")
+
     if "naive" in set(scores["protocol"]):
         wide = scores.pivot(index="algorithm", columns="protocol", values="test_accuracy")
         gap = (wide["naive"] - wide["leak_free"]).sort_values(ascending=False)
@@ -643,6 +659,34 @@ def report_zip(results: RunResults) -> bytes:
         return buffer.getvalue()
 
 
+@st.cache_data(show_spinner=False)
+def demo_data() -> pd.DataFrame:
+    """Tiny packaged dataset: no API call and no analysis wait."""
+    resource = resources.files("sarscope").joinpath("data/demo.csv")
+    with resource.open("rb") as handle:
+        return pd.read_csv(handle)
+
+
+def show_demo_preview() -> None:
+    data = demo_data()
+    with st.expander("Instant demo dataset", expanded=True):
+        st.caption(
+            "Bundled locally so a cold app has something useful before ChEMBL responds. "
+            "The pActivity values are synthetic and illustrative, not experimental evidence."
+        )
+        cols = st.columns(3)
+        cols[0].metric("Demo molecules", len(data))
+        potency_range = f"{data['pactivity'].min():.1f}–{data['pactivity'].max():.1f}"
+        cols[1].metric("Potency range", potency_range)
+        cols[2].metric("Network wait", "none")
+        structure_grid(
+            [
+                (row.smiles, f"{row.molecule_id} · synthetic pActivity {row.pactivity:.1f}")
+                for row in data.nlargest(4, "pactivity").itertuples()
+            ]
+        )
+
+
 # -- page ---------------------------------------------------------------------
 
 
@@ -673,9 +717,15 @@ def sidebar() -> dict[str, Any]:
             model_fp = st.selectbox("Model fingerprint", ["ecfp4", "maccs"], index=0)
             split = st.radio(
                 "Split",
-                ["scaffold", "random"],
+                ["scaffold", "time", "random"],
                 index=0,
-                help="Scaffold keeps a series wholly on one side of the split.",
+                help=(
+                    "Scaffold keeps a series wholly on one side; time reserves compounds "
+                    "first documented after the cutoff."
+                ),
+            )
+            time_cutoff = st.number_input(
+                "Time-split training cutoff", min_value=1950, max_value=2029, value=2019
             )
             cv_folds = st.slider("Cross-validation folds", 3, 10, 5)
             audit = st.checkbox(
@@ -695,6 +745,7 @@ def sidebar() -> dict[str, Any]:
         "algorithms": algorithms,
         "model_fp": model_fp,
         "split": split,
+        "time_cutoff": int(time_cutoff),
         "cv_folds": cv_folds,
         "audit": audit,
     }
@@ -706,6 +757,8 @@ def main() -> None:
 
     st.title("SARscope")
     st.caption("Target ID in, structure–activity report out.")
+    if "analysed" not in st.session_state:
+        show_demo_preview()
 
     reason = unavailable_reason()
     if reason:

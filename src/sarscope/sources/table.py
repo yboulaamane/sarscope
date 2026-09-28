@@ -23,6 +23,7 @@ def read_activity_table(
     smiles_col: str = "smiles",
     value_col: str = "pactivity",
     unit: str = "p",
+    year_col: str | None = None,
 ) -> pd.DataFrame:
     """Read a table and return it in MEASUREMENT_COLUMNS form.
 
@@ -35,7 +36,8 @@ def read_activity_table(
     sep = "\t" if path.suffix.lower() in {".tsv", ".tab"} else ","
     raw = pd.read_csv(path, sep=sep, dtype={id_col: str, smiles_col: str})
 
-    missing = [c for c in (id_col, smiles_col, value_col) if c not in raw.columns]
+    required = (id_col, smiles_col, value_col, *((year_col,) if year_col else ()))
+    missing = [c for c in required if c not in raw.columns]
     if missing:
         raise ValueError(f"{path.name}: missing column(s) {missing}; found {list(raw.columns)}")
 
@@ -46,7 +48,7 @@ def read_activity_table(
     else:
         pactivity = values.map(lambda v: to_pactivity(v, unit))
 
-    return pd.DataFrame(
+    result = pd.DataFrame(
         {
             "molecule_id": frame[id_col].astype(str).str.strip(),
             "smiles": frame[smiles_col].astype(str).str.strip(),
@@ -54,3 +56,9 @@ def read_activity_table(
             "record_id": [f"{path.name}:{i + 2}" for i in frame.index],  # 1-based + header
         }
     ).reset_index(drop=True)[list(MEASUREMENT_COLUMNS)]
+    if year_col is not None:
+        source_years = pd.to_numeric(raw.loc[frame.index, year_col], errors="coerce")
+        result.attrs["document_year_by_record"] = dict(
+            zip(result["record_id"], source_years, strict=True)
+        )
+    return result

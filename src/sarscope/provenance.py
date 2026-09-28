@@ -21,6 +21,7 @@ TRACKED_PACKAGES: tuple[str, ...] = (
     "pandas",
     "scipy",
     "scikit-learn",
+    "joblib",
     "scikit-fingerprints",
 )
 

@@ -12,6 +12,8 @@ build/
 htmlcov/
 .env
 data/
+!src/sarscope/data/
+!src/sarscope/data/demo.csv
 
 # ChEMBL response cache and run outputs
 .sarscope-cache/

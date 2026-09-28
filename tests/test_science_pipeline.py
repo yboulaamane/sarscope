@@ -94,6 +94,11 @@ def test_report_folder(curation, tmp_path):
         "tables/cliffs_ecfp4.csv",
         "tables/cliffs_maccs.csv",
         "tables/model_scores.csv",
+        "tables/regression_scores.csv",
+        "tables/model_test_predictions.csv",
+        "tables/cliff_model_performance.csv",
+        "tables/matched_molecular_pairs.csv",
+        "model.joblib",
         "figures/chemical_space.png",
         "figures/cliffs_maccs.png",
     ]:
