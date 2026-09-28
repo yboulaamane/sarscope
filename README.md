@@ -63,6 +63,7 @@ braf_report/
   provenance.json    ChEMBL release, package versions, every parameter
   tables/            36 CSVs: curation log, Tables 2/3/4/6, cliffs, R-groups
   figures/           7 PNGs: Figs. 4, 5, 8, 9, 10
+                     (structures are drawn inline in report.html)
 ```
 
 In the browser:
@@ -88,11 +89,12 @@ CHEMBL5145  Serine/threonine-protein kinase B-raf  (Homo sapiens, SINGLE PROTEIN
 
 | Section | Output |
 |---|---|
+| Overview | Headline numbers with the most potent molecules and enriched scaffolds drawn |
 | Curation | Every record removed and the step that removed it |
 | Properties | Six descriptors by activity group (Table 2), PCA (Table 3, Fig. 5) |
 | Scaffolds | Murcko diversity (Table 4), enrichment factors with Wilson bounds |
-| R-group SAR | Per-position substituent deltas — the input to a Table 5 read |
-| Landscape | SAS maps, activity cliffs, cliff generators (Figs. 8, 9) |
+| R-group SAR | Per-position substituent deltas, cores and substituents drawn — the input to a Table 5 read |
+| Landscape | SAS maps, activity cliffs with both structures drawn, cliff generators (Figs. 8, 9) |
 | Models | 14-algorithm bake-off with the leakage audit (Table 6), applicability domain |
 
 Responses are cached per ChEMBL release in `~/.cache/sarscope` (override with
