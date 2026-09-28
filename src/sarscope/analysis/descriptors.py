@@ -22,8 +22,11 @@ from __future__ import annotations
 
 from typing import TYPE_CHECKING
 
+import pandas as pd
+from rdkit import Chem
+from rdkit.Chem import Crippen, Descriptors
+
 if TYPE_CHECKING:
-    import pandas as pd
     from rdkit.Chem import Mol
 
 #: Column names, in the paper's order. Every analysis downstream uses these.
@@ -39,7 +42,14 @@ PAPER_DESCRIPTORS: tuple[str, ...] = (
 
 def compute_descriptors(mol: Mol) -> dict[str, float]:
     """All of PAPER_DESCRIPTORS for one molecule, as floats. Keys exactly those."""
-    raise NotImplementedError
+    return {
+        "MW": float(Descriptors.MolWt(mol)),
+        "logP": float(Crippen.MolLogP(mol)),
+        "TPSA": float(Descriptors.TPSA(mol)),
+        "RB": float(Descriptors.NumRotatableBonds(mol)),
+        "NumHDonors": float(Descriptors.NumHDonors(mol)),
+        "NumHAcceptors": float(Descriptors.NumHAcceptors(mol)),
+    }
 
 
 def add_descriptors(table: pd.DataFrame) -> pd.DataFrame:
@@ -49,4 +59,13 @@ def add_descriptors(table: pd.DataFrame) -> pd.DataFrame:
     failure here is a bug, not bad input: raise ValueError naming the molecule).
     Does not mutate ``table``.
     """
-    raise NotImplementedError
+    rows = []
+    for molecule_id, smiles in zip(
+        table.get("molecule_id", table.index), table["smiles"], strict=True
+    ):
+        mol = Chem.MolFromSmiles(smiles)
+        if mol is None:
+            raise ValueError(f"cannot parse curated SMILES for {molecule_id}: {smiles!r}")
+        rows.append(compute_descriptors(mol))
+    values = pd.DataFrame(rows, index=table.index, columns=list(PAPER_DESCRIPTORS))
+    return pd.concat([table, values], axis=1)

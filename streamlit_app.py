@@ -1,24 +1,63 @@
 """SARscope in the browser. Run locally with ``streamlit run streamlit_app.py``.
 
-Only what is implemented is live: target lookup and the raw-record breakdown.
-Analysis sections appear as the modules behind them are implemented.
+Analyses run in the browser process, so the heavy steps are opt-in: the
+sidebar caps the dataset and the model bake-off, because a free hosting tier
+has one shared core and a memory ceiling. The CLI (``sarscope run``) has no
+such caps and writes the full report folder.
 """
 
 from __future__ import annotations
 
 import collections
+import io
+import sys
+import zipfile
+from pathlib import Path
+from tempfile import TemporaryDirectory
 from typing import Any
 
-import altair as alt
-import pandas as pd
-import streamlit as st
+# Streamlit Community Cloud clones the repo and runs this file from the root;
+# it installs requirements.txt but not this project, and the package lives
+# under src/. Put src/ on the path so the import below works there as it does
+# in a local editable install, where this line is a harmless no-op.
+_SRC = Path(__file__).parent / "src"
+if _SRC.is_dir() and str(_SRC) not in sys.path:
+    sys.path.insert(0, str(_SRC))
 
-from sarscope import __version__
-from sarscope.__main__ import FETCH_SUMMARY_FIELDS, default_cache_dir
-from sarscope.sources.chembl import ChemblClient, ChemblError, normalise_target_id
+import altair as alt  # noqa: E402
+import pandas as pd  # noqa: E402
+import streamlit as st  # noqa: E402
 
-#: Categorical slot 1 of the reference palette; one series, so one hue.
-BAR_COLOR = "#2a78d6"
+from sarscope import __version__, provenance  # noqa: E402
+from sarscope.__main__ import FETCH_SUMMARY_FIELDS, default_cache_dir  # noqa: E402
+from sarscope.analysis.landscape import cliff_generators  # noqa: E402
+from sarscope.curate import curate_chembl  # noqa: E402
+from sarscope.params import (  # noqa: E402
+    ClassScheme,
+    CurationParams,
+    FeatureParams,
+    LandscapeParams,
+    ModelParams,
+    RunParams,
+)
+from sarscope.pipeline import RunResults, analyse  # noqa: E402
+from sarscope.report import write_report  # noqa: E402
+from sarscope.sources.chembl import (  # noqa: E402
+    ChemblClient,
+    ChemblError,
+    normalise_target_id,
+)
+
+#: Categorical slots of the reference palette. Group 1 / Group 2 keep these
+#: hues everywhere in the app, so colour follows the entity, never the rank.
+BLUE, ORANGE, RED = "#2a78d6", "#eb6834", "#e34948"
+GROUP_COLORS = [BLUE, ORANGE]
+
+#: Above this many molecules, the all-pairs landscape gets slow in a shared
+#: process. The CLI has no cap.
+LANDSCAPE_WARN = 4000
+
+ACTIVITY_TYPES = ["IC50", "Ki", "Kd", "EC50"]
 
 #: What each summarised field means, and the curation decision it drives.
 FIELD_NOTES: dict[str, tuple[str, str]] = {
@@ -47,15 +86,10 @@ FIELD_NOTES: dict[str, tuple[str, str]] = {
     ),
 }
 
-ACTIVITY_TYPES = ["IC50", "Ki", "Kd", "EC50"]
+FAST_ALGORITHMS = ["extra_trees", "random_forest", "gradient_boosting", "nearest_neighbors"]
 
-UPCOMING = [
-    "Curation log: every record removed, and by which step",
-    "Descriptor profile by activity group (Table 2) and PCA (Table 3, Fig. 5)",
-    "Murcko scaffold diversity (Table 4) and enrichment factors",
-    "Structure-activity similarity maps and activity cliffs (Figs. 8, 9)",
-    "QSAR bake-off with scaffold split and leakage audit (Table 6)",
-]
+
+# -- data ---------------------------------------------------------------------
 
 
 def client() -> ChemblClient:
@@ -74,25 +108,60 @@ def fetch(target_id: str, types: tuple[str, ...]) -> list[dict[str, Any]]:
         return c.activities(target_id, types)
 
 
-def breakdown(records: list[dict[str, Any]], field: str) -> pd.DataFrame:
-    counts = collections.Counter(
-        "(none)" if r.get(field) is None else str(r.get(field)) for r in records
+@st.cache_resource(ttl=3600, show_spinner=False, max_entries=3)
+def run_analysis(
+    target_id: str, types: tuple[str, ...], params: RunParams, release: str
+) -> RunResults:
+    """Cached on the settings, so changing a slider re-runs but a redraw does not.
+
+    ``release`` is part of the key: a new ChEMBL release must invalidate it.
+    """
+    records = fetch(target_id, types)
+    results = analyse(curate_chembl(records, params), params)
+    with client() as c:
+        target = c.target(target_id)
+    results.provenance = provenance.collect(
+        params, provenance.chembl_source(target, release, len(records))
     )
-    frame = pd.DataFrame(counts.most_common(), columns=["value", "records"])
-    frame["share"] = frame["records"] / len(records)
-    return frame
+    return results
 
 
-def bar_chart(frame: pd.DataFrame) -> alt.Chart:
+def build_params(settings: dict[str, Any]) -> RunParams:
+    variant = None if settings["variant"] == "Wild-type only" else settings["variant"]
+    if variant == "All (pooled)":
+        variant = "any"
+    return RunParams(
+        curation=CurationParams(
+            standard_types=tuple(settings["types"]),
+            relations=("=", "<", ">", "<=", ">=") if settings["censored"] else ("=",),
+            variant=variant,
+            max_document_year=settings["max_year"],
+        ),
+        classes=ClassScheme(),
+        landscape=LandscapeParams(fingerprints=tuple(settings["fingerprints"])),
+        model=ModelParams(
+            features=FeatureParams(fingerprint=settings["model_fp"]),
+            algorithms=tuple(settings["algorithms"]),
+            split=settings["split"],
+            cv_folds=settings["cv_folds"],
+            leakage_audit=settings["audit"],
+        ),
+    )
+
+
+# -- charts -------------------------------------------------------------------
+
+
+def bar_chart(frame: pd.DataFrame, value: str, label: str) -> alt.Chart:
     return (
         alt.Chart(frame)
-        .mark_bar(color=BAR_COLOR, cornerRadiusEnd=4, size=14)
+        .mark_bar(color=BLUE, cornerRadiusEnd=4, size=14)
         .encode(
-            x=alt.X("records:Q", title="Records"),
+            x=alt.X(f"{value}:Q", title=label),
             y=alt.Y("value:N", sort="-x", title=None),
             tooltip=[
                 alt.Tooltip("value:N", title="Value"),
-                alt.Tooltip("records:Q", title="Records", format=","),
+                alt.Tooltip(f"{value}:Q", title=label, format=","),
                 alt.Tooltip("share:Q", title="Share", format=".1%"),
             ],
         )
@@ -100,28 +169,394 @@ def bar_chart(frame: pd.DataFrame) -> alt.Chart:
     )
 
 
-def main() -> None:
-    st.set_page_config(page_title="SARscope", layout="wide")
-    st.title("SARscope")
-    st.caption(
-        f"v{__version__} · Target ID in, structure-activity report out · "
-        "[source](https://github.com/yboulaamane/sarscope)"
+def breakdown(records: list[dict[str, Any]], field: str) -> pd.DataFrame:
+    counts = collections.Counter(
+        "(none)" if r.get(field) is None else str(r.get(field)) for r in records
+    )
+    frame = pd.DataFrame(counts.most_common(), columns=["value", "records"])
+    frame["share"] = frame["records"] / max(len(records), 1)
+    return frame
+
+
+def histogram(table: pd.DataFrame, column: str) -> alt.Chart:
+    return (
+        alt.Chart(table)
+        .mark_bar(opacity=0.62)
+        .encode(
+            x=alt.X(f"{column}:Q", bin=alt.Bin(maxbins=40), title=column),
+            y=alt.Y("count()", title="Molecules", stack=None),
+            color=alt.Color(
+                "group_label:N",
+                title="Group",
+                scale=alt.Scale(range=GROUP_COLORS),
+                legend=alt.Legend(orient="top"),
+            ),
+            tooltip=[alt.Tooltip("count()", title="Molecules"), "group_label:N"],
+        )
+        .properties(height=190)
     )
 
-    with st.form("target"):
-        left, right = st.columns([2, 3])
-        raw_id = left.text_input(
-            "ChEMBL target ID", value="CHEMBL5145", help="e.g. CHEMBL5145 or 5145"
+
+def pca_chart(results: RunResults) -> alt.Chart:
+    frame = results.pca.scores.copy()
+    frame["Group"] = ["Group 1" if g == 1 else "Group 2" for g in results.table["group"]]
+    frame["molecule"] = results.table["molecule_id"].to_numpy()
+    frame["pactivity"] = results.table["pactivity"].to_numpy()
+    var = results.pca.explained
+    return (
+        alt.Chart(frame)
+        .mark_circle(size=26, opacity=0.5)
+        .encode(
+            x=alt.X("PC1:Q", title=f"PC1 ({var.iloc[0]:.1%} of variance)"),
+            y=alt.Y("PC2:Q", title=f"PC2 ({var.iloc[1]:.1%} of variance)"),
+            color=alt.Color(
+                "Group:N",
+                scale=alt.Scale(domain=["Group 1", "Group 2"], range=GROUP_COLORS),
+                legend=alt.Legend(orient="top"),
+            ),
+            tooltip=[
+                alt.Tooltip("molecule:N", title="Molecule"),
+                alt.Tooltip("pactivity:Q", title="Potency", format=".2f"),
+                "Group:N",
+            ],
         )
-        types = right.multiselect("Activity types", ACTIVITY_TYPES, default=["IC50"])
-        submitted = st.form_submit_button("Look up target")
+        .properties(height=420)
+        .interactive()
+    )
 
-    if submitted:
-        st.session_state.pop("fetched", None)
-    if not types:
-        st.info("Choose at least one activity type.")
+
+def sas_chart(cliffs: pd.DataFrame, params: LandscapeParams) -> alt.Chart:
+    points = (
+        alt.Chart(cliffs)
+        .mark_circle(size=22, opacity=0.55, color=RED)
+        .encode(
+            x=alt.X(
+                "similarity:Q",
+                title="Tanimoto similarity",
+                scale=alt.Scale(domain=[params.similarity_threshold, 1.0]),
+            ),
+            y=alt.Y("delta:Q", title="Potency difference (log units)"),
+            tooltip=[
+                alt.Tooltip("id_a:N", title="Molecule A"),
+                alt.Tooltip("id_b:N", title="Molecule B"),
+                alt.Tooltip("similarity:Q", title="Similarity", format=".3f"),
+                alt.Tooltip("delta:Q", title="Difference", format=".2f"),
+                alt.Tooltip("sali:Q", title="SALI", format=".1f"),
+            ],
+        )
+    )
+    rule = (
+        alt.Chart(pd.DataFrame({"y": [params.activity_threshold]}))
+        .mark_rule(color="#8a8a85", strokeDash=[4, 4])
+        .encode(y="y:Q")
+    )
+    return (points + rule).properties(height=400).interactive()
+
+
+# -- sections -----------------------------------------------------------------
+
+
+def show_curation(results: RunResults) -> None:
+    table = results.table
+    cols = st.columns(4)
+    cols[0].metric("Molecules", f"{len(table):,}")
+    cols[1].metric("Group 1 (potent + active)", f"{int((table['group'] == 1).sum()):,}")
+    cols[2].metric("Group 2", f"{int((table['group'] == 2).sum()):,}")
+    cols[3].metric("Rejected structures", f"{len(results.curation.rejected):,}")
+
+    st.caption(
+        "Every record that left the dataset, and the step that removed it. These choices "
+        "change every number below, which is why they are recorded rather than assumed."
+    )
+    log = pd.DataFrame(
+        [
+            {
+                "Step": s.name,
+                "In": s.records_in,
+                "Out": s.records_out,
+                "Removed": s.removed,
+                "Molecules left": s.molecules_out,
+                "Note": s.detail,
+            }
+            for s in results.curation.steps
+        ]
+    )
+    st.dataframe(log, hide_index=True, width="stretch")
+    for step, reason in results.skipped.items():
+        st.warning(f"**{step} skipped.** {reason}")
+
+
+def show_properties(results: RunResults) -> None:
+    from sarscope.analysis.descriptors import PAPER_DESCRIPTORS
+
+    table = results.table.copy()
+    table["group_label"] = ["Group 1" if g == 1 else "Group 2" for g in table["group"]]
+    st.caption(
+        "Distributions by activity group, then the same six properties reduced to two "
+        "components. Hover any point for the molecule behind it."
+    )
+    for row in range(0, len(PAPER_DESCRIPTORS), 3):
+        for col, prop in zip(st.columns(3), PAPER_DESCRIPTORS[row : row + 3], strict=False):
+            col.altair_chart(histogram(table, prop), width="stretch")
+
+    stats = results.profile.stats.reset_index()
+    with st.expander("Table 2 — descriptor statistics and Mann-Whitney p-values"):
+        st.caption("Kurtosis is Fisher excess kurtosis, so a normal distribution scores 0.")
+        st.dataframe(stats, hide_index=True, width="stretch")
+        st.dataframe(
+            results.profile.p_values.rename("p_value").rename_axis("property").reset_index(),
+            hide_index=True,
+            width="stretch",
+        )
+
+    st.markdown("**Chemical space (PCA on the six properties)**")
+    st.altair_chart(pca_chart(results), width="stretch")
+    with st.expander("Table 3 — PCA loadings"):
+        st.caption(
+            "Properties are standardised first, or molecular weight would dominate every "
+            "component. Signs are fixed so two runs are comparable."
+        )
+        st.dataframe(results.pca.loadings.reset_index(names="property"), width="stretch")
+        st.dataframe(
+            pd.DataFrame(
+                {
+                    "component": results.pca.explained.index,
+                    "explained": results.pca.explained.to_numpy(),
+                    "cumulative": results.pca.cumulative.to_numpy(),
+                }
+            ),
+            hide_index=True,
+            width="stretch",
+        )
+
+
+def show_scaffolds(results: RunResults) -> None:
+    st.caption(
+        "Ns scaffolds, Nss of them carrying a single molecule, Ncsk cyclic skeletons. "
+        "The skeleton columns use RDKit's generic scaffold, which is not DataWarrior's "
+        "definition, so they are not comparable with the reference paper."
+    )
+    st.dataframe(results.diversity.reset_index(names="class"), width="stretch")
+
+    st.markdown("**Scaffold enrichment**")
+    st.caption(
+        "EF is the Group 1 fraction within a scaffold over the Group 1 fraction of the whole "
+        "dataset. A single active molecule scores the maximum EF, so the table is sorted by "
+        "ef_lower — the Wilson lower bound, which requires evidence."
+    )
+    top = results.enrichment.head(30)
+    st.dataframe(
+        top,
+        hide_index=True,
+        width="stretch",
+        column_config={
+            "scaffold": st.column_config.TextColumn("Scaffold (SMILES)", width="large"),
+            "frac_group1": st.column_config.NumberColumn("Group 1 fraction", format="percent"),
+            "ef": st.column_config.NumberColumn("EF", format="%.3f"),
+            "ef_lower": st.column_config.NumberColumn("EF lower bound", format="%.3f"),
+        },
+    )
+
+
+def show_rgroups(results: RunResults) -> None:
+    if not results.rgroups:
+        st.info("No series had enough members to decompose.")
         return
+    st.caption(
+        "The input to a medicinal-chemistry SAR read, not a substitute for one. **delta** "
+        "compares a substituent's median potency against the molecules of the same series that "
+        "differ at that position. Those molecules may differ elsewhere too, so read delta "
+        "together with n and p_value."
+    )
+    labels = [
+        f"Series {i}: {s.n_molecules} molecules, {len(s.positions)} positions"
+        for i, s in enumerate(results.rgroups, start=1)
+    ]
+    choice = st.selectbox("Series", labels, label_visibility="collapsed")
+    sar = results.rgroups[labels.index(choice)]
+    st.code(sar.scaffold, language="text")
+    order = sar.substituents["delta"].abs().sort_values(ascending=False).index
+    st.dataframe(
+        sar.substituents.reindex(order),
+        hide_index=True,
+        width="stretch",
+        column_config={
+            "substituent": st.column_config.TextColumn("Substituent", width="medium"),
+            "delta": st.column_config.NumberColumn("Delta (log units)", format="%.2f"),
+            "p_value": st.column_config.NumberColumn("p", format="%.2e"),
+        },
+    )
+    with st.expander("Molecules in this series"):
+        st.dataframe(sar.members, hide_index=True, width="stretch")
 
+
+def show_landscape(results: RunResults) -> None:
+    st.caption(
+        "Every pair of molecules, placed by structural similarity and potency difference. "
+        "Cliffs are similar pairs with very different potency: the pairs a model gets wrong "
+        "and a chemist learns from."
+    )
+    tabs = st.tabs(list(results.landscapes))
+    for tab, sas in zip(tabs, results.landscapes.values(), strict=True):
+        with tab:
+            cols = st.columns(5)
+            for col, (region, count) in zip(cols, sas.region_counts.items(), strict=False):
+                col.metric(region.replace("_", " ").title(), f"{count:,}")
+            cols[4].metric("Identical pairs", f"{len(sas.identical_pairs):,}")
+
+            if sas.cliffs.empty:
+                st.info("No pairs cross both thresholds with this fingerprint.")
+                continue
+            st.altair_chart(sas_chart(sas.cliffs, results.params.landscape), width="stretch")
+
+            gens = cliff_generators(sas.cliffs, results.params.landscape.generator_sd)
+            generators = gens[gens["is_generator"]]
+            st.markdown(
+                f"**{len(generators)} cliff generators** "
+                f"(more than {gens.attrs['threshold']:.1f} cliffs each)"
+            )
+            st.dataframe(generators, hide_index=True, width="stretch")
+
+    if results.consensus_generators:
+        st.success(
+            "Cliff generators found under every fingerprint: "
+            + ", ".join(results.consensus_generators)
+        )
+
+
+def show_models(results: RunResults) -> None:
+    if results.models is None:
+        st.info(results.skipped.get("model", "Modelling did not run."))
+        return
+    st.caption(
+        "**leak_free** selects features and resamples inside training folds only, after the "
+        "split. **paper** reproduces the reference workflow's order — select and oversample on "
+        "everything, then split — which puts copies of training molecules in the test set. "
+        "The gap between the two rows is the inflation that order produces on this dataset."
+    )
+    scores = results.models.scores
+    show = scores[
+        ["algorithm", "protocol", "train_accuracy", "cv_accuracy", "test_accuracy", "test_mcc"]
+    ]
+    st.dataframe(
+        show,
+        hide_index=True,
+        width="stretch",
+        column_config={
+            c: st.column_config.NumberColumn(c.replace("_", " ").title(), format="%.3f")
+            for c in ["train_accuracy", "cv_accuracy", "test_accuracy", "test_mcc"]
+        },
+    )
+    st.markdown(f"Best model by cross-validated MCC: **{results.models.best_algorithm}**")
+
+    if "paper" in set(scores["protocol"]):
+        wide = scores.pivot(index="algorithm", columns="protocol", values="test_accuracy")
+        gap = (wide["paper"] - wide["leak_free"]).sort_values(ascending=False)
+        st.markdown("**Inflation from the leaky order, in test accuracy**")
+        st.dataframe(
+            gap.rename("inflation").reset_index(),
+            hide_index=True,
+            width="stretch",
+            column_config={"inflation": st.column_config.NumberColumn(format="%.3f")},
+        )
+
+    if results.domain is not None:
+        st.metric(
+            "Test compounds inside the applicability domain", f"{results.domain.coverage:.1%}"
+        )
+        st.caption(
+            "A PCA bounding box in two components is a generous criterion: a molecule can sit "
+            "inside it and still be far from every training compound."
+        )
+
+
+def report_zip(results: RunResults) -> bytes:
+    """The same folder the CLI writes, as a zip for the download button."""
+    with TemporaryDirectory() as tmp:
+        out = Path(tmp) / "report"
+        write_report(results, out)
+        buffer = io.BytesIO()
+        with zipfile.ZipFile(buffer, "w", zipfile.ZIP_DEFLATED) as archive:
+            for path in sorted(out.rglob("*")):
+                if path.is_file():
+                    archive.write(path, path.relative_to(out))
+        return buffer.getvalue()
+
+
+# -- page ---------------------------------------------------------------------
+
+
+def sidebar() -> dict[str, Any]:
+    with st.sidebar:
+        st.markdown("### Settings")
+        st.caption("Every default matches the reference workflow unless the label says otherwise.")
+
+        with st.expander("Curation", expanded=True):
+            types = st.multiselect("Activity types", ACTIVITY_TYPES, default=["IC50"])
+            variant = st.selectbox(
+                "Protein variant", ["Wild-type only", "V600E", "All (pooled)"], index=0
+            )
+            censored = st.checkbox("Keep censored values (>, <)", value=False)
+            max_year = st.number_input(
+                "Only documents up to year", min_value=1990, max_value=2030, value=2030
+            )
+
+        with st.expander("Landscape"):
+            fingerprints = st.multiselect(
+                "Fingerprints", ["ecfp4", "maccs"], default=["ecfp4", "maccs"]
+            )
+
+        with st.expander("Models"):
+            algorithms = st.multiselect(
+                "Algorithms", FAST_ALGORITHMS, default=["extra_trees", "random_forest"]
+            )
+            model_fp = st.selectbox("Model fingerprint", ["ecfp4", "maccs"], index=0)
+            split = st.radio(
+                "Split",
+                ["scaffold", "random"],
+                index=0,
+                help="Scaffold keeps a series wholly on one side of the split.",
+            )
+            cv_folds = st.slider("Cross-validation folds", 3, 10, 5)
+            audit = st.checkbox(
+                "Run the leakage audit",
+                value=True,
+                help="Also runs the reference workflow's order and reports the gap.",
+            )
+
+        st.caption(f"SARscope {__version__} · [source](https://github.com/yboulaamane/sarscope)")
+
+    return {
+        "types": types,
+        "variant": variant,
+        "censored": censored,
+        "max_year": None if max_year >= 2030 else int(max_year),
+        "fingerprints": fingerprints,
+        "algorithms": algorithms,
+        "model_fp": model_fp,
+        "split": split,
+        "cv_folds": cv_folds,
+        "audit": audit,
+    }
+
+
+def main() -> None:
+    st.set_page_config(page_title="SARscope", layout="wide", page_icon="🔬")
+    settings = sidebar()
+
+    st.title("SARscope")
+    st.caption("Target ID in, structure–activity report out.")
+
+    left, right = st.columns([3, 1])
+    raw_id = left.text_input(
+        "ChEMBL target ID", value="CHEMBL5145", help="e.g. CHEMBL5145 (BRAF) or just 5145"
+    )
+    right.write("")
+    go = right.button("Analyse", type="primary", width="stretch")
+
+    if not settings["types"]:
+        st.info("Choose at least one activity type in the sidebar.")
+        return
     try:
         target_id = normalise_target_id(raw_id)
     except ValueError as exc:
@@ -129,8 +564,8 @@ def main() -> None:
         return
 
     try:
-        with st.spinner("Asking ChEMBL..."):
-            target, release, n_records = lookup(target_id, tuple(types))
+        with st.spinner("Asking ChEMBL…"):
+            target, release, n_records = lookup(target_id, tuple(settings["types"]))
     except ChemblError as exc:
         st.error(str(exc))
         return
@@ -140,55 +575,83 @@ def main() -> None:
     cols[0].metric("Target", target["target_chembl_id"])
     cols[1].metric("Organism", target["organism"])
     cols[2].metric("Type", str(target["target_type"]).title())
-    cols[3].metric(f"{'/'.join(types)} records", f"{n_records:,}")
-    st.caption(f"Data: {release}. Check the name above: a wrong ID fetches a different protein.")
+    cols[3].metric(f"{'/'.join(settings['types'])} records", f"{n_records:,}")
+    st.caption(
+        f"Data: {release}. Check the name above — a wrong ID silently fetches a different "
+        "protein, which is how a published paper ended up citing STK35 for a BRAF study."
+    )
 
     if n_records == 0:
         st.warning("No records of these types for this target.")
         return
 
-    key = (target_id, tuple(types))
-    if st.session_state.get("fetched") != key:
-        minutes = max(1, round(n_records / 7000))
-        if not st.button(f"Fetch all {n_records:,} records (about {minutes} min the first time)"):
-            return
-        st.session_state["fetched"] = key
+    if go:
+        st.session_state["analysed"] = (target_id, tuple(settings["types"]))
+    if st.session_state.get("analysed") != (target_id, tuple(settings["types"])):
+        st.info("Press **Analyse** to curate these records and run the full analysis.")
+        with st.expander("Raw records, before curation"):
+            records = fetch(target_id, tuple(settings["types"]))
+            for row in range(0, len(FETCH_SUMMARY_FIELDS), 2):
+                for col, field in zip(
+                    st.columns(2), FETCH_SUMMARY_FIELDS[row : row + 2], strict=False
+                ):
+                    title, note = FIELD_NOTES[field]
+                    with col:
+                        st.markdown(f"**{title}**")
+                        st.caption(note)
+                        st.altair_chart(
+                            bar_chart(breakdown(records, field), "records", "Records"),
+                            width="stretch",
+                        )
+        return
 
+    params = build_params(settings)
     try:
-        with st.spinner(f"Downloading {n_records:,} records from ChEMBL..."):
-            records = fetch(target_id, tuple(types))
+        with st.spinner("Curating, then running every analysis. The first run takes a minute…"):
+            results = run_analysis(target_id, tuple(settings["types"]), params, release)
     except ChemblError as exc:
         st.error(str(exc))
         return
+    except ValueError as exc:
+        st.error(f"Analysis stopped: {exc}")
+        return
 
-    molecules = len({r.get("molecule_chembl_id") for r in records})
-    st.subheader("Raw records")
-    cols = st.columns(2)
-    cols[0].metric("Records", f"{len(records):,}")
-    cols[1].metric("Molecules", f"{molecules:,}")
-    st.write("Each chart is one field that curation filters on. Hover a bar for exact counts.")
+    if len(results.table) > LANDSCAPE_WARN:
+        st.warning(
+            f"{len(results.table):,} molecules means about "
+            f"{len(results.table) ** 2 // 2:,} pairs. That ran, but for datasets this size "
+            "the command line is faster: `sarscope run " + target_id + " --out report/`"
+        )
 
-    fields = list(FETCH_SUMMARY_FIELDS)
-    for row in range(0, len(fields), 2):
-        for col, field in zip(st.columns(2), fields[row : row + 2], strict=False):
-            title, note = FIELD_NOTES[field]
-            frame = breakdown(records, field)
-            with col:
-                st.markdown(f"**{title}**")
-                st.caption(note)
-                st.altair_chart(bar_chart(frame), width="stretch")
-                with st.expander("Table"):
-                    st.dataframe(
-                        frame,
-                        hide_index=True,
-                        column_config={"share": st.column_config.NumberColumn(format="percent")},
-                    )
-
-    st.subheader("Analysis")
-    st.info(
-        "Not implemented yet. These sections appear here as the modules land:\n\n"
-        + "\n".join(f"- {item}" for item in UPCOMING)
+    tabs = st.tabs(
+        ["Curation", "Properties", "Scaffolds", "R-group SAR", "Landscape", "Models", "Report"]
     )
+    with tabs[0]:
+        show_curation(results)
+    with tabs[1]:
+        show_properties(results)
+    with tabs[2]:
+        show_scaffolds(results)
+    with tabs[3]:
+        show_rgroups(results)
+    with tabs[4]:
+        show_landscape(results)
+    with tabs[5]:
+        show_models(results)
+    with tabs[6]:
+        st.caption(
+            "The same folder `sarscope run` writes: a self-contained HTML report, every table "
+            "as CSV, every figure as PNG, and provenance.json recording the exact settings, "
+            "ChEMBL release and package versions behind these numbers."
+        )
+        st.download_button(
+            "Download the report folder (.zip)",
+            data=report_zip(results),
+            file_name=f"sarscope_{target_id}.zip",
+            mime="application/zip",
+            type="primary",
+        )
+        st.json(results.provenance, expanded=False)
 
 
 main()

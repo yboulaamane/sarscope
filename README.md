@@ -6,10 +6,9 @@ the standard analyses of a chemical-space paper: descriptor profiles, scaffold
 diversity and enrichment, activity cliffs, and a QSAR model bake-off. It
 produces a report folder you can open, email, or attach as supplementary data.
 
-> **Status: scaffold.** The ChEMBL client and the `target` and `fetch`
-> commands work now. The analysis layer is specified (docstrings plus a
-> failing test suite) but not implemented yet, so `sarscope run` stops with a
-> message.
+> **Status: working.** The full pipeline runs end to end. Verified on BRAF
+> (CHEMBL5145): 11,017 ChEMBL records curated to 2,917 molecules, then every
+> analysis below, in about three minutes.
 
 ## Why
 
@@ -24,17 +23,18 @@ tool should do better than a manual run:
   is a named parameter, and each record that is dropped is counted under the
   step that dropped it.
 - **Validation cannot leak.** Oversampling before the train/test split puts
-  copies of training molecules in the test set. On labels that are pure noise,
-  that order gives Extra Trees a test MCC of 0.99; the leak-free order gives
-  0.00. SARscope resamples inside training folds only, and can run both orders
-  side by side (`leakage_audit`) so the gap is measured rather than assumed.
+  copies of training molecules in the test set. Measured on BRAF, that order
+  inflates random-forest test accuracy from 0.723 to 0.877; on random labels it
+  turns MCC 0.00 into 0.99. SARscope resamples inside training folds only and
+  runs both orders side by side, so the gap is a number in the report rather
+  than an assertion.
 - **Splits are by scaffold by default.** Random splits scatter a congeneric
   series across train and test.
 
 [`docs/reproduction-notes.md`](docs/reproduction-notes.md) records what was
 checked against the paper and how.
 
-## Install (from source, for now)
+## Install
 
 ```bash
 git clone https://github.com/yboulaamane/sarscope.git
@@ -49,10 +49,26 @@ install can downgrade RDKit.
 ## Using it
 
 ```bash
-sarscope target CHEMBL5145          # confirm the ID is the protein you think it is
-sarscope fetch  CHEMBL5145          # download (cached) and summarise the raw records
-sarscope run    CHEMBL5145 --out braf_report/              # once implemented
-sarscope run    --input my_data.csv --out my_report/       # your own data
+sarscope target CHEMBL5145                    # confirm the ID is the protein you think it is
+sarscope fetch  CHEMBL5145                    # download (cached) and summarise the raw records
+sarscope run    CHEMBL5145 --out braf_report/ # curate, analyse, write the report folder
+sarscope run --input my_data.csv --out report/  # your own SMILES + potency table
+```
+
+`run` writes a folder you can open or attach as supplementary data:
+
+```text
+braf_report/
+  report.html        self-contained, figures inlined
+  provenance.json    ChEMBL release, package versions, every parameter
+  tables/            36 CSVs: curation log, Tables 2/3/4/6, cliffs, R-groups
+  figures/           7 PNGs: Figs. 4, 5, 8, 9, 10
+```
+
+In the browser:
+
+```bash
+streamlit run streamlit_app.py
 ```
 
 `fetch` prints the distribution of every field curation acts on, which shows
@@ -67,6 +83,17 @@ CHEMBL5145  Serine/threonine-protein kinase B-raf  (Homo sapiens, SINGLE PROTEIN
   potential_duplicate      0: 8581, 1: 2436
   bao_label                single protein format: 7437, cell-based format: 2011, ...
 ```
+
+## What it produces
+
+| Section | Output |
+|---|---|
+| Curation | Every record removed and the step that removed it |
+| Properties | Six descriptors by activity group (Table 2), PCA (Table 3, Fig. 5) |
+| Scaffolds | Murcko diversity (Table 4), enrichment factors with Wilson bounds |
+| R-group SAR | Per-position substituent deltas — the input to a Table 5 read |
+| Landscape | SAS maps, activity cliffs, cliff generators (Figs. 8, 9) |
+| Models | 14-algorithm bake-off with the leakage audit (Table 6), applicability domain |
 
 Responses are cached per ChEMBL release in `~/.cache/sarscope` (override with
 `SARSCOPE_CACHE`), so a report can be regenerated offline, and a new release is

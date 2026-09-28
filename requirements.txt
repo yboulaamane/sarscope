@@ -1,3 +1,19 @@
-# For Streamlit Community Cloud, which installs from this file.
-# Installs SARscope itself from this repository, with the app extra.
-.[app]
+# Streamlit Community Cloud installs from this file.
+#
+# Pinned lower bounds only, and no `.[app]` self-reference: a self-referencing
+# requirements file makes pip resolve this project as a dependency of itself,
+# which is what sent the first deploy backtracking through every matplotlib
+# release until it tried to build one from source.
+#
+# runtime.txt pins Python 3.12. Sorbent needs >=3.12, and the wheels below are
+# published for it; a newer Python can fall back to building from source.
+sorbent>=0.1.0
+rdkit>=2024.3
+numpy>=1.26
+pandas>=2.2
+scipy>=1.13
+scikit-learn>=1.5
+httpx>=0.27
+matplotlib>=3.8
+streamlit>=1.38
+altair>=5.0

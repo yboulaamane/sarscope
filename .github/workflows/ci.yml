@@ -18,7 +18,6 @@ jobs:
       - run: ruff check .
       - run: ruff format --check .
       - run: mypy src/sarscope
-      # Only the core suite gates CI. The science suite is the implementation
-      # spec and is expected to fail until the stubs are filled in; move it
-      # into this job once it passes. Network tests never run in CI.
-      - run: pytest -q -m "not science and not network"
+      # The whole suite gates CI now that the analysis layer is implemented.
+      # Network tests never run in CI: they call the live ChEMBL API.
+      - run: pytest -q -m "not network"

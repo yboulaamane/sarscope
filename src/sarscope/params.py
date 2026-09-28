@@ -45,7 +45,9 @@ class CurationParams:
     variant: str | None = None
     #: Drop records ChEMBL flags as likely re-reports of an earlier measurement,
     #: so one value cited twice does not count twice in the median. Removes 22%
-    #: of BRAF records but no molecules. Paper: unstated.
+    #: of BRAF records. On the unfiltered set no molecule loses all its data;
+    #: after the default filters 35 do, because their only wild-type binding
+    #: record is the flagged re-report. Paper: unstated.
     drop_potential_duplicates: bool = True
     #: Drop records carrying a ``data_validity_comment`` ("Outside typical
     #: range", "Potential transcription error"). Paper: unstated.
