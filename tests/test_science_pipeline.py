@@ -121,6 +121,15 @@ def test_report_overwrites_its_own_previous_output(curation, tmp_path):
     write_report(results, tmp_path / "r")
 
 
+def test_report_can_present_regression_without_classification(curation, tmp_path):
+    results = analyse(curation, params())
+    assert results.regression is not None
+    results.models = None
+    html = write_report(results, tmp_path / "regression_only").read_text()
+    assert "Continuous potency regression" in html
+    assert "Best regressor" in html
+
+
 def test_too_few_scaffolds_for_a_scaffold_split_is_reported_not_raised(curation):
     """A small in-house set often has fewer scaffolds than folds.
 

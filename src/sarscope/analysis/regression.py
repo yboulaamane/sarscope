@@ -21,6 +21,7 @@ from scipy.stats import spearmanr
 from sklearn.ensemble import ExtraTreesRegressor, GradientBoostingRegressor, RandomForestRegressor
 from sklearn.metrics import mean_squared_error, r2_score
 from sklearn.neighbors import KNeighborsRegressor
+from sklearn.neural_network import MLPRegressor
 from sklearn.svm import SVR
 
 from sarscope.analysis.features import VarianceCorrelationFilter
@@ -38,6 +39,13 @@ REGRESSION_ALGORITHMS: dict[str, Callable[[int], Any]] = {
     ),
     "random_forest": lambda seed: RandomForestRegressor(
         n_estimators=200, max_depth=15, random_state=seed, n_jobs=-1
+    ),
+    "neural_net": lambda seed: MLPRegressor(
+        hidden_layer_sizes=(64, 32),
+        alpha=0.01,
+        early_stopping=False,
+        max_iter=500,
+        random_state=seed,
     ),
 }
 
