@@ -17,6 +17,7 @@ from typing import Any
 
 import numpy as np
 from numpy.typing import NDArray
+from sklearn.decomposition import PCA
 
 
 @dataclass
@@ -35,4 +36,17 @@ def pca_bounding_box(
     X_train: NDArray[Any], X_query: NDArray[Any], n_components: int = 2
 ) -> DomainResult:
     """Every training compound is in its own box, by construction; test that."""
-    raise NotImplementedError
+    X_train = np.asarray(X_train, dtype=float)
+    X_query = np.asarray(X_query, dtype=float)
+    k = min(n_components, X_train.shape[1], X_train.shape[0])
+    pca = PCA(n_components=k).fit(X_train)
+    train_scores = pca.transform(X_train)
+    if X_query.shape[0] == 0:
+        query_scores = np.empty((0, k))
+    else:
+        query_scores = pca.transform(X_query)
+    # A hair of tolerance: float round-off must not push a training row out of its own box.
+    lo = train_scores.min(axis=0) - 1e-9
+    hi = train_scores.max(axis=0) + 1e-9
+    inside = np.all((query_scores >= lo) & (query_scores <= hi), axis=1)
+    return DomainResult(inside, train_scores, query_scores)

@@ -12,7 +12,7 @@ install:
 test-core:
 	$(PY) -m pytest -q -m "not science and not network"
 
-## The specification for the analysis layer. Fails until you implement it.
+## The analysis layer's specification suite.
 test-science:
 	$(PY) -m pytest -q -m "science and not network"
 
@@ -29,7 +29,7 @@ fmt:
 typecheck:
 	$(VENV)/bin/mypy src/sarscope
 
-check: lint typecheck test-core
+check: lint typecheck test
 
 clean:
 	rm -rf $(VENV) .pytest_cache .mypy_cache .ruff_cache *.egg-info src/*.egg-info

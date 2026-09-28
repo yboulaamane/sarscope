@@ -33,9 +33,52 @@ from typing import Any
 
 import numpy as np
 from numpy.typing import NDArray
+from rdkit import Chem, DataStructs
+from rdkit.Chem import MACCSkeys
 from sklearn.base import BaseEstimator, TransformerMixin
+from sorbent.chem.fingerprints import compute_fingerprint
 
 from sarscope.params import FingerprintName
+
+PUBCHEM_BITS = 881
+
+
+def _mols(smiles: Sequence[str]) -> list[Any]:
+    mols = []
+    for smi in smiles:
+        mol = Chem.MolFromSmiles(smi)
+        if mol is None:
+            raise ValueError(f"cannot parse SMILES {smi!r}")
+        mols.append(mol)
+    return mols
+
+
+def _pubchem_matrix(smiles: Sequence[str]) -> NDArray[np.uint8]:
+    try:
+        from skfp.fingerprints import PubChemFingerprint
+    except ImportError as exc:
+        raise ImportError(
+            "PubChem fingerprints need scikit-fingerprints: pip install 'sarscope[pubchem]'"
+        ) from exc
+    _mols(smiles)  # same ValueError contract as the other fingerprints
+    X = PubChemFingerprint().transform(list(smiles))
+    return (np.asarray(X) > 0).astype(np.uint8)
+
+
+def _to_numpy(fps: Sequence[Any]) -> NDArray[np.uint8]:
+    if not fps:
+        return np.zeros((0, 0), dtype=np.uint8)
+    out = np.zeros((len(fps), fps[0].GetNumBits()), dtype=np.uint8)
+    for row, fp in zip(out, fps, strict=True):
+        DataStructs.ConvertToNumpyArray(fp, row)
+    return out
+
+
+def _to_bitvect(row: NDArray[Any]) -> Any:
+    vect = DataStructs.ExplicitBitVect(len(row))
+    for bit in np.flatnonzero(row):
+        vect.SetBit(int(bit))
+    return vect
 
 
 def bit_vectors(
@@ -47,14 +90,25 @@ def bit_vectors(
     get one type regardless of fingerprint. Invalid SMILES is a ValueError:
     the input is curated, so it indicates a bug upstream.
     """
-    raise NotImplementedError
+    if name == "pubchem":
+        return [_to_bitvect(row) for row in _pubchem_matrix(smiles)]
+    mols = _mols(smiles)
+    if name == "ecfp4":
+        return [compute_fingerprint(m, radius=2, n_bits=ecfp_bits) for m in mols]
+    if name == "maccs":
+        # Drop RDKit's unused bit 0 so widths and Tanimoto match the 166-key standard.
+        maccs = _to_numpy([MACCSkeys.GenMACCSKeys(m) for m in mols])[:, 1:]
+        return [_to_bitvect(row) for row in maccs]
+    raise ValueError(f"unknown fingerprint {name!r}")
 
 
 def fingerprint_matrix(
     smiles: Sequence[str], name: FingerprintName, *, ecfp_bits: int = 2048
 ) -> NDArray[np.uint8]:
     """Shape (n_molecules, n_bits), values 0/1. Widths: ecfp_bits, 166, 881."""
-    raise NotImplementedError
+    if name == "pubchem":
+        return _pubchem_matrix(smiles)
+    return _to_numpy(bit_vectors(smiles, name, ecfp_bits=ecfp_bits))
 
 
 class VarianceCorrelationFilter(BaseEstimator, TransformerMixin):
@@ -79,7 +133,27 @@ class VarianceCorrelationFilter(BaseEstimator, TransformerMixin):
         self.correlation_threshold = correlation_threshold
 
     def fit(self, X: NDArray[Any], y: Any = None) -> VarianceCorrelationFilter:
-        raise NotImplementedError
+        X = np.asarray(X, dtype=float)
+        variance_ok = X.var(axis=0) > self.variance_threshold
+        survivors = np.flatnonzero(variance_ok)
+
+        kept: list[int] = []
+        if survivors.size:
+            corr = np.abs(np.corrcoef(X[:, survivors], rowvar=False).reshape(survivors.size, -1))
+            for i in range(survivors.size):
+                if not kept or corr[i, kept].max() <= self.correlation_threshold:
+                    kept.append(i)
+
+        support = np.zeros(X.shape[1], dtype=bool)
+        support[survivors[kept]] = True
+        self.support_ = support
+        self.n_features_in_ = X.shape[1]
+        self.n_after_variance_ = int(survivors.size)
+        self.n_after_correlation_ = len(kept)
+        return self
 
     def transform(self, X: NDArray[Any]) -> NDArray[Any]:
-        raise NotImplementedError
+        X = np.asarray(X)
+        if X.shape[1] != self.n_features_in_:
+            raise ValueError(f"fitted on {self.n_features_in_} features, got {X.shape[1]}")
+        return X[:, self.support_]

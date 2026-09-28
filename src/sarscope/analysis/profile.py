@@ -22,7 +22,11 @@ from __future__ import annotations
 from collections.abc import Sequence
 from dataclasses import dataclass
 
+import numpy as np
 import pandas as pd
+from scipy.stats import mannwhitneyu
+from sklearn.decomposition import PCA
+from sklearn.preprocessing import StandardScaler
 
 from sarscope.analysis.descriptors import PAPER_DESCRIPTORS
 
@@ -61,7 +65,35 @@ def describe_groups(
     A property that is constant across both groups has no defined test; report
     NaN for it rather than raising.
     """
-    raise NotImplementedError
+    groups = sorted(table[group_col].unique())
+    if len(groups) != 2:
+        raise ValueError(f"need exactly two groups in {group_col!r}, found {groups}")
+
+    rows = {}
+    p_values = {}
+    for prop in columns:
+        samples = [table.loc[table[group_col] == g, prop].astype(float) for g in groups]
+        for g, values in zip(groups, samples, strict=True):
+            rows[(prop, g)] = {
+                "n": len(values),
+                "max": values.max(),
+                "min": values.min(),
+                "mean": values.mean(),
+                "median": values.median(),
+                "skew": values.skew(),
+                "kurtosis": values.kurt(),
+            }
+        pooled = pd.concat(samples)
+        if pooled.nunique() < 2:
+            p_values[prop] = np.nan
+        else:
+            p_values[prop] = float(
+                mannwhitneyu(samples[0], samples[1], alternative="two-sided").pvalue
+            )
+
+    stats = pd.DataFrame.from_dict(rows, orient="index")
+    stats.index = pd.MultiIndex.from_tuples(stats.index, names=["property", "group"])
+    return GroupProfile(stats=stats, p_values=pd.Series(p_values, name="p_value"))
 
 
 def property_pca(
@@ -70,4 +102,19 @@ def property_pca(
     n_components: int = 3,
 ) -> PcaResult:
     """Table 3 and the Fig. 5 scatter. ``n_components`` is capped at len(columns)."""
-    raise NotImplementedError
+    k = min(n_components, len(columns))
+    X = StandardScaler().fit_transform(table[list(columns)].astype(float).to_numpy())
+    pca = PCA(n_components=k).fit(X)
+
+    components = pca.components_.copy()
+    for i, row in enumerate(components):
+        if row[np.argmax(np.abs(row))] < 0:
+            components[i] = -row
+    names = [f"PC{i + 1}" for i in range(k)]
+    # Scores from the sign-fixed components, so plot and table always agree.
+    scores = (X - pca.mean_) @ components.T
+    return PcaResult(
+        scores=pd.DataFrame(scores, index=table.index, columns=names),
+        loadings=pd.DataFrame(components.T, index=list(columns), columns=names),
+        explained=pd.Series(pca.explained_variance_ratio_, index=names),
+    )

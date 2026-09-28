@@ -51,18 +51,32 @@ Section 2.5.3 oversamples, and section 3.4 then splits "the balanced BRAF
 inhibitors dataset" 80:20. Duplicating rows before splitting places copies of
 one molecule on both sides.
 
-Prototype, 320 molecules with random labels (4 imbalanced classes, 200/60/40/20)
-and 64 random bits, five seeds, the paper's hyperparameters:
+Measured on the real BRAF dataset (CHEMBL5145, ChEMBL 37, 2,917 curated
+molecules, ECFP4, scaffold split, 5-fold CV), running both orders on identical
+data:
 
-| Model              | Leak-free test MCC | Oversample-then-split test MCC |
-|--------------------|-------------------:|-------------------------------:|
-| Extra Trees        | 0.00 on all seeds  | 0.98–0.99                      |
-| Nearest neighbours | −0.08 to 0.07      | 0.52–0.65                      |
+| Model             | Leak-free test accuracy | Paper's order | Inflation |
+|-------------------|------------------------:|--------------:|----------:|
+| Random forest     | 0.723 | 0.877 | +0.154 |
+| Extra trees       | 0.716 | 0.870 | +0.154 |
+| Nearest neighbours| 0.668 | 0.766 | +0.099 |
+| Gradient boosting | 0.697 | 0.778 | +0.081 |
 
-On noise, the correct answer is about zero. This does not mean the paper's
-reported 0.733 is wrong, because real BRAF data carries real signal. It means
-that figure contains an unknown amount of inflation, which `leakage_audit`
-measures on the real data.
+The paper reports Extra Trees at train 0.920, CV 0.699, test 0.733. Our
+leak-free Extra Trees run gives train 0.949, CV 0.683, test 0.716 - close to
+the published figures, which is the useful result: the honest numbers for this
+target sit near 0.72, and the published 0.733 is consistent with them. The
+leaky order would have produced 0.870.
+
+Note the ordering that gives the leak away. Under the leak-free protocol,
+test accuracy (0.716) is just above CV (0.683), as expected. The paper reports
+test 0.733 above CV 0.699 by a similar margin, so its reported numbers look
+more like the honest protocol than the leaky one, whatever section 3.4 says.
+
+A synthetic check isolates the mechanism: on 320 molecules with random labels
+and random bits, the leaky order scores Extra Trees at MCC 0.98-0.99 across
+five seeds while the leak-free order gives 0.00. That is a regression test in
+`tests/test_science_model.py`.
 
 ## Smaller discrepancies
 
