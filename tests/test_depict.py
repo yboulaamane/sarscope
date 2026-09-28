@@ -51,3 +51,29 @@ def test_bad_input_returns_none_rather_than_raising(bad):
     assert to_svg(bad) is None
     assert to_png(bad) is None
     assert to_data_uri(bad) is None
+
+
+def test_reports_availability():
+    from sarscope import depict
+
+    assert depict.available() is True
+    assert depict.unavailable_reason() is None
+
+
+def test_degrades_when_the_drawing_extension_is_missing(monkeypatch):
+    """The deploy failure: rdMolDraw2D cannot import on a container without X11.
+
+    Every entry point must return None so callers fall back to SMILES text,
+    rather than the import taking down the whole app at module level.
+    """
+    from sarscope import depict
+
+    monkeypatch.setattr(depict, "rdMolDraw2D", None)
+    monkeypatch.setattr(depict, "_IMPORT_ERROR", "libXrender.so.1: cannot open shared object file")
+
+    assert depict.available() is False
+    reason = depict.unavailable_reason()
+    assert reason is not None and "libxrender1" in reason
+    assert depict.to_svg(VEMURAFENIB) is None
+    assert depict.to_png(VEMURAFENIB) is None
+    assert depict.to_data_uri(VEMURAFENIB) is None

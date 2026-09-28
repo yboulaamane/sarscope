@@ -1,0 +1,14 @@
+# System libraries installed with apt-get before requirements.txt.
+#
+# RDKit's drawing extension (rdkit.Chem.Draw.rdMolDraw2D) links against the
+# system X11 libraries. The wheel bundles cairo and freetype but not these, so
+# without them `import rdkit.Chem.Draw` raises ImportError on a minimal
+# container, which is what broke the first deploy.
+#
+#   ldd .../rdkit/Chem/Draw/rdMolDraw2D*.so
+#     libXrender.so.1 => /lib/x86_64-linux-gnu/libXrender.so.1
+#     libX11.so.6     => /lib/x86_64-linux-gnu/libX11.so.6
+#     libXext.so.6    => /lib/x86_64-linux-gnu/libXext.so.6
+libxrender1
+libx11-6
+libxext6

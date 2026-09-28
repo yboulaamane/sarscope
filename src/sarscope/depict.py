@@ -17,6 +17,17 @@ numbered attachment points.
 **Every function returns None rather than raising for an unparseable input.**
 A depiction is decoration: a scaffold that will not parse should leave a gap in
 a table, not take down the page that table is on.
+
+**That extends to the drawing library itself.** ``rdkit.Chem.Draw.rdMolDraw2D``
+is a compiled extension linked against the system X11 libraries (libXrender,
+libX11, libXext). Those are not bundled in the RDKit wheel, so on a minimal
+container - a slim Docker image, or Streamlit Community Cloud without a
+``packages.txt`` - importing it raises ImportError and, imported at module
+level, takes down the whole application. It is therefore imported defensively:
+``available()`` reports whether drawing works, every function returns None when
+it does not, and callers already handle None by falling back to the SMILES
+string. ``packages.txt`` in the repository root installs those libraries on
+Streamlit Cloud.
 """
 
 from __future__ import annotations
@@ -25,14 +36,41 @@ import base64
 from typing import Any
 
 from rdkit import Chem
-from rdkit.Chem.Draw import rdMolDraw2D
+
+try:
+    from rdkit.Chem.Draw import rdMolDraw2D
+except ImportError as exc:  # pragma: no cover - depends on the host's system libraries
+    rdMolDraw2D = None
+    _IMPORT_ERROR: str | None = str(exc)
+else:
+    _IMPORT_ERROR = None
 
 #: Default panel size. Wide enough for a kinase inhibitor at a readable scale.
 DEFAULT_SIZE = (320, 220)
 
 
+def available() -> bool:
+    """Whether structures can be drawn on this host."""
+    return rdMolDraw2D is not None
+
+
+def unavailable_reason() -> str | None:
+    """Why drawing is unavailable, or None when it works.
+
+    Worth surfacing rather than silently showing text: the cause is a missing
+    system package, which the person running the app can fix.
+    """
+    if rdMolDraw2D is not None:
+        return None
+    return (
+        f"RDKit's drawing extension could not be imported ({_IMPORT_ERROR}). "
+        "It needs the system libraries libxrender1, libx11-6 and libxext6; "
+        "on Streamlit Cloud these come from packages.txt."
+    )
+
+
 def _prepare(smiles: str) -> Any | None:
-    if not smiles or not isinstance(smiles, str):
+    if rdMolDraw2D is None or not smiles or not isinstance(smiles, str):
         return None
     # sanitize=True is what PrepareAndDrawMolecule expects; dummy atoms survive it.
     return Chem.MolFromSmiles(smiles)

@@ -32,7 +32,7 @@ from sarscope import __version__, provenance  # noqa: E402
 from sarscope.__main__ import FETCH_SUMMARY_FIELDS, default_cache_dir  # noqa: E402
 from sarscope.analysis.landscape import cliff_generators  # noqa: E402
 from sarscope.curate import curate_chembl  # noqa: E402
-from sarscope.depict import to_svg  # noqa: E402
+from sarscope.depict import to_svg, unavailable_reason  # noqa: E402
 from sarscope.params import (  # noqa: E402
     ClassScheme,
     CurationParams,
@@ -702,6 +702,11 @@ def main() -> None:
 
     st.title("SARscope")
     st.caption("Target ID in, structure–activity report out.")
+
+    reason = unavailable_reason()
+    if reason:
+        # Everything still works; structures fall back to SMILES text.
+        st.warning(f"Structures cannot be drawn here. {reason}")
 
     left, right = st.columns([3, 1])
     raw_id = left.text_input(
