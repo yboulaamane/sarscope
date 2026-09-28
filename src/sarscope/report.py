@@ -38,6 +38,7 @@ import pandas as pd  # noqa: E402
 from sarscope import provenance  # noqa: E402
 from sarscope.analysis.descriptors import PAPER_DESCRIPTORS  # noqa: E402
 from sarscope.analysis.landscape import cliff_generators  # noqa: E402
+from sarscope.depict import to_data_uri  # noqa: E402
 from sarscope.pipeline import RunResults  # noqa: E402
 
 #: Categorical slots 1 and 2 of the reference palette, plus a recessive grey.
@@ -75,6 +76,12 @@ img { max-width:100%; height:auto; display:block; margin:12px 0; }
   border-radius:0 8px 8px 0; margin:12px 0; }
 code { font-family:ui-monospace,Menlo,Consolas,monospace; font-size:0.82em;
   overflow-wrap:anywhere; }
+.structures { display:flex; flex-wrap:wrap; gap:14px; margin:14px 0; }
+.structures figure { margin:0; background:#ffffff; border:1px solid var(--line);
+  border-radius:10px; padding:8px; }
+.structures img { margin:0; }
+.structures figcaption { color:var(--muted); font-size:0.78rem; margin-top:6px;
+  max-width:260px; }
 footer { color:var(--muted); font-size:0.82rem; margin-top:48px;
   border-top:1px solid var(--line); padding-top:16px; }
 """
@@ -324,6 +331,20 @@ def _cards(pairs: list[tuple[str, str]]) -> str:
     return f"<div class='cards'>{cells}</div>"
 
 
+def _structures(items: list[tuple[str, str]], size: tuple[int, int] = (260, 190)) -> str:
+    """A row of drawn structures with captions. Skips anything RDKit cannot draw."""
+    cells = []
+    for smiles, caption in items:
+        uri = to_data_uri(smiles, size)
+        if uri is None:
+            continue
+        cells.append(
+            f"<figure><img alt='{html.escape(caption)}' src='{uri}'>"
+            f"<figcaption>{html.escape(caption)}</figcaption></figure>"
+        )
+    return f"<div class='structures'>{''.join(cells)}</div>" if cells else ""
+
+
 def _figure(images: dict[str, str], key: str) -> str:
     if key not in images:
         return ""
@@ -406,6 +427,19 @@ def _render(
         "of the whole dataset. A singleton scores the maximum EF on one molecule, so the table "
         "is sorted by <b>ef_lower</b>, the Wilson lower bound, which requires evidence.</p>"
     )
+    ranked = results.enrichment[results.enrichment["n"] >= 5]
+    if len(ranked):
+        parts.append(
+            _structures(
+                [
+                    (
+                        str(r.scaffold),
+                        f"{r.n} molecules, {r.frac_group1:.0%} Group 1, EF {r.ef:.2f}",
+                    )
+                    for r in ranked.head(8).itertuples()
+                ]
+            )
+        )
     parts.append(_table_html(tables["scaffold_enrichment"], smiles_cols=("scaffold",)))
 
     if results.rgroups:
@@ -423,10 +457,27 @@ def _render(
                 f"{len(sar.positions)} varying positions</h3>"
             )
             parts.append(f"<p class='note'><code>{html.escape(sar.scaffold)}</code></p>")
-            order = sar.substituents["delta"].abs().sort_values(ascending=False).index
             parts.append(
-                _table_html(sar.substituents.reindex(order), limit=12, smiles_cols=("substituent",))
+                _structures(
+                    [(sar.scaffold, "Shared scaffold"), (sar.core, "Labelled core")],
+                    size=(300, 220),
+                )
             )
+            order = sar.substituents["delta"].abs().sort_values(ascending=False).index
+            ranked_subs = sar.substituents.reindex(order)
+            parts.append(
+                _structures(
+                    [
+                        (
+                            str(r.substituent),
+                            f"{r.position}: n={r.n}, delta {r.delta:+.2f}, p={r.p_value:.1e}",
+                        )
+                        for r in ranked_subs.head(6).itertuples()
+                    ],
+                    size=(190, 145),
+                )
+            )
+            parts.append(_table_html(ranked_subs, limit=12, smiles_cols=("substituent",)))
 
     parts.append("<h2>5. Activity landscape</h2>")
     parts.append(
@@ -443,6 +494,22 @@ def _render(
             )
         )
         parts.append(_figure(images, f"fig8_sas_{name}"))
+        if len(sas.cliffs):
+            smiles = results.table.set_index("molecule_id")["smiles"]
+            potency = results.table.set_index("molecule_id")["pactivity"]
+            top = sas.cliffs.iloc[0]
+            pair = [
+                (str(smiles[m]), f"{m}, potency {potency[m]:.2f}")
+                for m in (top["id_a"], top["id_b"])
+                if m in smiles.index
+            ]
+            if pair:
+                parts.append(
+                    "<p class='note'>Steepest cliff on this fingerprint: similarity "
+                    f"{top['similarity']:.2f}, {top['delta']:.2f} log units apart. "
+                    "What differs between these two structures is the SAR.</p>"
+                )
+                parts.append(_structures(pair, size=(300, 220)))
         parts.append(_figure(images, f"fig9_generators_{name}"))
     if results.consensus_generators:
         parts.append(

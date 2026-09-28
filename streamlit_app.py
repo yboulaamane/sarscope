@@ -32,6 +32,7 @@ from sarscope import __version__, provenance  # noqa: E402
 from sarscope.__main__ import FETCH_SUMMARY_FIELDS, default_cache_dir  # noqa: E402
 from sarscope.analysis.landscape import cliff_generators  # noqa: E402
 from sarscope.curate import curate_chembl  # noqa: E402
+from sarscope.depict import to_svg  # noqa: E402
 from sarscope.params import (  # noqa: E402
     ClassScheme,
     CurationParams,
@@ -169,6 +170,26 @@ def bar_chart(frame: pd.DataFrame, value: str, label: str) -> alt.Chart:
     )
 
 
+def show_structure(smiles: str, caption: str = "", size: tuple[int, int] = (300, 210)) -> None:
+    """Draw one molecule, or fall back to its SMILES if RDKit cannot."""
+    svg = to_svg(smiles, size)
+    if svg is None:
+        st.code(smiles, language="text")
+        return
+    st.image(svg, caption=caption or None)
+
+
+def structure_grid(
+    items: list[tuple[str, str]], columns: int = 4, size: tuple[int, int] = (260, 190)
+) -> None:
+    """A grid of (smiles, caption) panels."""
+    for row in range(0, len(items), columns):
+        chunk = items[row : row + columns]
+        for col, (smiles, caption) in zip(st.columns(columns), chunk, strict=False):
+            with col:
+                show_structure(smiles, caption, size)
+
+
 def breakdown(records: list[dict[str, Any]], field: str) -> pd.DataFrame:
     counts = collections.Counter(
         "(none)" if r.get(field) is None else str(r.get(field)) for r in records
@@ -254,6 +275,54 @@ def sas_chart(cliffs: pd.DataFrame, params: LandscapeParams) -> alt.Chart:
 
 
 # -- sections -----------------------------------------------------------------
+
+
+def show_overview(results: RunResults) -> None:
+    """The first screen after Analyse: what was found, with structures."""
+    table = results.table
+    cols = st.columns(4)
+    cols[0].metric("Molecules", f"{len(table):,}")
+    cols[1].metric("Scaffolds", f"{int(table['murcko'].nunique()):,}")
+    cliffs = sum(len(s.cliffs) for s in results.landscapes.values())
+    cols[2].metric("Activity cliffs", f"{cliffs:,}")
+    cols[3].metric(
+        "Best model",
+        results.models.best_algorithm.replace("_", " ") if results.models else "—",
+    )
+
+    st.markdown("**Most potent molecules**")
+    st.caption("The top of the curated dataset, by measured potency.")
+    best = table.nlargest(4, "pactivity")
+    structure_grid(
+        [
+            (row.smiles, f"{row.molecule_id} · potency {row.pactivity:.2f} · {row.activity_class}")
+            for row in best.itertuples()
+        ]
+    )
+
+    ranked = results.enrichment[results.enrichment["n"] >= 5]
+    if len(ranked):
+        st.markdown("**Most enriched scaffolds**")
+        st.caption(
+            "Scaffolds whose molecules are disproportionately potent, ranked by the "
+            "Wilson lower bound so a single lucky compound cannot top the list."
+        )
+        structure_grid(
+            [
+                (r.scaffold, f"{r.n} molecules · {r.frac_group1:.0%} Group 1 · EF {r.ef:.2f}")
+                for r in ranked.head(4).itertuples()
+            ]
+        )
+
+    if results.models is not None and "paper" in set(results.models.scores["protocol"]):
+        wide = results.models.scores.pivot(
+            index="algorithm", columns="protocol", values="test_accuracy"
+        )
+        gap = (wide["paper"] - wide["leak_free"]).max()
+        st.info(
+            f"**Leakage audit.** Oversampling before the train/test split would have "
+            f"inflated test accuracy by up to {gap:.3f} on this dataset. See the Models tab."
+        )
 
 
 def show_curation(results: RunResults) -> None:
@@ -344,18 +413,31 @@ def show_scaffolds(results: RunResults) -> None:
         "dataset. A single active molecule scores the maximum EF, so the table is sorted by "
         "ef_lower — the Wilson lower bound, which requires evidence."
     )
-    top = results.enrichment.head(30)
-    st.dataframe(
-        top,
-        hide_index=True,
-        width="stretch",
-        column_config={
-            "scaffold": st.column_config.TextColumn("Scaffold (SMILES)", width="large"),
-            "frac_group1": st.column_config.NumberColumn("Group 1 fraction", format="percent"),
-            "ef": st.column_config.NumberColumn("EF", format="%.3f"),
-            "ef_lower": st.column_config.NumberColumn("EF lower bound", format="%.3f"),
-        },
+    ranked = results.enrichment[results.enrichment["n"] >= 5]
+    if ranked.empty:
+        ranked = results.enrichment
+    st.markdown("**Most enriched scaffolds with at least 5 molecules**")
+    structure_grid(
+        [
+            (
+                row.scaffold,
+                f"{row.n} molecules · {row.frac_group1:.0%} Group 1 · EF {row.ef:.2f}",
+            )
+            for row in ranked.head(8).itertuples()
+        ]
     )
+    with st.expander("Full enrichment table"):
+        st.dataframe(
+            results.enrichment,
+            hide_index=True,
+            width="stretch",
+            column_config={
+                "scaffold": st.column_config.TextColumn("Scaffold (SMILES)", width="large"),
+                "frac_group1": st.column_config.NumberColumn("Group 1 fraction", format="percent"),
+                "ef": st.column_config.NumberColumn("EF", format="%.3f"),
+                "ef_lower": st.column_config.NumberColumn("EF lower bound", format="%.3f"),
+            },
+        )
 
 
 def show_rgroups(results: RunResults) -> None:
@@ -374,7 +456,16 @@ def show_rgroups(results: RunResults) -> None:
     ]
     choice = st.selectbox("Series", labels, label_visibility="collapsed")
     sar = results.rgroups[labels.index(choice)]
-    st.code(sar.scaffold, language="text")
+
+    core, members = st.columns([1, 1])
+    with core:
+        st.markdown("**Shared scaffold**")
+        show_structure(sar.scaffold, size=(330, 240))
+    with members:
+        st.markdown("**Labelled core**")
+        st.caption("Numbered attachment points are the positions in the table below.")
+        show_structure(sar.core, size=(330, 240))
+
     order = sar.substituents["delta"].abs().sort_values(ascending=False).index
     st.dataframe(
         sar.substituents.reindex(order),
@@ -386,8 +477,33 @@ def show_rgroups(results: RunResults) -> None:
             "p_value": st.column_config.NumberColumn("p", format="%.2e"),
         },
     )
+    strongest = sar.substituents.reindex(order).head(6)
+    if len(strongest):
+        st.markdown("**Substituents with the largest effect**")
+        structure_grid(
+            [
+                (
+                    row.substituent,
+                    f"{row.position} · n={row.n} · delta {row.delta:+.2f} · p={row.p_value:.1e}",
+                )
+                for row in strongest.itertuples()
+            ],
+            columns=3,
+            size=(200, 150),
+        )
+
     with st.expander("Molecules in this series"):
         st.dataframe(sar.members, hide_index=True, width="stretch")
+        picked = st.selectbox(
+            "Draw a molecule", sar.members["molecule_id"].tolist(), key=f"draw_{choice}"
+        )
+        row = results.table[results.table["molecule_id"] == picked]
+        if len(row):
+            show_structure(
+                str(row.iloc[0]["smiles"]),
+                f"{picked} · potency {row.iloc[0]['pactivity']:.2f}",
+                size=(360, 260),
+            )
 
 
 def show_landscape(results: RunResults) -> None:
@@ -409,12 +525,52 @@ def show_landscape(results: RunResults) -> None:
                 continue
             st.altair_chart(sas_chart(sas.cliffs, results.params.landscape), width="stretch")
 
+            st.markdown("**Inspect a cliff pair**")
+            st.caption(
+                "The two molecules below are structurally similar but differ sharply in "
+                "potency. What changed between them is the SAR."
+            )
+            top = sas.cliffs.head(30)
+            options = [
+                f"{r.id_a} / {r.id_b} — similarity {r.similarity:.2f}, "
+                f"delta {r.delta:.2f} log units"
+                for r in top.itertuples()
+            ]
+            picked = st.selectbox("Cliff pair", options, key=f"cliff_{sas.fingerprint}")
+            pair = top.iloc[options.index(picked)]
+            smiles = results.table.set_index("molecule_id")["smiles"]
+            potency = results.table.set_index("molecule_id")["pactivity"]
+            left, right = st.columns(2)
+            for col, molecule_id in zip((left, right), (pair["id_a"], pair["id_b"]), strict=True):
+                with col:
+                    if molecule_id in smiles.index:
+                        show_structure(
+                            str(smiles[molecule_id]),
+                            f"{molecule_id} · potency {potency[molecule_id]:.2f}",
+                            size=(340, 250),
+                        )
+
             gens = cliff_generators(sas.cliffs, results.params.landscape.generator_sd)
             generators = gens[gens["is_generator"]]
             st.markdown(
                 f"**{len(generators)} cliff generators** "
                 f"(more than {gens.attrs['threshold']:.1f} cliffs each)"
             )
+            st.caption(
+                "Molecules forming many cliffs at once. They are hard for a model and "
+                "informative for a chemist, which is why the paper singles them out."
+            )
+            if len(generators):
+                structure_grid(
+                    [
+                        (str(smiles[m]), f"{m} · {n} cliffs")
+                        for m, n in zip(
+                            generators["molecule_id"], generators["n_cliffs"], strict=True
+                        )
+                        if m in smiles.index
+                    ][:8],
+                    size=(240, 180),
+                )
             st.dataframe(generators, hide_index=True, width="stretch")
 
     if results.consensus_generators:
@@ -624,21 +780,32 @@ def main() -> None:
         )
 
     tabs = st.tabs(
-        ["Curation", "Properties", "Scaffolds", "R-group SAR", "Landscape", "Models", "Report"]
+        [
+            "Overview",
+            "Curation",
+            "Properties",
+            "Scaffolds",
+            "R-group SAR",
+            "Landscape",
+            "Models",
+            "Report",
+        ]
     )
     with tabs[0]:
-        show_curation(results)
+        show_overview(results)
     with tabs[1]:
-        show_properties(results)
+        show_curation(results)
     with tabs[2]:
-        show_scaffolds(results)
+        show_properties(results)
     with tabs[3]:
-        show_rgroups(results)
+        show_scaffolds(results)
     with tabs[4]:
-        show_landscape(results)
+        show_rgroups(results)
     with tabs[5]:
-        show_models(results)
+        show_landscape(results)
     with tabs[6]:
+        show_models(results)
+    with tabs[7]:
         st.caption(
             "The same folder `sarscope run` writes: a self-contained HTML report, every table "
             "as CSV, every figure as PNG, and provenance.json recording the exact settings, "
