@@ -1,0 +1,24 @@
+name: ci
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+      - run: pip install -e ".[dev]"
+      - run: ruff check .
+      - run: ruff format --check .
+      - run: mypy src/sarscope
+      # Only the core suite gates CI. The science suite is the implementation
+      # spec and is expected to fail until the stubs are filled in; move it
+      # into this job once it passes. Network tests never run in CI.
+      - run: pytest -q -m "not science and not network"
