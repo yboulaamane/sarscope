@@ -282,6 +282,12 @@ def sas_chart(cliffs: pd.DataFrame, params: LandscapeParams) -> alt.Chart:
 def show_overview(results: RunResults) -> None:
     """The first screen after Analyse: what was found, with structures."""
     table = results.table
+    source = results.provenance.get("source", {})
+    target_id = source.get("target_id")
+    target_name = source.get("target_name")
+    if target_id:
+        heading = f"{target_name} · `{target_id}`" if target_name else f"`{target_id}`"
+        st.markdown(f"### {heading}")
     cols = st.columns(4)
     cols[0].metric("Molecules", f"{len(table):,}")
     cols[1].metric("Scaffolds", f"{int(table['murcko'].nunique()):,}")
@@ -788,9 +794,10 @@ def main() -> None:
         st.error(str(exc))
         return
 
-    st.subheader(target["pref_name"])
+    resolved_id = str(target["target_chembl_id"])
+    st.subheader(f"{target['pref_name']} · {resolved_id}")
     cols = st.columns(4)
-    cols[0].metric("Target", target["target_chembl_id"])
+    cols[0].metric("ChEMBL target ID", resolved_id)
     cols[1].metric("Organism", target["organism"])
     cols[2].metric("Type", str(target["target_type"]).title())
     cols[3].metric(f"{'/'.join(settings['types'])} records", f"{n_records:,}")

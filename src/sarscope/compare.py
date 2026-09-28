@@ -169,6 +169,8 @@ def write_comparison(result: ComparisonResult, out_dir: Path) -> Path:
 
     name_a = str(result.target_a.get("pref_name") or result.target_a.get("target_chembl_id"))
     name_b = str(result.target_b.get("pref_name") or result.target_b.get("target_chembl_id"))
+    id_a = str(result.target_a.get("target_chembl_id") or "")
+    id_b = str(result.target_b.get("target_chembl_id") or "")
     table = result.compounds.head(50).to_html(index=False, escape=True, float_format="%.3g")
     scaffold_table = result.scaffolds.head(50).to_html(
         index=False, escape=True, float_format="%.3g"
@@ -180,7 +182,8 @@ def write_comparison(result: ComparisonResult, out_dir: Path) -> Path:
         "border-bottom:1px solid #ddd;text-align:right}th:first-child,td:first-child{"
         "text-align:left}"
         "code{font-size:12px}</style></head><body>"
-        f"<h1>{html.escape(name_a)} vs {html.escape(name_b)}</h1>"
+        f"<h1>{html.escape(name_a)} ({html.escape(id_a)}) vs "
+        f"{html.escape(name_b)} ({html.escape(id_b)})</h1>"
         f"<p>{len(result.compounds):,} shared structures and {len(result.scaffolds):,} shared "
         "Murcko scaffolds. Positive selectivity deltas favour target A; the potency ratio is "
         "10<sup>pA-pB</sup>.</p>"
