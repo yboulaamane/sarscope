@@ -1,15 +1,5 @@
 # Streamlit Community Cloud installs from this file.
-#
-# Pinned lower bounds only, and no `.[app]` self-reference: a self-referencing
-# requirements file makes pip resolve this project as a dependency of itself,
-# which is what sent the first deploy backtracking through every matplotlib
-# release until it tried to build one from source.
-#
-# Streamlit Cloud does NOT read runtime.txt; the Python version is chosen in
-# Advanced settings when the app is created. Sorbent needs >=3.12.
-#
-# packages.txt installs the system X11 libraries RDKit's drawing extension
-# links against. Without it, structures silently fall back to SMILES text.
+# Deployment notes live in docs/deploying.md, not here.
 sorbent>=0.1.0
 rdkit>=2024.3
 numpy>=1.26
