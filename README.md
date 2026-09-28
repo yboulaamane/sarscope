@@ -72,6 +72,12 @@ In the browser:
 streamlit run streamlit_app.py
 ```
 
+Deploying to Streamlit Community Cloud: pick **Python 3.12** in Advanced
+settings when creating the app (it does not read `runtime.txt`), and keep
+`packages.txt` — RDKit's drawing extension links against system X11 libraries
+that a minimal container does not have. Without them the app still runs, but
+structures fall back to SMILES text and say so.
+
 `fetch` prints the distribution of every field curation acts on, which shows
 what you are about to filter:
 
