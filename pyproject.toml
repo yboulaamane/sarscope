@@ -25,6 +25,7 @@ dependencies = [
     "pandas>=2.2",
     "scipy>=1.13",
     "scikit-learn>=1.5",
+    "joblib>=1.4",
     "httpx>=0.27",
     "matplotlib>=3.8",
 ]
@@ -53,6 +54,9 @@ sarscope = "sarscope.__main__:main"
 [tool.setuptools.packages.find]
 where = ["src"]
 include = ["sarscope*"]
+
+[tool.setuptools.package-data]
+sarscope = ["data/*.csv"]
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]

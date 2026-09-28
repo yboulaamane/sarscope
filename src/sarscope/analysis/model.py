@@ -139,6 +139,9 @@ class ModelResult:
     #: domain.py and for the report.
     test_index: NDArray[np.intp]
     train_index: NDArray[np.intp]
+    #: Held-out predictions from the CV-selected model, aligned to test_index.
+    test_predictions: NDArray[Any] | None = None
+    test_truth: NDArray[Any] | None = None
 
 
 def evaluate(
@@ -146,6 +149,7 @@ def evaluate(
     y: Sequence[str],
     groups: Sequence[str | None],
     params: ModelParams,
+    years: Sequence[int | float | None] | None = None,
 ) -> ModelResult:
     """Run every algorithm in ``params.algorithms`` under the leak-free protocol,
     and also under the naive protocol if ``params.leakage_audit``.
@@ -164,7 +168,7 @@ def evaluate(
     group_ids = np.array(
         [g if g is not None else f"__acyclic_{i}" for i, g in enumerate(groups)], dtype=object
     )
-    train_idx, test_idx = _outer_split(X, labels, group_ids, params)
+    train_idx, test_idx = _outer_split(X, labels, group_ids, params, years)
 
     rows = []
     for name in names:
@@ -177,16 +181,42 @@ def evaluate(
         _key=lambda f: f["cv_mcc"].fillna(-math.inf)
     )
     best = ranked.sort_values(["_key", "algorithm"], ascending=[False, True]).iloc[0]["algorithm"]
-    return ModelResult(scores, str(best), test_idx, train_idx)
+    best_filter, best_model = _fit_leak_free(str(best), X[train_idx], labels[train_idx], params)
+    best_predictions = _predict(best_model, best_filter.transform(X[test_idx]))
+    return ModelResult(
+        scores,
+        str(best),
+        test_idx,
+        train_idx,
+        best_predictions,
+        labels[test_idx],
+    )
 
 
 # -- protocol pieces ---------------------------------------------------------
 
 
 def _outer_split(
-    X: NDArray[Any], y: NDArray[Any], groups: NDArray[Any], params: ModelParams
+    X: NDArray[Any],
+    y: NDArray[Any],
+    groups: NDArray[Any],
+    params: ModelParams,
+    years: Sequence[int | float | None] | None = None,
 ) -> tuple[NDArray[np.intp], NDArray[np.intp]]:
-    if params.split == "scaffold":
+    if params.split == "time":
+        if years is None:
+            raise ValueError("time split needs document_year for every molecule")
+        year_values = pd.to_numeric(pd.Series(years), errors="coerce").to_numpy(dtype=float)
+        if len(year_values) != len(y) or np.isnan(year_values).any():
+            raise ValueError("time split needs a known document_year for every molecule")
+        train = np.flatnonzero(year_values <= params.time_cutoff)
+        test = np.flatnonzero(year_values > params.time_cutoff)
+        if not len(train) or not len(test):
+            raise ValueError(
+                f"time split at {params.time_cutoff} produced {len(train)} training and "
+                f"{len(test)} test molecules"
+            )
+    elif params.split == "scaffold":
         n_splits = max(2, round(1 / params.test_fraction))
         splitter = StratifiedGroupKFold(n_splits=n_splits, shuffle=True, random_state=params.seed)
         train, test = next(splitter.split(X, y, groups))

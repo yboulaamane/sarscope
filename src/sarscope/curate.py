@@ -50,6 +50,7 @@ CURATED_COLUMNS: tuple[str, ...] = (
     "pactivity",  # aggregated -log10(M)
     "n_measurements",
     "pactivity_range",  # max - min over replicates; 0.0 for a single value
+    "document_year",  # earliest source year; missing for tables without a year column
     "activity_class",
     "group",  # 1 or 2
 )
@@ -172,7 +173,18 @@ def filter_chembl_records(
     for name, keep in filters:
         before = len(kept)
         kept = [r for r in kept if keep(r)]
-        steps.append(CurationStep(name, before, len(kept), len({_parent_id(r) for r in kept})))
+        detail = ""
+        if name == "standard_type":
+            detail = (
+                "pooled after conversion to -log10(molar): " + ", ".join(params.standard_types)
+                if len(params.standard_types) > 1
+                else f"kept {params.standard_types[0]}"
+            )
+        elif name == "units":
+            detail = "converted concentration values to -log10(molar) before aggregation"
+        steps.append(
+            CurationStep(name, before, len(kept), len({_parent_id(r) for r in kept}), detail)
+        )
 
     frame = pd.DataFrame(
         {
@@ -185,6 +197,11 @@ def filter_chembl_records(
         },
         columns=list(MEASUREMENT_COLUMNS),
     )
+    # Keep the public measurement-table contract stable while carrying years
+    # into molecule-level curation for optional chronological validation.
+    frame.attrs["document_year_by_record"] = {
+        str(r.get("activity_id")): r.get("document_year") for r in kept
+    }
     return frame, steps
 
 
@@ -230,6 +247,9 @@ def standardize_and_aggregate(
     )
 
     good = measurements[~measurements["smiles"].isin(failed)].copy()
+    years = measurements.attrs.get("document_year_by_record")
+    if years is not None:
+        good["_document_year"] = pd.to_numeric(good["record_id"].map(years), errors="coerce")
     good["std_smiles"] = [ok[s][0] for s in good["smiles"]]
     good["inchikey"] = [ok[s][1] for s in good["smiles"]]
     good["key"] = good["inchikey"].fillna(good["std_smiles"])
@@ -250,19 +270,20 @@ def standardize_and_aggregate(
         multi_id += len(source_ids) > 1
         first = grp[grp["molecule_id"] == source_ids[0]].iloc[0]
         values = grp["pactivity"]
-        rows.append(
-            {
-                "molecule_id": source_ids[0],
-                "merged_ids": ";".join(source_ids),
-                "smiles": first["std_smiles"],
-                "inchikey": first["inchikey"],
-                "pactivity": float(
-                    values.median() if params.aggregate == "median" else values.mean()
-                ),
-                "n_measurements": len(values),
-                "pactivity_range": float(values.max() - values.min()),
-            }
-        )
+        row = {
+            "molecule_id": source_ids[0],
+            "merged_ids": ";".join(source_ids),
+            "smiles": first["std_smiles"],
+            "inchikey": first["inchikey"],
+            "pactivity": float(values.median() if params.aggregate == "median" else values.mean()),
+            "n_measurements": len(values),
+            "pactivity_range": float(values.max() - values.min()),
+        }
+        if "_document_year" in grp:
+            known_years = grp["_document_year"].dropna()
+            # A compound becomes available at its first documented year.
+            row["document_year"] = int(known_years.min()) if len(known_years) else pd.NA
+        rows.append(row)
     columns = [c for c in CURATED_COLUMNS if c not in ("activity_class", "group")]
     molecules = pd.DataFrame(rows, columns=columns)
     molecules = molecules.sort_values("molecule_id", key=lambda s: s.map(id_order)).reset_index(
@@ -319,7 +340,8 @@ def assign_classes(pactivity: pd.Series, scheme: ClassScheme) -> tuple[pd.Series
 def _classify(molecules: pd.DataFrame, scheme: ClassScheme) -> pd.DataFrame:
     classes, groups = assign_classes(molecules["pactivity"], scheme)
     out = molecules.assign(activity_class=classes, group=groups.astype(int))
-    return out[list(CURATED_COLUMNS)]
+    extras = [column for column in out.columns if column not in CURATED_COLUMNS]
+    return out[[*CURATED_COLUMNS, *extras]]
 
 
 def curate_chembl(records: Sequence[dict[str, Any]], params: RunParams) -> CurationResult:

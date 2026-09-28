@@ -7,7 +7,9 @@
                                scaffold_diversity, scaffold_enrichment,
                                cliffs_<fp>, identical_pairs_<fp>,
                                cliff_generators_<fp>, consensus_cliffs,
-                               model_scores, rgroups_<n>_substituents/members
+                               model_scores, regression_scores,
+                               model_test_predictions, cliff_model_performance,
+                               rgroups_<n>_substituents/members
     <out>/figures/*.png        descriptor_distributions, chemical_space, cliffs_<fp>,
                                cliff_generators_<fp>, applicability_domain
 
@@ -41,6 +43,7 @@ from sarscope.analysis.descriptors import CORE_DESCRIPTORS  # noqa: E402
 from sarscope.analysis.landscape import cliff_generators  # noqa: E402
 from sarscope.depict import to_data_uri  # noqa: E402
 from sarscope.pipeline import RunResults  # noqa: E402
+from sarscope.predict import MODEL_FILENAME, save_bundle  # noqa: E402
 
 #: Categorical slots 1 and 2 of the reference palette, plus a recessive grey.
 GROUP_COLORS = {1: "#2a78d6", 2: "#eb6834"}
@@ -113,6 +116,11 @@ def write_report(results: RunResults, out_dir: Path) -> Path:
 
     written = _write_tables(results, tables)
     images = _write_figures(results, figures)
+    model_path = out_dir / MODEL_FILENAME
+    if results.prediction_bundle is not None:
+        save_bundle(results.prediction_bundle, model_path)
+    elif model_path.exists():
+        model_path.unlink()
     path = out_dir / "report.html"
     path.write_text(_render(results, record, written, images), encoding="utf-8")
     return path
@@ -166,9 +174,17 @@ def _write_tables(results: RunResults, out: Path) -> dict[str, pd.DataFrame]:
         )
     if results.models is not None:
         written["model_scores"] = results.models.scores
+    if results.regression is not None:
+        written["regression_scores"] = results.regression.scores
+    if not results.model_test_predictions.empty:
+        written["model_test_predictions"] = results.model_test_predictions
+    if not results.cliff_model_performance.empty:
+        written["cliff_model_performance"] = results.cliff_model_performance
     for i, sar in enumerate(results.rgroups, start=1):
         written[f"rgroups_{i:02d}_substituents"] = sar.substituents
         written[f"rgroups_{i:02d}_members"] = sar.members
+    if not results.matched_pairs.empty:
+        written["matched_molecular_pairs"] = results.matched_pairs
 
     for name, frame in written.items():
         frame.to_csv(out / f"{name}.csv", index=False)
@@ -483,6 +499,23 @@ def _render(
             )
             parts.append(_table_html(ranked_subs, limit=12, smiles_cols=("substituent",)))
 
+    if "matched_molecular_pairs" in tables:
+        parts.append("<h2>Matched molecular pairs</h2>")
+        parts.append(
+            "<p class='note'>Single-cut transformations between compounds sharing the same "
+            "larger molecular context. Unlike the R-group section, this analysis does not "
+            "require a preselected scaffold. Delta is pActivity(B) minus pActivity(A); rows "
+            "are ranked by absolute potency change. Enumeration is capped by the recorded "
+            "matched-pair settings in provenance.</p>"
+        )
+        parts.append(
+            _table_html(
+                tables["matched_molecular_pairs"],
+                limit=40,
+                smiles_cols=("context", "fragment_a", "fragment_b"),
+            )
+        )
+
     parts.append("<h2>5. Activity landscape</h2>")
     parts.append(
         "<p class='note'>Every pair of molecules, placed by structural similarity and potency "
@@ -533,6 +566,32 @@ def _render(
         )
         parts.append(f"<p>Best model: <b>{html.escape(results.models.best_algorithm)}</b></p>")
         parts.append(_table_html(tables["model_scores"], limit=30))
+        if results.regression is not None:
+            parts.append("<h3>Continuous potency regression</h3>")
+            parts.append(
+                "<p class='note'>These models learn the measured pActivity directly, without "
+                "discarding information at class boundaries. Feature selection is fitted "
+                "inside every fold. The winner is chosen by cross-validated RMSE; R², RMSE "
+                "and Spearman rank correlation are reported on the untouched test set.</p>"
+            )
+            parts.append(
+                f"<p>Best regressor: <b>{html.escape(results.regression.best_algorithm)}</b></p>"
+            )
+            parts.append(_table_html(tables["regression_scores"], limit=30))
+            parts.append(
+                "<p class='note'>The selected regressor is refitted on the complete curated "
+                "dataset and saved as <code>model.joblib</code>. Use it only as a local trusted "
+                "artifact with <code>sarscope predict --model REPORT --input NEW.csv</code>.</p>"
+            )
+        if "cliff_model_performance" in tables:
+            parts.append("<h3>Errors on activity-cliff compounds</h3>")
+            parts.append(
+                "<p class='note'>A held-out compound is marked as a cliff compound when it "
+                "participates in a cliff under at least one configured fingerprint. This "
+                "comparison connects model error to the locally discontinuous SAR cases the "
+                "global metrics can hide.</p>"
+            )
+            parts.append(_table_html(tables["cliff_model_performance"]))
         if results.domain is not None:
             parts.append("<h3>Applicability domain</h3>")
             parts.append(

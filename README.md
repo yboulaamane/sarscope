@@ -65,6 +65,8 @@ sarscope target CHEMBL5145                    # confirm the ID is the protein yo
 sarscope fetch  CHEMBL5145                    # download (cached) and summarise raw records
 sarscope run    CHEMBL5145 --out report/      # curate, analyse, write the report
 sarscope run --input my_data.csv --out report/  # your own SMILES + potency table
+sarscope compare CHEMBL5145 CHEMBL279
+sarscope predict --model report/ --input new_compounds.csv
 ```
 
 Always `target` first. A wrong ID does not fail — it quietly fetches a different
@@ -100,12 +102,15 @@ See [`docs/deploying.md`](docs/deploying.md) to host it.
 | Properties | Six descriptors by activity group, Mann-Whitney tests, PCA |
 | Scaffolds | Murcko diversity, enrichment factors with Wilson lower bounds |
 | R-group SAR | Per-position substituent effects, with cores and substituents drawn |
+| Matched pairs | Single-cut transformations without requiring a preselected scaffold |
 | Landscape | Activity cliffs with both structures, SALI, cliff generators |
-| Models | 14-algorithm bake-off, scaffold split, leakage audit, applicability domain |
+| Models | Classification and continuous pActivity regression, scaffold/time split, leakage audit, applicability domain |
+| Model diagnostics | Held-out error on activity-cliff compounds versus the rest |
 
 ```text
 report/
   report.html        self-contained: figures and structures inlined
+  model.joblib       selected regressor, refitted on the complete curated dataset
   provenance.json    ChEMBL release, package versions, every parameter
   tables/            every table as CSV
   figures/           every figure as PNG
@@ -126,6 +131,32 @@ sarscope run --input actives.csv --out report/ \
 ```
 
 Everything after curation is identical, so the same report comes out.
+
+If the table contains a document year, chronological validation trains only on
+the earlier compounds and reserves what came later:
+
+```bash
+sarscope run --input actives.csv --input-year-col year --split time \
+  --time-cutoff 2019 --out report/
+```
+
+ChEMBL runs retain each molecule's earliest document year automatically. To
+pool the common potency endpoints explicitly, use `--pool-types`; every value
+is converted to `-log10(molar)` before aggregation and the pooled types are
+recorded in the curation log and provenance. Pooling different endpoint types
+is a modelling choice, not an assertion that IC50, Ki, Kd and EC50 are
+experimentally interchangeable.
+
+The saved regression model can score a new CSV containing `molecule_id` and
+`smiles`:
+
+```bash
+sarscope predict --model report/ --input new_compounds.csv
+```
+
+The output includes predicted pActivity, maximum fingerprint similarity to the
+training set, and an applicability-domain flag. `model.joblib` is a Python
+pickle-based artifact; load only reports you trust.
 
 ## Development
 

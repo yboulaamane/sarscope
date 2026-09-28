@@ -18,7 +18,7 @@ import dataclasses
 from dataclasses import dataclass, field
 from typing import Any, Literal
 
-SplitStrategy = Literal["random", "scaffold"]
+SplitStrategy = Literal["random", "scaffold", "time"]
 FingerprintName = Literal["ecfp4", "maccs", "pubchem"]
 
 
@@ -134,8 +134,16 @@ class FeatureParams:
 
 
 @dataclass(frozen=True)
+class MatchedPairParams:
+    """Bounds for single-cut matched molecular-pair enumeration."""
+
+    max_variable_heavy_atoms: int = 10
+    max_pairs: int = 100_000
+
+
+@dataclass(frozen=True)
 class ModelParams:
-    """Classifier bake-off."""
+    """Classification and continuous-regression bake-offs."""
 
     features: FeatureParams = field(default_factory=FeatureParams)
     #: Algorithm names from ``analysis.model.ALGORITHMS``. The default is a fast
@@ -146,6 +154,16 @@ class ModelParams:
         "gradient_boosting",
         "nearest_neighbors",
     )
+    #: Continuous pActivity estimators from ``analysis.regression``.  Kept
+    #: separate from ``algorithms`` because a name such as ``random_forest``
+    #: maps to a classifier in one bake-off and a regressor in the other.
+    regression_algorithms: tuple[str, ...] = (
+        "extra_trees",
+        "random_forest",
+        "gradient_boosting",
+        "nearest_neighbors",
+        "svr",
+    )
     test_fraction: float = 0.2
     cv_folds: int = 10
     #: "scaffold" keeps every Murcko scaffold wholly on one side of each split,
@@ -153,6 +171,9 @@ class ModelParams:
     #: split scatters one congeneric series across both sides and flatters the
     #: model accordingly.
     split: SplitStrategy = "scaffold"
+    #: For ``split="time"``, train on molecules first documented on or before
+    #: this year and test only on later molecules.
+    time_cutoff: int = 2019
     #: Random oversampling of minority classes, applied to training folds only.
     oversample: bool = True
     #: Also run the naive order of operations (select features and oversample on
@@ -167,6 +188,7 @@ class RunParams:
     curation: CurationParams = field(default_factory=CurationParams)
     classes: ClassScheme = field(default_factory=ClassScheme)
     landscape: LandscapeParams = field(default_factory=LandscapeParams)
+    matched_pairs: MatchedPairParams = field(default_factory=MatchedPairParams)
     model: ModelParams = field(default_factory=ModelParams)
 
     def to_dict(self) -> dict[str, Any]:

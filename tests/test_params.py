@@ -29,6 +29,6 @@ def test_model_defaults_are_leak_resistant():
 
 def test_run_params_serialise_to_json():
     data = json.loads(json.dumps(RunParams().to_dict()))
-    assert set(data) == {"curation", "classes", "landscape", "model"}
+    assert set(data) == {"curation", "classes", "landscape", "matched_pairs", "model"}
     assert data["curation"]["relations"] == ["="]
     assert data["model"]["features"]["fingerprint"] == "ecfp4"

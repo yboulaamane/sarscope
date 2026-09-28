@@ -25,6 +25,7 @@ from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Any
 
+import numpy as np
 import pandas as pd
 
 from sarscope import provenance
@@ -32,12 +33,20 @@ from sarscope.analysis.descriptors import add_descriptors
 from sarscope.analysis.domain import DomainResult, pca_bounding_box
 from sarscope.analysis.features import VarianceCorrelationFilter, bit_vectors, fingerprint_matrix
 from sarscope.analysis.landscape import SasResult, consensus, sas_map
+from sarscope.analysis.mmp import matched_molecular_pairs
 from sarscope.analysis.model import ModelResult, evaluate
 from sarscope.analysis.profile import GroupProfile, PcaResult, describe_groups, property_pca
+from sarscope.analysis.regression import (
+    RegressionResult,
+    evaluate_regression,
+    fit_deployment_model,
+    regression_metrics,
+)
 from sarscope.analysis.rgroups import ScaffoldSar, decompose_top_scaffolds
 from sarscope.analysis.scaffolds import add_scaffolds, diversity_table, enrichment_table
 from sarscope.curate import CurationResult, curate_chembl, curate_table
 from sarscope.params import RunParams
+from sarscope.predict import PredictionBundle, similarity_domain_threshold
 from sarscope.sources.chembl import ChemblClient
 from sarscope.sources.table import read_activity_table
 
@@ -56,7 +65,15 @@ class RunResults:
     consensus_cliffs: pd.DataFrame
     consensus_generators: list[str]
     models: ModelResult | None
+    regression: RegressionResult | None
     domain: DomainResult | None
+    matched_pairs: pd.DataFrame
+    #: Held-out, per-compound predictions with activity-cliff membership.
+    model_test_predictions: pd.DataFrame = field(default_factory=pd.DataFrame)
+    #: Aggregate held-out performance on cliff compounds versus all others.
+    cliff_model_performance: pd.DataFrame = field(default_factory=pd.DataFrame)
+    #: Refit-on-all-data continuous model written to the report for prediction.
+    prediction_bundle: PredictionBundle | None = None
     #: Per-scaffold R-group decomposition, largest series first.
     rgroups: list[ScaffoldSar] = field(default_factory=list)
     #: step name -> reason, for anything that could not run.
@@ -84,6 +101,11 @@ def analyse(curation: CurationResult, params: RunParams) -> RunResults:
     diversity = diversity_table(table)
     enrichment = enrichment_table(table)
     rgroups = decompose_top_scaffolds(table, enrichment)
+    matched_pairs = matched_molecular_pairs(
+        table,
+        max_variable_heavy_atoms=params.matched_pairs.max_variable_heavy_atoms,
+        max_pairs=params.matched_pairs.max_pairs,
+    )
 
     landscapes: dict[str, SasResult] = {}
     for name in params.landscape.fingerprints:
@@ -98,7 +120,11 @@ def analyse(curation: CurationResult, params: RunParams) -> RunResults:
     consensus_cliffs, consensus_generators = consensus(landscapes, params.landscape.generator_sd)
 
     models: ModelResult | None = None
+    regression: RegressionResult | None = None
     domain: DomainResult | None = None
+    prediction_bundle: PredictionBundle | None = None
+    model_test_predictions = pd.DataFrame()
+    cliff_model_performance = pd.DataFrame()
     reason = _modelling_blocked(table, params)
     if reason:
         skipped["model"] = reason
@@ -109,8 +135,35 @@ def analyse(curation: CurationResult, params: RunParams) -> RunResults:
             params.model.features.fingerprint,
             ecfp_bits=params.model.features.ecfp_bits,
         )
+        years = table["document_year"].tolist() if "document_year" in table else None
         models = evaluate(
-            X, table["activity_class"].tolist(), table["murcko"].tolist(), params.model
+            X,
+            table["activity_class"].tolist(),
+            table["murcko"].tolist(),
+            params.model,
+            years=years,
+        )
+        regression = evaluate_regression(
+            X,
+            table["pactivity"].tolist(),
+            table["murcko"].tolist(),
+            table["activity_class"].tolist(),
+            params.model,
+            years=years,
+        )
+        deploy_filter, deploy_model = fit_deployment_model(
+            X, table["pactivity"].tolist(), regression.best_algorithm, params.model
+        )
+        prediction_bundle = PredictionBundle(
+            algorithm=regression.best_algorithm,
+            features=params.model.features,
+            feature_filter=deploy_filter,
+            estimator=deploy_model,
+            train_fingerprints=X,
+            similarity_threshold=similarity_domain_threshold(X),
+        )
+        model_test_predictions, cliff_model_performance = _cliff_model_errors(
+            table, landscapes, models, regression
         )
         feats = params.model.features
         filt = VarianceCorrelationFilter(feats.variance_threshold, feats.correlation_threshold).fit(
@@ -132,10 +185,71 @@ def analyse(curation: CurationResult, params: RunParams) -> RunResults:
         consensus_cliffs=consensus_cliffs,
         consensus_generators=consensus_generators,
         models=models,
+        regression=regression,
         domain=domain,
+        matched_pairs=matched_pairs,
+        model_test_predictions=model_test_predictions,
+        cliff_model_performance=cliff_model_performance,
+        prediction_bundle=prediction_bundle,
         rgroups=rgroups,
         skipped=skipped,
     )
+
+
+def _cliff_model_errors(
+    table: pd.DataFrame,
+    landscapes: dict[str, SasResult],
+    classification: ModelResult,
+    regression: RegressionResult,
+) -> tuple[pd.DataFrame, pd.DataFrame]:
+    """Join held-out predictions to activity-cliff membership and summarise."""
+    cliff_ids: set[str] = set()
+    for result in landscapes.values():
+        cliff_ids.update(result.cliffs["id_a"].astype(str))
+        cliff_ids.update(result.cliffs["id_b"].astype(str))
+
+    # Both evaluators deliberately use the same deterministic outer split.
+    if not np.array_equal(classification.test_index, regression.test_index):
+        raise RuntimeError("classification and regression test splits differ")
+    test = table.iloc[regression.test_index]
+    predictions = pd.DataFrame(
+        {
+            "molecule_id": test["molecule_id"].astype(str).to_numpy(),
+            "is_cliff_compound": test["molecule_id"].astype(str).isin(cliff_ids).to_numpy(),
+            "pactivity": regression.test_truth,
+            "predicted_pactivity": regression.test_predictions,
+            "absolute_error": np.abs(regression.test_truth - regression.test_predictions),
+            "activity_class": np.asarray(classification.test_truth, dtype=str),
+            "predicted_activity_class": np.asarray(classification.test_predictions, dtype=str),
+        }
+    )
+    predictions["classification_correct"] = (
+        predictions["activity_class"] == predictions["predicted_activity_class"]
+    )
+
+    rows: list[dict[str, Any]] = []
+    for is_cliff in (True, False):
+        group = predictions[predictions["is_cliff_compound"] == is_cliff]
+        if len(group):
+            r2, rmse, rho = regression_metrics(
+                group["pactivity"].to_numpy(), group["predicted_pactivity"].to_numpy()
+            )
+            accuracy = float(group["classification_correct"].mean())
+            mae = float(group["absolute_error"].mean())
+        else:
+            r2 = rmse = rho = accuracy = mae = float("nan")
+        rows.append(
+            {
+                "subset": "cliff compounds" if is_cliff else "other compounds",
+                "n": len(group),
+                "classification_accuracy": accuracy,
+                "regression_r2": r2,
+                "regression_rmse": rmse,
+                "regression_mae": mae,
+                "regression_spearman": rho,
+            }
+        )
+    return predictions, pd.DataFrame(rows)
 
 
 def _modelling_blocked(table: pd.DataFrame, params: RunParams) -> str:
@@ -173,6 +287,32 @@ def _modelling_blocked(table: pd.DataFrame, params: RunParams) -> str:
                 f"scaffolds and this dataset has {groups}. Lower cv_folds, or pass "
                 "--split random (which will flatter the model, because one series can "
                 "then sit on both sides of the split)."
+            )
+    if model.split == "time":
+        if "document_year" not in table:
+            return (
+                "a time split needs document years. ChEMBL runs carry them automatically; "
+                "for a table, pass --input-year-col COLUMN."
+            )
+        years = pd.to_numeric(table["document_year"], errors="coerce")
+        if years.isna().any():
+            return (
+                f"a time split needs a known document year for every molecule; "
+                f"{int(years.isna().sum())} are missing"
+            )
+        train = table[years <= model.time_cutoff]
+        test = table[years > model.time_cutoff]
+        if train.empty or test.empty:
+            return (
+                f"the time split at {model.time_cutoff} leaves {len(train)} training and "
+                f"{len(test)} later test molecules"
+            )
+        train_counts = train["activity_class"].value_counts()
+        if len(train_counts) < 2 or train_counts.min() < model.cv_folds:
+            return (
+                f"the pre-{model.time_cutoff + 1} training set cannot support "
+                f"{model.cv_folds}-fold stratified model selection; lower cv_folds or "
+                "choose a later --time-cutoff"
             )
     return ""
 

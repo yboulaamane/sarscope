@@ -1,0 +1,17 @@
+molecule_id,smiles,pactivity,note
+DEMO01,Cc1ccccc1,6.1,illustrative synthetic potency
+DEMO02,CCc1ccccc1,6.8,illustrative synthetic potency
+DEMO03,COc1ccccc1,7.4,illustrative synthetic potency
+DEMO04,Nc1ccccc1,8.2,illustrative synthetic potency
+DEMO05,Clc1ccccc1,6.4,illustrative synthetic potency
+DEMO06,Fc1ccccc1,6.0,illustrative synthetic potency
+DEMO07,N#Cc1ccccc1,7.8,illustrative synthetic potency
+DEMO08,O=C(O)c1ccccc1,5.7,illustrative synthetic potency
+DEMO09,Cc1ccncc1,6.5,illustrative synthetic potency
+DEMO10,CCc1ccncc1,7.1,illustrative synthetic potency
+DEMO11,COc1ccncc1,8.0,illustrative synthetic potency
+DEMO12,Nc1ccncc1,8.7,illustrative synthetic potency
+DEMO13,Clc1ccncc1,6.9,illustrative synthetic potency
+DEMO14,Fc1ccncc1,6.3,illustrative synthetic potency
+DEMO15,N#Cc1ccncc1,8.1,illustrative synthetic potency
+DEMO16,O=C(O)c1ccncc1,5.9,illustrative synthetic potency
