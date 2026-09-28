@@ -56,9 +56,6 @@ sarscope = "sarscope.__main__:main"
 where = ["src"]
 include = ["sarscope*"]
 
-[tool.setuptools.package-data]
-sarscope = ["data/*.csv"]
-
 [tool.pytest.ini_options]
 testpaths = ["tests"]
 pythonpath = ["src"]

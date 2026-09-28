@@ -13,7 +13,6 @@ import io
 import sys
 import zipfile
 from dataclasses import dataclass, field
-from importlib import resources
 from importlib.util import find_spec
 from pathlib import Path
 from tempfile import TemporaryDirectory
@@ -890,34 +889,6 @@ def report_zip(results: RunResults) -> bytes:
         return buffer.getvalue()
 
 
-@st.cache_data(show_spinner=False)
-def demo_data() -> pd.DataFrame:
-    """Tiny packaged dataset: no API call and no analysis wait."""
-    resource = resources.files("sarscope").joinpath("data/demo.csv")
-    with resource.open("rb") as handle:
-        return pd.read_csv(handle)
-
-
-def show_demo_preview() -> None:
-    data = demo_data()
-    with st.expander("Instant demo dataset", expanded=True):
-        st.caption(
-            "Bundled locally so a cold app has something useful before ChEMBL responds. "
-            "The pActivity values are synthetic and illustrative, not experimental evidence."
-        )
-        cols = st.columns(3)
-        cols[0].metric("Demo molecules", len(data))
-        potency_range = f"{data['pactivity'].min():.1f}–{data['pactivity'].max():.1f}"
-        cols[1].metric("Potency range", potency_range)
-        cols[2].metric("Network wait", "none")
-        structure_grid(
-            [
-                (row.smiles, f"{row.molecule_id} · synthetic pActivity {row.pactivity:.1f}")
-                for row in data.nlargest(4, "pactivity").itertuples()
-            ]
-        )
-
-
 WORKFLOW_KEYS = (
     "curation_stage",
     "property_stage",
@@ -1072,20 +1043,38 @@ def main() -> None:
     settings = sidebar()
 
     st.title("SARscope")
-    st.caption("Target ID in, structure–activity report out.")
-    if "curation_stage" not in st.session_state:
-        show_demo_preview()
+    st.markdown(
+        "Turn a ChEMBL target into an auditable, stepwise medicinal-chemistry analysis: "
+        "curate assay records, inspect chemical space and SAR, then build and explain "
+        "predictive models only when the data support them."
+    )
+    overview = st.columns(3)
+    overview[0].caption(
+        "**1 · Curate**  Confirm the target and activity types, then standardise and "
+        "filter experimental records."
+    )
+    overview[1].caption(
+        "**2 · Understand SAR**  Explore physicochemical space, scaffolds, matched pairs, "
+        "R-groups, and activity cliffs."
+    )
+    overview[2].caption(
+        "**3 · Model carefully**  Compare validation strategies, inspect errors and "
+        "feature effects, and check applicability."
+    )
+    st.caption(
+        "QSAR predictions support compound prioritisation; they do not by themselves "
+        "establish binding, selectivity, safety, or experimental activity."
+    )
 
     reason = unavailable_reason()
     if reason:
         # Everything still works; structures fall back to SMILES text.
         st.warning(f"Structures cannot be drawn here. {reason}")
 
-    left, right = st.columns([3, 1])
+    left, right = st.columns([3, 1], vertical_alignment="bottom")
     raw_id = left.text_input(
         "ChEMBL target ID", value="CHEMBL5145", help="e.g. CHEMBL5145 (BRAF) or just 5145"
     )
-    right.write("")
     check_target = right.button("Check target", type="primary", width="stretch")
 
     if not settings["types"]:
