@@ -112,7 +112,12 @@ def fetch(target_id: str, types: tuple[str, ...]) -> list[dict[str, Any]]:
 
 @st.cache_resource(ttl=3600, show_spinner=False, max_entries=3)
 def run_analysis(
-    target_id: str, types: tuple[str, ...], params: RunParams, release: str
+    target_id: str,
+    types: tuple[str, ...],
+    params: RunParams,
+    release: str,
+    target_name: str,
+    organism: str,
 ) -> RunResults:
     """Cached on the settings, so changing a slider re-runs but a redraw does not.
 
@@ -120,8 +125,11 @@ def run_analysis(
     """
     records = fetch(target_id, types)
     results = analyse(curate_chembl(records, params), params)
-    with client() as c:
-        target = c.target(target_id)
+    target = {
+        "target_chembl_id": target_id,
+        "pref_name": target_name,
+        "organism": organism,
+    }
     results.provenance = provenance.collect(
         params, provenance.chembl_source(target, release, len(records))
     )
@@ -144,6 +152,7 @@ def build_params(settings: dict[str, Any]) -> RunParams:
         model=ModelParams(
             features=FeatureParams(fingerprint=settings["model_fp"]),
             algorithms=tuple(settings["algorithms"]),
+            regression_algorithms=tuple(settings["algorithms"]),
             split=settings["split"],
             time_cutoff=settings["time_cutoff"],
             cv_folds=settings["cv_folds"],
@@ -699,7 +708,7 @@ def show_demo_preview() -> None:
 def sidebar() -> dict[str, Any]:
     with st.sidebar:
         st.markdown("### Settings")
-        st.caption("Every default matches the reference workflow unless the label says otherwise.")
+        st.caption("Fast browser defaults; the CLI remains available for exhaustive runs.")
 
         with st.expander("Curation", expanded=True):
             types = st.multiselect("Activity types", ACTIVITY_TYPES, default=["IC50"])
@@ -712,9 +721,7 @@ def sidebar() -> dict[str, Any]:
             )
 
         with st.expander("Landscape"):
-            fingerprints = st.multiselect(
-                "Fingerprints", ["ecfp4", "maccs"], default=["ecfp4", "maccs"]
-            )
+            fingerprints = st.multiselect("Fingerprints", ["ecfp4", "maccs"], default=["ecfp4"])
 
         with st.expander("Models"):
             algorithms = st.multiselect(
@@ -736,7 +743,7 @@ def sidebar() -> dict[str, Any]:
             cv_folds = st.slider("Cross-validation folds", 3, 10, 5)
             audit = st.checkbox(
                 "Run the leakage audit",
-                value=True,
+                value=False,
                 help="Also runs the reference workflow's order and reports the gap.",
             )
 
@@ -776,7 +783,7 @@ def main() -> None:
         "ChEMBL target ID", value="CHEMBL5145", help="e.g. CHEMBL5145 (BRAF) or just 5145"
     )
     right.write("")
-    go = right.button("Analyse", type="primary", width="stretch")
+    check_target = right.button("Check target", type="primary", width="stretch")
 
     if not settings["types"]:
         st.info("Choose at least one activity type in the sidebar.")
@@ -787,12 +794,30 @@ def main() -> None:
         st.error(str(exc))
         return
 
-    try:
-        with st.spinner("Asking ChEMBL…"):
-            target, release, n_records = lookup(target_id, tuple(settings["types"]))
-    except ChemblError as exc:
-        st.error(str(exc))
+    lookup_key = (target_id, tuple(settings["types"]))
+    if check_target:
+        try:
+            with st.spinner("Checking this target in ChEMBL…"):
+                target, release, n_records = lookup(target_id, lookup_key[1])
+        except ChemblError as exc:
+            st.error(str(exc))
+            return
+        st.session_state["target_lookup"] = {
+            "key": lookup_key,
+            "target": target,
+            "release": release,
+            "n_records": n_records,
+        }
+        st.session_state.pop("analysed", None)
+        st.session_state.pop("report_zip", None)
+
+    target_lookup = st.session_state.get("target_lookup")
+    if target_lookup is None or target_lookup.get("key") != lookup_key:
+        st.info("Enter a ChEMBL ID and press **Check target**. No network request runs at startup.")
         return
+    target = target_lookup["target"]
+    release = str(target_lookup["release"])
+    n_records = int(target_lookup["n_records"])
 
     resolved_id = str(target["target_chembl_id"])
     st.subheader(f"{target['pref_name']} · {resolved_id}")
@@ -810,12 +835,19 @@ def main() -> None:
         st.warning("No records of these types for this target.")
         return
 
+    params = build_params(settings)
+    analysis_key = (target_id, tuple(settings["types"]), repr(params.to_dict()))
+    go = st.button(f"Analyse {resolved_id}", type="primary")
     if go:
-        st.session_state["analysed"] = (target_id, tuple(settings["types"]))
-    if st.session_state.get("analysed") != (target_id, tuple(settings["types"])):
-        st.info("Press **Analyse** to curate these records and run the full analysis.")
-        with st.expander("Raw records, before curation"):
-            records = fetch(target_id, tuple(settings["types"]))
+        st.session_state["analysed"] = analysis_key
+    if st.session_state.get("analysed") != analysis_key:
+        st.info(
+            "The target check is complete. Analyse only when you want the full download "
+            "and models. Changing a setting will not start a run automatically."
+        )
+        if st.button("Load raw-field breakdown"):
+            with st.spinner("Downloading raw activity records…"):
+                records = fetch(target_id, tuple(settings["types"]))
             for row in range(0, len(FETCH_SUMMARY_FIELDS), 2):
                 for col, field in zip(
                     st.columns(2), FETCH_SUMMARY_FIELDS[row : row + 2], strict=False
@@ -830,10 +862,16 @@ def main() -> None:
                         )
         return
 
-    params = build_params(settings)
     try:
         with st.spinner("Curating, then running every analysis. The first run takes a minute…"):
-            results = run_analysis(target_id, tuple(settings["types"]), params, release)
+            results = run_analysis(
+                target_id,
+                tuple(settings["types"]),
+                params,
+                release,
+                str(target["pref_name"]),
+                str(target["organism"]),
+            )
     except ChemblError as exc:
         st.error(str(exc))
         return
@@ -880,13 +918,18 @@ def main() -> None:
             "as CSV, every figure as PNG, and provenance.json recording the exact settings, "
             "ChEMBL release and package versions behind these numbers."
         )
-        st.download_button(
-            "Download the report folder (.zip)",
-            data=report_zip(results),
-            file_name=f"sarscope_{target_id}.zip",
-            mime="application/zip",
-            type="primary",
-        )
+        report_key = (target_id, repr(params.to_dict()))
+        if st.button("Prepare report archive", type="primary"):
+            with st.spinner("Building the report archive…"):
+                st.session_state["report_zip"] = (report_key, report_zip(results))
+        prepared = st.session_state.get("report_zip")
+        if prepared is not None and prepared[0] == report_key:
+            st.download_button(
+                "Download the report folder (.zip)",
+                data=prepared[1],
+                file_name=f"sarscope_{target_id}.zip",
+                mime="application/zip",
+            )
         st.json(results.provenance, expanded=False)
 
 
