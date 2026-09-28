@@ -13,8 +13,9 @@ def test_braf_resolves():
     assert target["pref_name"] == "Serine/threonine-protein kinase B-raf"
 
 
-def test_the_paper_target_id_is_not_braf():
-    # The reference paper cites "target ID: 5651". That is STK35.
+def test_a_near_miss_target_id_resolves_to_a_different_protein():
+    # CHEMBL5651 is STK35, not BRAF. A transposed digit fetches another protein
+    # rather than failing, which is why the CLI and app always print the name.
     with ChemblClient() as client:
         target = client.target("5651")
         n = client.count_activities("5651")

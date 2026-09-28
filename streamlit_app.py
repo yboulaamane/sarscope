@@ -314,11 +314,11 @@ def show_overview(results: RunResults) -> None:
             ]
         )
 
-    if results.models is not None and "paper" in set(results.models.scores["protocol"]):
+    if results.models is not None and "naive" in set(results.models.scores["protocol"]):
         wide = results.models.scores.pivot(
             index="algorithm", columns="protocol", values="test_accuracy"
         )
-        gap = (wide["paper"] - wide["leak_free"]).max()
+        gap = (wide["naive"] - wide["leak_free"]).max()
         st.info(
             f"**Leakage audit.** Oversampling before the train/test split would have "
             f"inflated test accuracy by up to {gap:.3f} on this dataset. See the Models tab."
@@ -356,7 +356,7 @@ def show_curation(results: RunResults) -> None:
 
 
 def show_properties(results: RunResults) -> None:
-    from sarscope.analysis.descriptors import PAPER_DESCRIPTORS
+    from sarscope.analysis.descriptors import CORE_DESCRIPTORS
 
     table = results.table.copy()
     table["group_label"] = ["Group 1" if g == 1 else "Group 2" for g in table["group"]]
@@ -364,23 +364,26 @@ def show_properties(results: RunResults) -> None:
         "Distributions by activity group, then the same six properties reduced to two "
         "components. Hover any point for the molecule behind it."
     )
-    for row in range(0, len(PAPER_DESCRIPTORS), 3):
-        for col, prop in zip(st.columns(3), PAPER_DESCRIPTORS[row : row + 3], strict=False):
+    for row in range(0, len(CORE_DESCRIPTORS), 3):
+        for col, prop in zip(st.columns(3), CORE_DESCRIPTORS[row : row + 3], strict=False):
             col.altair_chart(histogram(table, prop), width="stretch")
 
-    stats = results.profile.stats.reset_index()
-    with st.expander("Table 2 — descriptor statistics and Mann-Whitney p-values"):
-        st.caption("Kurtosis is Fisher excess kurtosis, so a normal distribution scores 0.")
-        st.dataframe(stats, hide_index=True, width="stretch")
-        st.dataframe(
-            results.profile.p_values.rename("p_value").rename_axis("property").reset_index(),
-            hide_index=True,
-            width="stretch",
-        )
+    if results.profile is None:
+        # One group only: the comparison is meaningless, the PCA below is not.
+        st.info(results.skipped.get("profile", "No group comparison available."))
+    else:
+        with st.expander("Descriptor statistics and Mann-Whitney p-values"):
+            st.caption("Kurtosis is Fisher excess kurtosis, so a normal distribution scores 0.")
+            st.dataframe(results.profile.stats.reset_index(), hide_index=True, width="stretch")
+            st.dataframe(
+                results.profile.p_values.rename("p_value").rename_axis("property").reset_index(),
+                hide_index=True,
+                width="stretch",
+            )
 
     st.markdown("**Chemical space (PCA on the six properties)**")
     st.altair_chart(pca_chart(results), width="stretch")
-    with st.expander("Table 3 — PCA loadings"):
+    with st.expander("PCA loadings"):
         st.caption(
             "Properties are standardised first, or molecular weight would dominate every "
             "component. Signs are fixed so two runs are comparable."
@@ -402,8 +405,8 @@ def show_properties(results: RunResults) -> None:
 def show_scaffolds(results: RunResults) -> None:
     st.caption(
         "Ns scaffolds, Nss of them carrying a single molecule, Ncsk cyclic skeletons. "
-        "The skeleton columns use RDKit's generic scaffold, which is not DataWarrior's "
-        "definition, so they are not comparable with the reference paper."
+        'The skeleton columns use RDKit\'s generic scaffold; "cyclic skeleton" has no single '
+        "definition, so skeleton counts from different tools are not comparable."
     )
     st.dataframe(results.diversity.reset_index(names="class"), width="stretch")
 
@@ -558,7 +561,7 @@ def show_landscape(results: RunResults) -> None:
             )
             st.caption(
                 "Molecules forming many cliffs at once. They are hard for a model and "
-                "informative for a chemist, which is why the paper singles them out."
+                "informative for a chemist: a small change here moves potency a lot."
             )
             if len(generators):
                 structure_grid(
@@ -586,9 +589,10 @@ def show_models(results: RunResults) -> None:
         return
     st.caption(
         "**leak_free** selects features and resamples inside training folds only, after the "
-        "split. **paper** reproduces the reference workflow's order — select and oversample on "
-        "everything, then split — which puts copies of training molecules in the test set. "
-        "The gap between the two rows is the inflation that order produces on this dataset."
+        "split. **naive** is the common ordering — select and oversample on everything, then "
+        "split — which puts copies of training molecules in the test set and picks features "
+        "using the held-out rows. The gap between the two rows is how much that ordering "
+        "would have flattered these models."
     )
     scores = results.models.scores
     show = scores[
@@ -605,9 +609,9 @@ def show_models(results: RunResults) -> None:
     )
     st.markdown(f"Best model by cross-validated MCC: **{results.models.best_algorithm}**")
 
-    if "paper" in set(scores["protocol"]):
+    if "naive" in set(scores["protocol"]):
         wide = scores.pivot(index="algorithm", columns="protocol", values="test_accuracy")
-        gap = (wide["paper"] - wide["leak_free"]).sort_values(ascending=False)
+        gap = (wide["naive"] - wide["leak_free"]).sort_values(ascending=False)
         st.markdown("**Inflation from the leaky order, in test accuracy**")
         st.dataframe(
             gap.rename("inflation").reset_index(),
@@ -738,8 +742,8 @@ def main() -> None:
     cols[2].metric("Type", str(target["target_type"]).title())
     cols[3].metric(f"{'/'.join(settings['types'])} records", f"{n_records:,}")
     st.caption(
-        f"Data: {release}. Check the name above — a wrong ID silently fetches a different "
-        "protein, which is how a published paper ended up citing STK35 for a BRAF study."
+        f"Data: {release}. Check the name above — a wrong ID does not fail, it quietly "
+        "fetches a different protein, and every number below is then about that protein."
     )
 
     if n_records == 0:

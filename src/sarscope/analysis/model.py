@@ -1,8 +1,13 @@
 """Multiclass QSAR bake-off, with the validation done in an order that cannot leak.
 
-The fourteen algorithms and their hyperparameters are the paper's Table 1,
-which follows scikit-learn's "classifier comparison" example (hence GaussianNB
-and QDA with defaults). ``random_state=seed`` wherever the estimator takes one.
+The fourteen algorithms and their hyperparameters follow scikit-learn's
+"classifier comparison" example, which is the usual starting grid in published
+QSAR bake-offs (hence GaussianNB and QDA at their defaults).
+``random_state=seed`` wherever the estimator takes one.
+
+These are starting points, not tuned models. A bake-off answers "which family
+is worth pursuing on this data", not "how good can this get" - the winner
+deserves a proper hyperparameter search afterwards.
 
 **The leak-free protocol** (the default):
 
@@ -18,19 +23,25 @@ and QDA with defaults). ``random_state=seed`` wherever the estimator takes one.
        the majority count, seeded). Evaluation rows are never filtered-on,
        never duplicated.
 
-**The paper's protocol** (``leakage_audit``) is: select features on all data,
-oversample all data, then split 80:20 and cross-validate. On BRAF that
-oversampling turns 3,952 molecules into 4,872 (Fig. 3: 4 x 1,218 potent), so
-920 rows are copies. After a random split, copies of one molecule sit in both
-train and test, and in both sides of every CV fold, so the model is partly
-graded on molecules it trained on. Running both protocols on the same data
-and reporting the gap turns "this leaks" from an assertion into a number.
+**The naive protocol** (``leakage_audit``) is: select features on all data,
+oversample all data, then split and cross-validate. This ordering is extremely
+common in published QSAR, and it leaks twice over. Oversampling duplicates
+minority-class rows, so after the split copies of one molecule sit on both
+sides - the model is graded partly on molecules it trained on. Selecting
+features on all data leaks more quietly, because which features survive was
+decided using the held-out rows.
+
+Running both protocols on the same data and reporting the gap turns "this
+leaks" from an assertion into a number for your dataset. On labels that carry
+no signal at all, the naive order scores Extra Trees at MCC 0.99 where the
+leak-free order correctly scores 0.00.
 
 **Metrics:** accuracy, balanced accuracy, and multiclass MCC
-(``sklearn.metrics.matthews_corrcoef``). The paper also reports micro-averaged
-recall, but in single-label multiclass that is identical to accuracy by
-definition, so it is not repeated. "train" is resubstitution on the training
-set, reported because the paper reports it, never used for ranking.
+(``sklearn.metrics.matthews_corrcoef``). MCC is the one to read on imbalanced
+classes: accuracy rewards a model that simply predicts the majority class.
+Micro-averaged recall is not reported because in single-label multiclass it is
+identical to accuracy by definition. "train" is resubstitution on the training
+set, reported for comparison only and never used for ranking.
 
 **Choosing the best model uses CV MCC, not test.** Picking the winner by test
 score is a second leak; the test set is scored once, for the chosen model and
@@ -74,8 +85,8 @@ from sklearn.tree import DecisionTreeClassifier
 from sarscope.analysis.features import VarianceCorrelationFilter
 from sarscope.params import ModelParams
 
-#: name -> factory(seed) -> unfitted estimator, with the paper's Table 1
-#: hyperparameters. Tree ensembles use every core; results do not depend on it.
+#: name -> factory(seed) -> unfitted estimator. Tree ensembles use every core;
+#: results do not depend on it.
 ALGORITHMS: dict[str, Callable[[int], Any]] = {
     "nearest_neighbors": lambda seed: KNeighborsClassifier(n_neighbors=4, weights="uniform"),
     "linear_svm": lambda seed: SVC(kernel="linear", C=0.25, random_state=seed),
@@ -104,7 +115,7 @@ ALGORITHMS: dict[str, Callable[[int], Any]] = {
 #: Columns of ModelResult.scores.
 SCORE_COLUMNS: tuple[str, ...] = (
     "algorithm",
-    "protocol",  # "leak_free" or "paper"
+    "protocol",  # "leak_free" or "naive"
     "train_accuracy",
     "cv_accuracy",
     "cv_accuracy_sd",
@@ -137,7 +148,7 @@ def evaluate(
     params: ModelParams,
 ) -> ModelResult:
     """Run every algorithm in ``params.algorithms`` under the leak-free protocol,
-    and also under the paper's protocol if ``params.leakage_audit``.
+    and also under the naive protocol if ``params.leakage_audit``.
 
     ``groups`` is the Murcko scaffold per row (None for acyclic), used only when
     ``params.split == "scaffold"``. The single name "all" expands to every key
@@ -159,7 +170,7 @@ def evaluate(
     for name in names:
         rows.append(_leak_free(name, X, labels, group_ids, train_idx, test_idx, params))
         if params.leakage_audit:
-            rows.append(_paper_protocol(name, X, labels, params))
+            rows.append(_naive_protocol(name, X, labels, params))
     scores = pd.DataFrame(rows, columns=list(SCORE_COLUMNS))
 
     ranked = scores[scores["protocol"] == "leak_free"].assign(
@@ -291,10 +302,13 @@ def _leak_free(
     return _row(name, "leak_free", train, cv, test, filt.n_after_correlation_)
 
 
-def _paper_protocol(
+def _naive_protocol(
     name: str, X: NDArray[Any], y: NDArray[Any], params: ModelParams
 ) -> dict[str, Any]:
-    """Select features on everything, oversample everything, then split."""
+    """Select features on everything, oversample everything, then split.
+
+    The leaky ordering, run deliberately so the gap can be measured.
+    """
     feats = params.features
     filt = VarianceCorrelationFilter(feats.variance_threshold, feats.correlation_threshold).fit(X)
     Xo, yo = oversample(filt.transform(X), y, params.seed)
@@ -308,4 +322,4 @@ def _paper_protocol(
     model = _fit(name, X_tr, y_tr, params.seed)
     train = _metrics(y_tr, _predict(model, X_tr))
     test = _metrics(y_te, _predict(model, X_te))
-    return _row(name, "paper", train, cv, test, filt.n_after_correlation_)
+    return _row(name, "naive", train, cv, test, filt.n_after_correlation_)

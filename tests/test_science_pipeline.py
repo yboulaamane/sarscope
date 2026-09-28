@@ -5,7 +5,7 @@ import json
 import pandas as pd
 import pytest
 
-from sarscope.analysis.descriptors import PAPER_DESCRIPTORS
+from sarscope.analysis.descriptors import CORE_DESCRIPTORS
 from sarscope.curate import CURATED_COLUMNS, CurationResult, CurationStep
 from sarscope.params import LandscapeParams, ModelParams, RunParams
 from sarscope.pipeline import analyse
@@ -62,7 +62,7 @@ def params(**model) -> RunParams:
 
 def test_analyse_fills_every_result(curation):
     results = analyse(curation, params())
-    assert set(PAPER_DESCRIPTORS) <= set(results.table.columns)
+    assert set(CORE_DESCRIPTORS) <= set(results.table.columns)
     assert {"murcko", "skeleton"} <= set(results.table.columns)
     assert len(results.table) == 80
     assert set(results.landscapes) == {"ecfp4", "maccs"}
@@ -87,15 +87,15 @@ def test_report_folder(curation, tmp_path):
         "provenance.json",
         "tables/curation_log.csv",
         "tables/curated_dataset.csv",
-        "tables/table2_descriptor_profile.csv",
-        "tables/table3_pca_loadings.csv",
-        "tables/table4_scaffold_diversity.csv",
+        "tables/descriptor_profile.csv",
+        "tables/pca_loadings.csv",
+        "tables/scaffold_diversity.csv",
         "tables/scaffold_enrichment.csv",
         "tables/cliffs_ecfp4.csv",
         "tables/cliffs_maccs.csv",
-        "tables/table6_models.csv",
-        "figures/fig5_pca.png",
-        "figures/fig8_sas_maccs.png",
+        "tables/model_scores.csv",
+        "figures/chemical_space.png",
+        "figures/cliffs_maccs.png",
     ]:
         assert (out / name).is_file(), name
     text = html.read_text()
@@ -114,3 +114,28 @@ def test_report_overwrites_its_own_previous_output(curation, tmp_path):
     results = analyse(curation, params())
     write_report(results, tmp_path / "r")
     write_report(results, tmp_path / "r")
+
+
+def test_too_few_scaffolds_for_a_scaffold_split_is_reported_not_raised(curation):
+    """A small in-house set often has fewer scaffolds than folds.
+
+    Found by running the tool on a 120-molecule table built from 10 scaffolds:
+    StratifiedGroupKFold raised rather than the step being skipped.
+    """
+    results = analyse(curation, params(cv_folds=10, split="scaffold"))
+    assert results.models is None
+    assert "scaffold" in results.skipped["model"]
+    assert "--split random" in results.skipped["model"]
+    assert not results.diversity.empty
+
+
+def test_a_random_split_works_where_a_scaffold_split_cannot(curation):
+    results = analyse(curation, params(cv_folds=5, split="random"))
+    assert results.models is not None
+
+
+def test_single_class_is_reported_with_a_remedy(curation):
+    one = curation.table.assign(activity_class="potent", group=1)
+    results = analyse(CurationResult(table=one, steps=curation.steps), params())
+    assert results.models is None
+    assert "one activity class" in results.skipped["model"]

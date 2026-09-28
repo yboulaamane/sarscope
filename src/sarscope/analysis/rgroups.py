@@ -1,10 +1,10 @@
 """R-group decomposition with per-position activity statistics.
 
-This is the input to the one step of the reference workflow a tool cannot
-finish. The paper's Table 5 reads "tert-butyl on R3 is highly beneficial;
-substitution on R5 gives inactive compounds" - a chemist's reading of a
-substituent table. SARscope builds that table and its statistics; the
-interpretation stays with the chemist.
+A SAR write-up ends in sentences like "tert-butyl at R3 is highly beneficial,
+while substitution at R5 gives inactive compounds". Reaching that sentence is a
+chemist's job. Building the table it is read from - which substituents occur at
+which position, in how many molecules, and with what effect on potency - is
+mechanical, and is what this module does.
 
 For each scaffold with enough members, RDKit's ``RGroupDecomposition`` splits
 every molecule into a shared core plus substituents at numbered positions

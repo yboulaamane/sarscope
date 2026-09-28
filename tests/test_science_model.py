@@ -63,7 +63,7 @@ def dataset(signal: bool, seed: int = 0):
 
     With ``signal``, bits 8k..8k+7 are on exactly for class k: a perfect
     indicator per class (the filter keeps one bit of each block, and drops the
-    rarest class's as low-variance). Prototyped on three seeds with the paper's
+    rarest class's as low-variance). Prototyped on three seeds with the default
     hyperparameters and a scaffold split: Extra Trees MCC 0.92-0.94,
     nearest neighbours 0.43-0.50 (the 32 random bits dominate its distances).
     """
@@ -88,7 +88,7 @@ def test_result_shape():
     result = evaluate(X, y, groups, fast_params())
     assert list(result.scores.columns) == list(SCORE_COLUMNS)
     assert set(zip(result.scores["algorithm"], result.scores["protocol"], strict=True)) == {
-        (a, p) for a in FAST for p in ("leak_free", "paper")
+        (a, p) for a in FAST for p in ("leak_free", "naive")
     }
     assert result.best_algorithm in FAST
     assert not set(result.train_index) & set(result.test_index)
@@ -117,15 +117,15 @@ def test_learns_real_signal():
     assert leak_free.loc["nearest_neighbors", "test_mcc"] > 0.3
 
 
-def test_the_papers_protocol_scores_noise_as_signal():
+def test_the_naive_protocol_scores_noise_as_signal():
     # Labels are pure noise: the honest MCC is about zero. Oversampling before
     # splitting puts copies of training molecules in the test set. Prototyped
-    # on five seeds: Extra Trees leak-free 0.00 vs paper order 0.98-0.99.
+    # on five seeds: Extra Trees leak-free 0.00 vs naive order 0.98-0.99.
     X, y, groups = dataset(signal=False)
     scores = evaluate(X, y, groups, fast_params(split="random")).scores
     et = scores[scores["algorithm"] == "extra_trees"].set_index("protocol")
     assert abs(et.loc["leak_free", "test_mcc"]) < 0.2
-    assert et.loc["paper", "test_mcc"] > et.loc["leak_free", "test_mcc"] + 0.5
+    assert et.loc["naive", "test_mcc"] > et.loc["leak_free", "test_mcc"] + 0.5
 
 
 def test_best_model_is_chosen_on_cv_not_test():

@@ -1,13 +1,15 @@
-"""Applicability domain: the PCA bounding box, as in the paper's Fig. 10.
+"""Applicability domain: the PCA bounding box.
 
 Fit PCA on the *training* feature matrix (after the feature filter, which is
 fitted on the training set too), take the per-component [min, max] of the
 training scores, and call a query compound in-domain if every one of its
 component scores falls inside that box, bounds inclusive.
 
-This is the weakest common AD method - a box in two dimensions is generous,
-and a molecule can sit inside it while being far from every training compound.
-It is implemented because the paper uses it; the report states what it is.
+This is the weakest of the common AD methods - a box in two dimensions is
+generous, and a molecule can sit inside it while being far from every training
+compound. It is here because it is what most published QSAR work reports, so
+it makes results comparable; the report says plainly what it does and does not
+establish. Treat a high coverage number as a floor, not a guarantee.
 """
 
 from __future__ import annotations

@@ -3,17 +3,18 @@
     <out>/report.html          self-contained: figures inlined as base64 PNG
     <out>/provenance.json      versions, ChEMBL release, every parameter
     <out>/tables/*.csv         curation_log, curated_dataset, rejected,
-                               table2_descriptor_profile, table3_pca_loadings,
-                               table4_scaffold_diversity, scaffold_enrichment,
+                               descriptor_profile, pca_loadings,
+                               scaffold_diversity, scaffold_enrichment,
                                cliffs_<fp>, identical_pairs_<fp>,
                                cliff_generators_<fp>, consensus_cliffs,
-                               table6_models, rgroups_<n>_substituents/members
-    <out>/figures/*.png        fig4_descriptors, fig5_pca, fig8_sas_<fp>,
-                               fig9_generators_<fp>, fig10_domain
+                               model_scores, rgroups_<n>_substituents/members
+    <out>/figures/*.png        descriptor_distributions, chemical_space, cliffs_<fp>,
+                               cliff_generators_<fp>, applicability_domain
 
-Table and figure names follow the reference paper's numbering so the two can
-be read side by side. Figures use matplotlib's Agg backend (no display needed,
-works in CI and on Colab).
+Every table is written as CSV under its own descriptive name, so a reader can
+take one into a spreadsheet without unpicking the HTML. Figures use
+matplotlib's Agg backend, so no display is needed and it works in CI and on
+Colab.
 
 The report opens with the curation log and the list of skipped steps, before
 any result: a reader should know what the numbers are numbers *of* first.
@@ -36,7 +37,7 @@ import matplotlib.pyplot as plt  # noqa: E402
 import pandas as pd  # noqa: E402
 
 from sarscope import provenance  # noqa: E402
-from sarscope.analysis.descriptors import PAPER_DESCRIPTORS  # noqa: E402
+from sarscope.analysis.descriptors import CORE_DESCRIPTORS  # noqa: E402
 from sarscope.analysis.landscape import cliff_generators  # noqa: E402
 from sarscope.depict import to_data_uri  # noqa: E402
 from sarscope.pipeline import RunResults  # noqa: E402
@@ -146,16 +147,17 @@ def _write_tables(results: RunResults, out: Path) -> dict[str, pd.DataFrame]:
         "curation_log": log,
         "curated_dataset": results.table,
         "rejected": results.curation.rejected,
-        "table2_descriptor_profile": results.profile.stats.reset_index().merge(
-            results.profile.p_values.rename("p_value").rename_axis("property").reset_index(),
-            on="property",
-            how="left",
-        ),
-        "table3_pca_loadings": pd.concat([loadings, explained, cumulative], ignore_index=True),
-        "table4_scaffold_diversity": results.diversity.reset_index(names="class"),
+        "pca_loadings": pd.concat([loadings, explained, cumulative], ignore_index=True),
+        "scaffold_diversity": results.diversity.reset_index(names="class"),
         "scaffold_enrichment": results.enrichment,
         "consensus_cliffs": results.consensus_cliffs,
     }
+    if results.profile is not None:
+        written["descriptor_profile"] = results.profile.stats.reset_index().merge(
+            results.profile.p_values.rename("p_value").rename_axis("property").reset_index(),
+            on="property",
+            how="left",
+        )
     for name, sas in results.landscapes.items():
         written[f"cliffs_{name}"] = sas.cliffs
         written[f"identical_pairs_{name}"] = sas.identical_pairs
@@ -163,7 +165,7 @@ def _write_tables(results: RunResults, out: Path) -> dict[str, pd.DataFrame]:
             sas.cliffs, results.params.landscape.generator_sd
         )
     if results.models is not None:
-        written["table6_models"] = results.models.scores
+        written["model_scores"] = results.models.scores
     for i, sar in enumerate(results.rgroups, start=1):
         written[f"rgroups_{i:02d}_substituents"] = sar.substituents
         written[f"rgroups_{i:02d}_members"] = sar.members
@@ -198,7 +200,7 @@ def _write_figures(results: RunResults, out: Path) -> dict[str, str]:
     table = results.table
 
     fig, axes = plt.subplots(2, 3, figsize=(12, 6.2))
-    for ax, prop in zip(axes.ravel(), PAPER_DESCRIPTORS, strict=True):
+    for ax, prop in zip(axes.ravel(), CORE_DESCRIPTORS, strict=True):
         for group, color in GROUP_COLORS.items():
             values = table.loc[table["group"] == group, prop]
             if len(values):
@@ -206,9 +208,9 @@ def _write_figures(results: RunResults, out: Path) -> dict[str, str]:
         ax.set_title(prop, fontsize=10)
         _style(ax)
     axes.ravel()[0].legend(frameon=False, fontsize=8)
-    fig.suptitle("Fig. 4  Physicochemical properties by activity group", fontsize=11)
+    fig.suptitle("Physicochemical properties by activity group", fontsize=11)
     fig.tight_layout()
-    images["fig4_descriptors"] = _save(fig, out / "fig4_descriptors.png")
+    images["descriptor_distributions"] = _save(fig, out / "descriptor_distributions.png")
 
     fig, ax = plt.subplots(figsize=(6.4, 5.4))
     for group, color in GROUP_COLORS.items():
@@ -225,10 +227,10 @@ def _write_figures(results: RunResults, out: Path) -> dict[str, str]:
     var = results.pca.explained
     ax.set_xlabel(f"PC1 ({var.iloc[0]:.1%})")
     ax.set_ylabel(f"PC2 ({var.iloc[1]:.1%})")
-    ax.set_title("Fig. 5  Chemical space (property PCA)", fontsize=11)
+    ax.set_title("Chemical space (property PCA)", fontsize=11)
     ax.legend(frameon=False, fontsize=9)
     _style(ax)
-    images["fig5_pca"] = _save(fig, out / "fig5_pca.png")
+    images["chemical_space"] = _save(fig, out / "chemical_space.png")
 
     for name, sas in results.landscapes.items():
         fig, ax = plt.subplots(figsize=(6.4, 5.2))
@@ -245,9 +247,9 @@ def _write_figures(results: RunResults, out: Path) -> dict[str, str]:
         )
         ax.set_xlabel("Tanimoto similarity")
         ax.set_ylabel("|delta potency| (log units)")
-        ax.set_title(f"Fig. 8  Activity cliffs ({name})", fontsize=11)
+        ax.set_title(f"Activity cliffs ({name})", fontsize=11)
         _style(ax)
-        images[f"fig8_sas_{name}"] = _save(fig, out / f"fig8_sas_{name}.png")
+        images[f"cliffs_{name}"] = _save(fig, out / f"cliffs_{name}.png")
 
         gens = cliff_generators(sas.cliffs, results.params.landscape.generator_sd)
         if len(gens):
@@ -263,9 +265,9 @@ def _write_figures(results: RunResults, out: Path) -> dict[str, str]:
                 ax.axhline(threshold, color=MUTED, lw=1.2, ls="--")
             ax.set_xlabel("Molecules in at least one cliff")
             ax.set_ylabel("Cliffs formed")
-            ax.set_title(f"Fig. 9  Activity cliff generators ({name})", fontsize=11)
+            ax.set_title(f"Activity cliff generators ({name})", fontsize=11)
             _style(ax)
-            images[f"fig9_generators_{name}"] = _save(fig, out / f"fig9_generators_{name}.png")
+            images[f"cliff_generators_{name}"] = _save(fig, out / f"cliff_generators_{name}.png")
 
     if results.domain is not None:
         fig, ax = plt.subplots(figsize=(6.4, 5.2))
@@ -292,10 +294,10 @@ def _write_figures(results: RunResults, out: Path) -> dict[str, str]:
             )
         ax.set_xlabel("PC1")
         ax.set_ylabel("PC2")
-        ax.set_title("Fig. 10  Applicability domain (PCA bounding box)", fontsize=11)
+        ax.set_title("Applicability domain (PCA bounding box)", fontsize=11)
         ax.legend(frameon=False, fontsize=9)
         _style(ax)
-        images["fig10_domain"] = _save(fig, out / "fig10_domain.png")
+        images["applicability_domain"] = _save(fig, out / "applicability_domain.png")
     return images
 
 
@@ -399,28 +401,30 @@ def _render(
         )
 
     parts.append("<h2>2. Physicochemical properties</h2>")
-    parts.append(_figure(images, "fig4_descriptors"))
-    parts.append("<h3>Table 2 - descriptor statistics by group</h3>")
-    parts.append(
-        "<p class='note'>Kurtosis is Fisher excess kurtosis (normal = 0). p-values are "
-        "two-sided Mann-Whitney U, Group 1 against Group 2.</p>"
-    )
-    parts.append(_table_html(tables["table2_descriptor_profile"], limit=14))
-    parts.append("<h3>Table 3 - PCA loadings</h3>")
+    parts.append(_figure(images, "descriptor_distributions"))
+    if "descriptor_profile" in tables:
+        parts.append("<h3>Descriptor statistics by group</h3>")
+        parts.append(
+            "<p class='note'>Kurtosis is Fisher excess kurtosis (normal = 0). p-values are "
+            "two-sided Mann-Whitney U, Group 1 against Group 2.</p>"
+        )
+        parts.append(_table_html(tables["descriptor_profile"], limit=14))
+    parts.append("<h3>PCA loadings</h3>")
     parts.append(
         "<p class='note'>Properties are standardised before the PCA, or molecular weight "
         "would dominate every component. Component signs are fixed so runs are comparable.</p>"
     )
-    parts.append(_table_html(tables["table3_pca_loadings"]))
-    parts.append(_figure(images, "fig5_pca"))
+    parts.append(_table_html(tables["pca_loadings"]))
+    parts.append(_figure(images, "chemical_space"))
 
     parts.append("<h2>3. Scaffolds</h2>")
-    parts.append("<h3>Table 4 - Murcko scaffold diversity</h3>")
+    parts.append("<h3>Murcko scaffold diversity</h3>")
     parts.append(
-        "<p class='note'>Cyclic skeletons (Ncsk) use RDKit's generic scaffold, which is not "
-        "DataWarrior's definition; those columns are not comparable with the reference paper.</p>"
+        "<p class='note'>Cyclic skeletons (Ncsk) use RDKit's generic scaffold. "
+        '"Cyclic skeleton" has no single '
+        "definition, so skeleton counts from different tools are not comparable.</p>"
     )
-    parts.append(_table_html(tables["table4_scaffold_diversity"]))
+    parts.append(_table_html(tables["scaffold_diversity"]))
     parts.append("<h3>Scaffold enrichment</h3>")
     parts.append(
         "<p class='note'>EF is the Group 1 fraction within a scaffold over the Group 1 fraction "
@@ -493,7 +497,7 @@ def _render(
                 + [("Identical pairs", f"{len(sas.identical_pairs):,}")]
             )
         )
-        parts.append(_figure(images, f"fig8_sas_{name}"))
+        parts.append(_figure(images, f"cliffs_{name}"))
         if len(sas.cliffs):
             smiles = results.table.set_index("molecule_id")["smiles"]
             potency = results.table.set_index("molecule_id")["pactivity"]
@@ -510,7 +514,7 @@ def _render(
                     "What differs between these two structures is the SAR.</p>"
                 )
                 parts.append(_structures(pair, size=(300, 220)))
-        parts.append(_figure(images, f"fig9_generators_{name}"))
+        parts.append(_figure(images, f"cliff_generators_{name}"))
     if results.consensus_generators:
         parts.append(
             "<p class='note'>Cliff generators found under every fingerprint: "
@@ -521,23 +525,23 @@ def _render(
         parts.append("<h2>6. QSAR models</h2>")
         parts.append(
             "<p class='note'><b>leak_free</b> selects features and resamples inside training "
-            "folds only, after the split. <b>paper</b> reproduces the reference workflow's order "
-            "(select and oversample on everything, then split), which places copies of training "
-            "molecules in the test set. The gap between them is the inflation that order "
-            "produces on this dataset. The winner is chosen on cross-validated MCC, never on "
-            "the test set.</p>"
+            "folds only, after the split. <b>naive</b> is the common ordering - select and "
+            "oversample on everything, then split - which puts copies of training molecules in "
+            "the test set and chooses features using the held-out rows. The gap between the two "
+            "is how much that ordering would have flattered these models. The winner is chosen "
+            "on cross-validated MCC, never on the test set.</p>"
         )
         parts.append(f"<p>Best model: <b>{html.escape(results.models.best_algorithm)}</b></p>")
-        parts.append(_table_html(tables["table6_models"], limit=30))
+        parts.append(_table_html(tables["model_scores"], limit=30))
         if results.domain is not None:
-            parts.append("<h3>Fig. 10 - applicability domain</h3>")
+            parts.append("<h3>Applicability domain</h3>")
             parts.append(
                 f"<p class='note'>{results.domain.coverage:.1%} of test compounds fall inside "
                 "the training set's PCA bounding box. A box in two components is a generous "
                 "criterion: a molecule can sit inside it and still be far from every training "
                 "compound.</p>"
             )
-            parts.append(_figure(images, "fig10_domain"))
+            parts.append(_figure(images, "applicability_domain"))
 
     packages = record.get("packages", {})
     versions = ", ".join(f"{k} {v}" for k, v in packages.items() if v)

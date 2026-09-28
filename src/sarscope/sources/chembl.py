@@ -2,10 +2,12 @@
 
 Three decisions worth knowing about:
 
-**Always resolve the target first.** A wrong target ID does not fail; it fetches
-a different protein. The BRAF paper this tool reproduces gives "target ID: 5651",
-but CHEMBL5651 is STK35 (3 IC50 records), not BRAF (CHEMBL5145, 11,017). The
-CLI prints the resolved name and organism before downloading anything.
+**Always resolve the target first.** A wrong target ID does not fail; it
+quietly fetches a different protein, and every number downstream is then about
+that protein. Transposed digits are easy to make and hard to spot: CHEMBL5651
+is STK35, with 3 IC50 records, while BRAF is CHEMBL5145 with 11,017. The CLI
+and app both print the resolved name and organism before downloading anything,
+so a mistake shows up immediately rather than in the conclusions.
 
 **The cache key includes the ChEMBL release.** Responses are cached as gzipped
 JSON so a report can be regenerated offline, but a new release must never be

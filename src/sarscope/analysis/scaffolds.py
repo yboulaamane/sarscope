@@ -1,4 +1,4 @@
-"""Murcko scaffold diversity (Table 4) and scaffold enrichment factors.
+"""Murcko scaffold diversity and scaffold enrichment factors.
 
 Scaffolds come from Sorbent: ``murcko_scaffold`` (ring systems + linkers, atom
 types kept) and ``generic_scaffold`` (all atoms carbon, all bonds single - the
@@ -7,17 +7,15 @@ types kept) and ``generic_scaffold`` (all atoms carbon, all bonds single - the
 **Acyclic molecules** count towards N but have no scaffold, so they contribute
 to no scaffold or skeleton count. The table reports how many there were.
 
-**Skeleton counts will not match the paper.** Table 4 reports 47 cyclic
-skeletons for 1,953 Murcko scaffolds; RDKit's generic scaffold collapses far
-less than that. The paper used DataWarrior, whose skeleton definition is not
-RDKit's. The Murcko columns are comparable, the skeleton columns are not.
+**Skeleton counts are tool-specific.** "Cyclic skeleton" has no single
+definition: RDKit's generic scaffold (every atom carbon, every bond single)
+collapses far less aggressively than DataWarrior's, so skeleton counts from two
+tools are not comparable. Murcko scaffold counts are.
 
 **Enrichment factor.** EF = (a / n) / (A / N): the Group 1 fraction within a
-scaffold over the Group 1 fraction of the whole dataset, where the whole
-dataset includes acyclic molecules. This definition is confirmed by the
-paper's own numbers: its maximum EF, for scaffolds where every member is Group
-1, is 1.719, and N / A = 3952 / 2298 = 1.7198, with 2298 = 1218 potent + 1080
-active.
+scaffold over the Group 1 fraction of the whole dataset, where the whole dataset
+includes acyclic molecules. A scaffold whose members are all Group 1 scores
+N / A, the highest value the measure can take.
 
 The problem with EF alone: a singleton Group 1 scaffold also scores the
 maximum, exactly as high as a 30-member all-active series. So each scaffold also
@@ -106,7 +104,7 @@ def diversity_table(
     class_col: str = "activity_class",
     classes: tuple[str, ...] | None = None,
 ) -> pd.DataFrame:
-    """Table 4. Index: "complete" then each class; columns DIVERSITY_COLUMNS.
+    """Scaffold diversity. Index: "complete" then each class; columns DIVERSITY_COLUMNS.
 
     Needs ``murcko`` and ``skeleton`` columns (see add_scaffolds). ``classes``
     fixes the row order; by default, classes in order of first appearance.

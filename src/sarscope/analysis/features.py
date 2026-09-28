@@ -8,17 +8,17 @@ Fingerprints
     maccs    ``rdkit.Chem.MACCSkeys.GenMACCSKeys``. RDKit returns 167 bits with
              bit 0 unused (checked: never set); drop it to get the standard 166.
     pubchem  881 bits via scikit-fingerprints (``pip install sarscope[pubchem]``).
-             The paper used PaDEL, which needs Java. Whether scikit-
-             fingerprints matches PaDEL bit-for-bit is NOT verified; do that on
-             a sample before claiming the paper's PubChem results reproduce.
-             Raise ImportError naming the extra when it is missing.
+             Note this is scikit-fingerprints' implementation; the widely
+             used PaDEL one needs Java and has not been checked bit-for-bit
+             against it. Compare on a sample before mixing results from both.
+             Raises ImportError naming the extra when it is missing.
 
 The feature filter
 
-The paper drops features with variance < 0.1, then one of each pair correlated
-above 0.95. On binary bits, variance is p(1 - p), so a 0.1 threshold keeps only
-bits set in roughly 11-89% of molecules - an aggressive cut, which is why 881
-PubChem bits fall to about a hundred.
+The filter drops features with variance below a threshold, then one of each
+pair correlated above another. On binary bits variance is p(1 - p), so the
+default 0.1 keeps only bits set in roughly 11-89% of molecules - an aggressive
+cut that typically takes 881 PubChem bits down to about a hundred.
 
 It is a scikit-learn transformer rather than a function for one reason: which
 features survive depends on the data, so choosing them on the full dataset and

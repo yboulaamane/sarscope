@@ -9,17 +9,15 @@ one of four regions:
     scaffold_hop  x <= t  and  y <= a    different structure, similar potency
     nondescript   x <= t  and  y >  a    different structure, different potency
 
-Regions are defined by meaning, not by "upper left" etc., because the paper's
-prose swaps the two left-hand quadrants relative to its own axes (it plots
-activity *difference* on y, then describes the lower-left as low *activity
-similarity*).
+Regions are named by meaning rather than by quadrant position ("upper left"
+and so on), because which corner a region occupies depends on whether the axis
+plots similarity or distance, and descriptions in the literature disagree.
 
-**Identical fingerprints.** SALI = y / (1 - x) is undefined at x = 1. The paper
-excluded such pairs ("stereoisomers are not included"). With chirality off in
-the fingerprints, x = 1 is exactly where stereoisomers land, and a pair of
-enantiomers two log units apart is arguably the most interesting cliff in the
-dataset. So these pairs are excluded from the map and SALI, as in the paper,
-but returned separately as ``identical_pairs`` instead of silently vanishing.
+**Identical fingerprints.** SALI = y / (1 - x) is undefined at x = 1, so such
+pairs cannot appear on the map. They are not discarded, though: with chirality
+off in the fingerprints, x = 1 is exactly where stereoisomers land, and a pair
+of enantiomers two log units apart is arguably the most interesting cliff in
+the dataset. They come back as ``identical_pairs`` rather than vanishing.
 
 **Scale.** 5,000 molecules is 12.5 million pairs. Do not materialise an n x n
 matrix or an index array of all pairs: walk row i against rows j > i with
@@ -27,16 +25,13 @@ Sorbent's ``bulk_tanimoto``, tally region counts, and keep only cliff and
 identical pairs. Target: 5,000 molecules in well under a minute.
 
 **Generators.** A molecule's cliff count is the number of cliff pairs it is in.
-The threshold is mean + k * SD of the counts over molecules with at least one
-cliff (SD with ddof=1, pandas' default). The paper confirms the population:
-882 cliff pairs and a mean of 2.00 means 1,764 memberships over 882 molecules
-- molecules *in* cliffs, not the whole dataset (whose mean would be 0.45).
-Threshold 2.00 + 2 * 1.60 = 5.2, as reported.
+The threshold is mean + k * SD of those counts, taken over molecules with at
+least one cliff rather than over the whole dataset - otherwise the mean is
+dominated by molecules in no cliffs at all and the threshold collapses.
 
-**Consensus.** The paper uses "consensus" at both levels: pairs that are cliffs
-under every fingerprint (section 2.4) and generators common to every
-fingerprint (section 3.3, which gives its final list of sixteen). Both are
-returned.
+**Consensus.** Which pairs are cliffs depends on the fingerprint, so both
+levels of agreement are returned: pairs that are cliffs under every
+fingerprint, and generators that are generators under every fingerprint.
 """
 
 from __future__ import annotations

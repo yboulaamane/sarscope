@@ -51,7 +51,7 @@ def test_diversity_table_by_hand():
 
 
 def braf_like(n_all_active: int, singleton: bool = True) -> pd.DataFrame:
-    """N = 3952 with A = 2298 Group 1 molecules, like the paper's BRAF set."""
+    """A realistically sized set: N = 3952 molecules, A = 2298 of them Group 1."""
     groups = [1] * 2298 + [2] * 1654
     scaffolds = [f"filler{i % 400}" for i in range(3952)]
     for i in range(n_all_active):
@@ -63,10 +63,11 @@ def braf_like(n_all_active: int, singleton: bool = True) -> pd.DataFrame:
     )
 
 
-def test_all_group1_scaffold_reaches_the_papers_maximum_ef():
+def test_all_group1_scaffold_reaches_the_maximum_ef():
     table = enrichment_table(braf_like(30)).set_index("scaffold")
     assert table.loc["SERIES", "ef"] == pytest.approx(3952 / 2298)
-    assert round(table.loc["SERIES", "ef"], 3) == pytest.approx(1.720, abs=1e-3)  # paper: 1.719
+    # The ceiling for any scaffold: N / A, reached when every member is Group 1.
+    assert round(table.loc["SERIES", "ef"], 3) == pytest.approx(1.720, abs=1e-3)
 
 
 def test_wilson_lower_bound_separates_a_series_from_one_lucky_compound():
