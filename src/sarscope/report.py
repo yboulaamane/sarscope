@@ -559,18 +559,19 @@ def _render(
             f"{html.escape(', '.join(results.consensus_generators))}</p>"
         )
 
-    if results.models is not None:
+    if results.models is not None or results.regression is not None:
         parts.append("<h2>6. QSAR models</h2>")
-        parts.append(
-            "<p class='note'><b>leak_free</b> selects features and resamples inside training "
-            "folds only, after the split. <b>naive</b> is the common ordering - select and "
-            "oversample on everything, then split - which puts copies of training molecules in "
-            "the test set and chooses features using the held-out rows. The gap between the two "
-            "is how much that ordering would have flattered these models. The winner is chosen "
-            "on cross-validated MCC, never on the test set.</p>"
-        )
-        parts.append(f"<p>Best model: <b>{html.escape(results.models.best_algorithm)}</b></p>")
-        parts.append(_table_html(tables["model_scores"], limit=30))
+        if results.models is not None:
+            parts.append(
+                "<p class='note'><b>leak_free</b> selects features and resamples inside "
+                "training folds only, after the split. <b>naive</b> is the optional audit "
+                "ordering and leaks held-out information. The classifier winner is chosen "
+                "on cross-validated MCC, never on the test set.</p>"
+            )
+            parts.append(
+                f"<p>Best classifier: <b>{html.escape(results.models.best_algorithm)}</b></p>"
+            )
+            parts.append(_table_html(tables["model_scores"], limit=30))
         if results.regression is not None:
             parts.append("<h3>Continuous potency regression</h3>")
             parts.append(

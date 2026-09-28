@@ -58,6 +58,12 @@ trouble, deleting it costs you the drawings and nothing else.
 4. **Advanced settings → Python 3.12.**
 5. Deploy.
 
+The first page render performs no ChEMBL request. Target lookup, curation,
+medicinal-chemistry analyses, ML, explanation and report ZIP creation each run
+only from their corresponding button. This is intentional: a collapsed
+Streamlit expander still executes its body, so expensive work must be gated by
+buttons rather than merely hidden in an expander.
+
 ## When a deploy fails
 
 Click **Manage app** in the lower right to open the build log. The first line

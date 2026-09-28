@@ -12,7 +12,9 @@ import collections
 import io
 import sys
 import zipfile
+from dataclasses import dataclass, field
 from importlib import resources
+from importlib.util import find_spec
 from pathlib import Path
 from tempfile import TemporaryDirectory
 from typing import Any
@@ -26,13 +28,50 @@ if _SRC.is_dir() and str(_SRC) not in sys.path:
     sys.path.insert(0, str(_SRC))
 
 import altair as alt  # noqa: E402
+import numpy as np  # noqa: E402
 import pandas as pd  # noqa: E402
 import streamlit as st  # noqa: E402
 
 from sarscope import __version__, provenance  # noqa: E402
 from sarscope.__main__ import FETCH_SUMMARY_FIELDS, default_cache_dir  # noqa: E402
-from sarscope.analysis.landscape import cliff_generators  # noqa: E402
-from sarscope.curate import curate_chembl  # noqa: E402
+from sarscope.analysis.descriptors import add_descriptors  # noqa: E402
+from sarscope.analysis.domain import DomainResult, pca_bounding_box  # noqa: E402
+from sarscope.analysis.explain import (  # noqa: E402
+    DescriptorExplanation,
+    explain_descriptor_model,
+)
+from sarscope.analysis.features import (  # noqa: E402
+    VarianceCorrelationFilter,
+    bit_vectors,
+    fingerprint_matrix,
+)
+from sarscope.analysis.landscape import (  # noqa: E402
+    SasResult,
+    cliff_generators,
+    consensus,
+    sas_map,
+)
+from sarscope.analysis.mmp import matched_molecular_pairs  # noqa: E402
+from sarscope.analysis.model import ModelResult, evaluate  # noqa: E402
+from sarscope.analysis.profile import (  # noqa: E402
+    GroupProfile,
+    PcaResult,
+    describe_groups,
+    property_pca,
+)
+from sarscope.analysis.regression import (  # noqa: E402
+    RegressionResult,
+    evaluate_regression,
+    fit_deployment_model,
+)
+from sarscope.analysis.rgroups import ScaffoldSar, decompose_top_scaffolds  # noqa: E402
+from sarscope.analysis.scaffolds import (  # noqa: E402
+    ENRICHMENT_COLUMNS,
+    add_scaffolds,
+    diversity_table,
+    enrichment_table,
+)
+from sarscope.curate import CurationResult, curate_chembl  # noqa: E402
 from sarscope.depict import to_svg, unavailable_reason  # noqa: E402
 from sarscope.params import (  # noqa: E402
     ClassScheme,
@@ -42,7 +81,12 @@ from sarscope.params import (  # noqa: E402
     ModelParams,
     RunParams,
 )
-from sarscope.pipeline import RunResults, analyse  # noqa: E402
+from sarscope.pipeline import (  # noqa: E402
+    RunResults,
+    _cliff_model_errors,
+    _modelling_blocked,
+)
+from sarscope.predict import PredictionBundle, similarity_domain_threshold  # noqa: E402
 from sarscope.report import write_report  # noqa: E402
 from sarscope.sources.chembl import (  # noqa: E402
     ChemblClient,
@@ -88,7 +132,61 @@ FIELD_NOTES: dict[str, tuple[str, str]] = {
     ),
 }
 
-FAST_ALGORITHMS = ["extra_trees", "random_forest", "gradient_boosting", "nearest_neighbors"]
+FAST_ALGORITHMS = [
+    "random_forest",
+    "extra_trees",
+    "gradient_boosting",
+    "nearest_neighbors",
+    "neural_net",
+]
+
+
+@dataclass
+class CurationStage:
+    params: RunParams
+    curation: CurationResult
+    table: pd.DataFrame
+    provenance: dict[str, Any]
+    skipped: dict[str, str] = field(default_factory=dict)
+
+
+@dataclass
+class PropertyStage:
+    table: pd.DataFrame
+    profile: GroupProfile | None
+    pca: PcaResult
+    skipped: dict[str, str] = field(default_factory=dict)
+
+
+@dataclass
+class ScaffoldStage:
+    table: pd.DataFrame
+    diversity: pd.DataFrame
+    enrichment: pd.DataFrame
+    rgroups: list[ScaffoldSar] = field(default_factory=list)
+    matched_pairs: pd.DataFrame = field(default_factory=pd.DataFrame)
+
+
+@dataclass
+class LandscapeStage:
+    params: RunParams
+    table: pd.DataFrame
+    landscapes: dict[str, SasResult]
+    consensus_cliffs: pd.DataFrame
+    consensus_generators: list[str]
+
+
+@dataclass
+class MlStage:
+    params: RunParams
+    table: pd.DataFrame
+    models: ModelResult | None
+    regression: RegressionResult | None
+    domain: DomainResult | None
+    model_test_predictions: pd.DataFrame = field(default_factory=pd.DataFrame)
+    cliff_model_performance: pd.DataFrame = field(default_factory=pd.DataFrame)
+    prediction_bundle: PredictionBundle | None = None
+    skipped: dict[str, str] = field(default_factory=dict)
 
 
 # -- data ---------------------------------------------------------------------
@@ -110,30 +208,152 @@ def fetch(target_id: str, types: tuple[str, ...]) -> list[dict[str, Any]]:
         return c.activities(target_id, types)
 
 
-@st.cache_resource(ttl=3600, show_spinner=False, max_entries=3)
-def run_analysis(
+def run_curation_stage(
     target_id: str,
     types: tuple[str, ...],
     params: RunParams,
     release: str,
     target_name: str,
     organism: str,
-) -> RunResults:
-    """Cached on the settings, so changing a slider re-runs but a redraw does not.
-
-    ``release`` is part of the key: a new ChEMBL release must invalidate it.
-    """
+) -> CurationStage:
+    """Download and curate only; every later analysis is explicitly opt-in."""
     records = fetch(target_id, types)
-    results = analyse(curate_chembl(records, params), params)
+    curation = curate_chembl(records, params)
     target = {
         "target_chembl_id": target_id,
         "pref_name": target_name,
         "organism": organism,
     }
-    results.provenance = provenance.collect(
-        params, provenance.chembl_source(target, release, len(records))
+    record = provenance.collect(params, provenance.chembl_source(target, release, len(records)))
+    return CurationStage(params, curation, curation.table, record)
+
+
+def run_property_stage(curation: CurationResult) -> PropertyStage:
+    table = add_descriptors(curation.table)
+    skipped: dict[str, str] = {}
+    profile: GroupProfile | None = None
+    groups = sorted(table["group"].unique())
+    if len(groups) == 2:
+        profile = describe_groups(table)
+    else:
+        skipped["profile"] = "Only one activity group is present, so no group comparison ran."
+    return PropertyStage(table, profile, property_pca(table), skipped)
+
+
+def run_scaffold_stage(curation: CurationResult) -> ScaffoldStage:
+    table = add_scaffolds(curation.table)
+    diversity = diversity_table(table)
+    try:
+        enrichment = enrichment_table(table)
+    except ValueError:
+        enrichment = pd.DataFrame(columns=list(ENRICHMENT_COLUMNS))
+    return ScaffoldStage(table, diversity, enrichment)
+
+
+def run_landscape_stage(curation: CurationResult, params: RunParams) -> LandscapeStage:
+    table = curation.table
+    landscapes: dict[str, SasResult] = {}
+    for name in params.landscape.fingerprints:
+        vectors = bit_vectors(
+            table["smiles"].tolist(), name, ecfp_bits=params.model.features.ecfp_bits
+        )
+        landscapes[name] = sas_map(
+            vectors,
+            table["pactivity"].tolist(),
+            table["molecule_id"].tolist(),
+            params.landscape,
+            fingerprint_name=name,
+        )
+    pairs, generators = consensus(landscapes, params.landscape.generator_sd)
+    return LandscapeStage(params, table, landscapes, pairs, generators)
+
+
+def run_ml_stage(
+    scaffold: ScaffoldStage,
+    params: RunParams,
+    *,
+    classification: bool,
+    regression: bool,
+    landscape: LandscapeStage | None,
+) -> MlStage:
+    table = scaffold.table
+    reason = _modelling_blocked(table, params)
+    if reason:
+        return MlStage(
+            params,
+            table,
+            None,
+            None,
+            None,
+            skipped={"model": reason, "domain": reason},
+        )
+    features = params.model.features
+    X = fingerprint_matrix(
+        table["smiles"].tolist(), features.fingerprint, ecfp_bits=features.ecfp_bits
     )
-    return results
+    years = table["document_year"].tolist()
+    models = (
+        evaluate(
+            X,
+            table["activity_class"].tolist(),
+            table["murcko"].tolist(),
+            params.model,
+            years=years,
+        )
+        if classification
+        else None
+    )
+    regression_result = (
+        evaluate_regression(
+            X,
+            table["pactivity"].tolist(),
+            table["murcko"].tolist(),
+            table["activity_class"].tolist(),
+            params.model,
+            years=years,
+        )
+        if regression
+        else None
+    )
+    selected = regression_result or models
+    assert selected is not None
+    filt = VarianceCorrelationFilter(
+        features.variance_threshold, features.correlation_threshold
+    ).fit(X[selected.train_index])
+    domain = pca_bounding_box(
+        filt.transform(X[selected.train_index]), filt.transform(X[selected.test_index])
+    )
+
+    test_predictions = pd.DataFrame()
+    cliff_performance = pd.DataFrame()
+    if models is not None and regression_result is not None and landscape is not None:
+        test_predictions, cliff_performance = _cliff_model_errors(
+            table, landscape.landscapes, models, regression_result
+        )
+
+    bundle: PredictionBundle | None = None
+    if regression_result is not None:
+        deploy_filter, deploy_model = fit_deployment_model(
+            X, table["pactivity"].tolist(), regression_result.best_algorithm, params.model
+        )
+        bundle = PredictionBundle(
+            algorithm=regression_result.best_algorithm,
+            features=features,
+            feature_filter=deploy_filter,
+            estimator=deploy_model,
+            train_fingerprints=X,
+            similarity_threshold=similarity_domain_threshold(X),
+        )
+    return MlStage(
+        params,
+        table,
+        models,
+        regression_result,
+        domain,
+        test_predictions,
+        cliff_performance,
+        bundle,
+    )
 
 
 def build_params(settings: dict[str, Any]) -> RunParams:
@@ -148,16 +368,6 @@ def build_params(settings: dict[str, Any]) -> RunParams:
             max_document_year=settings["max_year"],
         ),
         classes=ClassScheme(),
-        landscape=LandscapeParams(fingerprints=tuple(settings["fingerprints"])),
-        model=ModelParams(
-            features=FeatureParams(fingerprint=settings["model_fp"]),
-            algorithms=tuple(settings["algorithms"]),
-            regression_algorithms=tuple(settings["algorithms"]),
-            split=settings["split"],
-            time_cutoff=settings["time_cutoff"],
-            cv_folds=settings["cv_folds"],
-            leakage_audit=settings["audit"],
-        ),
     )
 
 
@@ -600,31 +810,48 @@ def show_landscape(results: RunResults) -> None:
         )
 
 
-def show_models(results: RunResults) -> None:
-    if results.models is None:
+def show_models(results: RunResults | MlStage) -> None:
+    if results.models is None and results.regression is None:
         st.info(results.skipped.get("model", "Modelling did not run."))
         return
-    st.caption(
-        "**leak_free** selects features and resamples inside training folds only, after the "
-        "split. **naive** is the common ordering — select and oversample on everything, then "
-        "split — which puts copies of training molecules in the test set and picks features "
-        "using the held-out rows. The gap between the two rows is how much that ordering "
-        "would have flattered these models."
-    )
-    scores = results.models.scores
-    show = scores[
-        ["algorithm", "protocol", "train_accuracy", "cv_accuracy", "test_accuracy", "test_mcc"]
-    ]
-    st.dataframe(
-        show,
-        hide_index=True,
-        width="stretch",
-        column_config={
-            c: st.column_config.NumberColumn(c.replace("_", " ").title(), format="%.3f")
-            for c in ["train_accuracy", "cv_accuracy", "test_accuracy", "test_mcc"]
-        },
-    )
-    st.markdown(f"Best model by cross-validated MCC: **{results.models.best_algorithm}**")
+    if results.models is not None:
+        st.caption(
+            "**leak_free** selects features and resamples inside training folds only, after "
+            "the split. **naive** is the optional audit ordering—select and oversample on "
+            "everything, then split—which leaks held-out information."
+        )
+        scores = results.models.scores
+        show = scores[
+            [
+                "algorithm",
+                "protocol",
+                "train_accuracy",
+                "cv_accuracy",
+                "test_accuracy",
+                "test_mcc",
+            ]
+        ]
+        st.dataframe(
+            show,
+            hide_index=True,
+            width="stretch",
+            column_config={
+                c: st.column_config.NumberColumn(c.replace("_", " ").title(), format="%.3f")
+                for c in ["train_accuracy", "cv_accuracy", "test_accuracy", "test_mcc"]
+            },
+        )
+        st.markdown(f"Best classifier by CV MCC: **{results.models.best_algorithm}**")
+
+        if "naive" in set(scores["protocol"]):
+            wide = scores.pivot(index="algorithm", columns="protocol", values="test_accuracy")
+            gap = (wide["naive"] - wide["leak_free"]).sort_values(ascending=False)
+            st.markdown("**Inflation from the leaky order, in test accuracy**")
+            st.dataframe(
+                gap.rename("inflation").reset_index(),
+                hide_index=True,
+                width="stretch",
+                column_config={"inflation": st.column_config.NumberColumn(format="%.3f")},
+            )
 
     if results.regression is not None:
         st.markdown("**Continuous pActivity regression**")
@@ -639,17 +866,6 @@ def show_models(results: RunResults) -> None:
     if not results.cliff_model_performance.empty:
         st.markdown("**Held-out error on cliff compounds versus the rest**")
         st.dataframe(results.cliff_model_performance, hide_index=True, width="stretch")
-
-    if "naive" in set(scores["protocol"]):
-        wide = scores.pivot(index="algorithm", columns="protocol", values="test_accuracy")
-        gap = (wide["naive"] - wide["leak_free"]).sort_values(ascending=False)
-        st.markdown("**Inflation from the leaky order, in test accuracy**")
-        st.dataframe(
-            gap.rename("inflation").reset_index(),
-            hide_index=True,
-            width="stretch",
-            column_config={"inflation": st.column_config.NumberColumn(format="%.3f")},
-        )
 
     if results.domain is not None:
         st.metric(
@@ -702,6 +918,127 @@ def show_demo_preview() -> None:
         )
 
 
+WORKFLOW_KEYS = (
+    "curation_stage",
+    "property_stage",
+    "scaffold_stage",
+    "landscape_stage",
+    "ml_stage",
+    "explanation_stage",
+    "report_zip",
+)
+
+
+def clear_workflow(*, keep_curation: bool = False) -> None:
+    for key in WORKFLOW_KEYS:
+        if keep_curation and key == "curation_stage":
+            continue
+        st.session_state.pop(key, None)
+
+
+def importance_chart(frame: pd.DataFrame, title: str) -> alt.Chart:
+    shown = frame.head(12).sort_values("importance")
+    return (
+        alt.Chart(shown)
+        .mark_bar(color=BLUE, cornerRadiusEnd=3)
+        .encode(
+            x=alt.X("importance:Q", title="Importance"),
+            y=alt.Y("descriptor:N", sort=None, title=None),
+            tooltip=["descriptor:N", alt.Tooltip("importance:Q", format=".4f")],
+        )
+        .properties(height=28 * len(shown) + 35, title=title)
+    )
+
+
+def show_explanation(explanation: DescriptorExplanation) -> None:
+    metric = explanation.metrics.iloc[0]
+    cols = st.columns(3)
+    cols[0].metric("Held-out R²", f"{metric['test_r2']:.3f}")
+    cols[1].metric("Held-out RMSE", f"{metric['test_rmse']:.3f}")
+    cols[2].metric("Held-out Spearman", f"{metric['test_spearman']:.3f}")
+    st.caption(
+        "Permutation importance is measured only on held-out compounds. Positive values mean "
+        "shuffling that descriptor worsened RMSE; correlated descriptors can share importance."
+    )
+    st.altair_chart(
+        importance_chart(explanation.permutation, "Held-out permutation importance"),
+        width="stretch",
+    )
+    st.dataframe(explanation.permutation, hide_index=True, width="stretch")
+    if not explanation.intrinsic.empty:
+        st.markdown("**Random Forest impurity importance**")
+        st.caption(
+            "This is the tree model's built-in reduction-in-variance importance. It is not "
+            "Gini importance—the target is continuous—and it can favour high-variance or "
+            "correlated descriptors, so read it beside permutation importance."
+        )
+        st.altair_chart(
+            importance_chart(explanation.intrinsic, "RF impurity importance"),
+            width="stretch",
+        )
+    st.markdown("**Held-out predictions and residuals**")
+    st.dataframe(explanation.predictions, hide_index=True, width="stretch")
+    st.markdown("**SHAP**")
+    st.caption(explanation.shap_status)
+    if not explanation.shap_global.empty:
+        st.altair_chart(
+            importance_chart(explanation.shap_global, "Mean absolute SHAP value"),
+            width="stretch",
+        )
+        molecule_id = st.selectbox(
+            "Local SHAP explanation",
+            explanation.shap_local["molecule_id"].tolist(),
+            key="shap_molecule",
+        )
+        local = explanation.shap_local[explanation.shap_local["molecule_id"] == molecule_id].iloc[0]
+        contributions = (
+            local.drop(labels="molecule_id")
+            .rename("contribution")
+            .rename_axis("descriptor")
+            .reset_index()
+        )
+        contributions["absolute"] = contributions["contribution"].abs()
+        st.dataframe(
+            contributions.sort_values("absolute", ascending=False).drop(columns="absolute"),
+            hide_index=True,
+            width="stretch",
+        )
+
+
+def assemble_report_results(
+    curation: CurationStage,
+    properties: PropertyStage,
+    scaffolds: ScaffoldStage,
+    landscape: LandscapeStage,
+    ml: MlStage | None,
+) -> RunResults:
+    table = properties.table.copy()
+    table["murcko"] = scaffolds.table["murcko"]
+    table["skeleton"] = scaffolds.table["skeleton"]
+    return RunResults(
+        params=ml.params if ml is not None else landscape.params,
+        curation=curation.curation,
+        table=table,
+        profile=properties.profile,
+        pca=properties.pca,
+        diversity=scaffolds.diversity,
+        enrichment=scaffolds.enrichment,
+        landscapes=landscape.landscapes,
+        consensus_cliffs=landscape.consensus_cliffs,
+        consensus_generators=landscape.consensus_generators,
+        models=ml.models if ml is not None else None,
+        regression=ml.regression if ml is not None else None,
+        domain=ml.domain if ml is not None else None,
+        matched_pairs=scaffolds.matched_pairs,
+        model_test_predictions=(ml.model_test_predictions if ml is not None else pd.DataFrame()),
+        cliff_model_performance=(ml.cliff_model_performance if ml is not None else pd.DataFrame()),
+        prediction_bundle=ml.prediction_bundle if ml is not None else None,
+        rgroups=scaffolds.rgroups,
+        skipped={**curation.skipped, **properties.skipped, **(ml.skipped if ml else {})},
+        provenance=curation.provenance,
+    )
+
+
 # -- page ---------------------------------------------------------------------
 
 
@@ -720,33 +1057,6 @@ def sidebar() -> dict[str, Any]:
                 "Only documents up to year", min_value=1990, max_value=2030, value=2030
             )
 
-        with st.expander("Landscape"):
-            fingerprints = st.multiselect("Fingerprints", ["ecfp4", "maccs"], default=["ecfp4"])
-
-        with st.expander("Models"):
-            algorithms = st.multiselect(
-                "Algorithms", FAST_ALGORITHMS, default=["extra_trees", "random_forest"]
-            )
-            model_fp = st.selectbox("Model fingerprint", ["ecfp4", "maccs"], index=0)
-            split = st.radio(
-                "Split",
-                ["scaffold", "time", "random"],
-                index=0,
-                help=(
-                    "Scaffold keeps a series wholly on one side; time reserves compounds "
-                    "first documented after the cutoff."
-                ),
-            )
-            time_cutoff = st.number_input(
-                "Time-split training cutoff", min_value=1950, max_value=2029, value=2019
-            )
-            cv_folds = st.slider("Cross-validation folds", 3, 10, 5)
-            audit = st.checkbox(
-                "Run the leakage audit",
-                value=False,
-                help="Also runs the reference workflow's order and reports the gap.",
-            )
-
         st.caption(f"SARscope {__version__} · [source](https://github.com/yboulaamane/sarscope)")
 
     return {
@@ -754,13 +1064,6 @@ def sidebar() -> dict[str, Any]:
         "variant": variant,
         "censored": censored,
         "max_year": None if max_year >= 2030 else int(max_year),
-        "fingerprints": fingerprints,
-        "algorithms": algorithms,
-        "model_fp": model_fp,
-        "split": split,
-        "time_cutoff": int(time_cutoff),
-        "cv_folds": cv_folds,
-        "audit": audit,
     }
 
 
@@ -770,7 +1073,7 @@ def main() -> None:
 
     st.title("SARscope")
     st.caption("Target ID in, structure–activity report out.")
-    if "analysed" not in st.session_state:
+    if "curation_stage" not in st.session_state:
         show_demo_preview()
 
     reason = unavailable_reason()
@@ -808,8 +1111,7 @@ def main() -> None:
             "release": release,
             "n_records": n_records,
         }
-        st.session_state.pop("analysed", None)
-        st.session_state.pop("report_zip", None)
+        clear_workflow()
 
     target_lookup = st.session_state.get("target_lookup")
     if target_lookup is None or target_lookup.get("key") != lookup_key:
@@ -835,102 +1137,309 @@ def main() -> None:
         st.warning("No records of these types for this target.")
         return
 
-    params = build_params(settings)
-    analysis_key = (target_id, tuple(settings["types"]), repr(params.to_dict()))
-    go = st.button(f"Analyse {resolved_id}", type="primary")
-    if go:
-        st.session_state["analysed"] = analysis_key
-    if st.session_state.get("analysed") != analysis_key:
+    base_params = build_params(settings)
+    curation_key = (
+        target_id,
+        tuple(settings["types"]),
+        repr(base_params.curation),
+        release,
+    )
+    action_cols = st.columns(2)
+    run_curation = action_cols[0].button(
+        f"1 · Curate {resolved_id}", type="primary", width="stretch"
+    )
+    load_raw = action_cols[1].button("Inspect raw fields", width="stretch")
+    if load_raw:
+        with st.spinner("Downloading raw activity records…"):
+            records = fetch(target_id, tuple(settings["types"]))
+        for row in range(0, len(FETCH_SUMMARY_FIELDS), 2):
+            for col, field in zip(st.columns(2), FETCH_SUMMARY_FIELDS[row : row + 2], strict=False):
+                title, note = FIELD_NOTES[field]
+                with col:
+                    st.markdown(f"**{title}**")
+                    st.caption(note)
+                    st.altair_chart(
+                        bar_chart(breakdown(records, field), "records", "Records"),
+                        width="stretch",
+                    )
+    if run_curation:
+        try:
+            with st.spinner("Downloading and curating activity records…"):
+                stage = run_curation_stage(
+                    target_id,
+                    tuple(settings["types"]),
+                    base_params,
+                    release,
+                    str(target["pref_name"]),
+                    str(target["organism"]),
+                )
+        except (ChemblError, ValueError) as exc:
+            st.error(f"Curation stopped: {exc}")
+            return
+        clear_workflow()
+        st.session_state["curation_stage"] = (curation_key, stage)
+
+    curation_entry = st.session_state.get("curation_stage")
+    if curation_entry is None or curation_entry[0] != curation_key:
         st.info(
-            "The target check is complete. Analyse only when you want the full download "
-            "and models. Changing a setting will not start a run automatically."
+            "Start with curation. Later chemistry and ML steps remain idle until you choose "
+            "them, and changing curation settings requires this step to run again."
         )
-        if st.button("Load raw-field breakdown"):
-            with st.spinner("Downloading raw activity records…"):
-                records = fetch(target_id, tuple(settings["types"]))
-            for row in range(0, len(FETCH_SUMMARY_FIELDS), 2):
-                for col, field in zip(
-                    st.columns(2), FETCH_SUMMARY_FIELDS[row : row + 2], strict=False
-                ):
-                    title, note = FIELD_NOTES[field]
-                    with col:
-                        st.markdown(f"**{title}**")
-                        st.caption(note)
-                        st.altair_chart(
-                            bar_chart(breakdown(records, field), "records", "Records"),
-                            width="stretch",
-                        )
         return
-
-    try:
-        with st.spinner("Curating, then running every analysis. The first run takes a minute…"):
-            results = run_analysis(
-                target_id,
-                tuple(settings["types"]),
-                params,
-                release,
-                str(target["pref_name"]),
-                str(target["organism"]),
-            )
-    except ChemblError as exc:
-        st.error(str(exc))
-        return
-    except ValueError as exc:
-        st.error(f"Analysis stopped: {exc}")
-        return
-
-    if len(results.table) > LANDSCAPE_WARN:
-        st.warning(
-            f"{len(results.table):,} molecules means about "
-            f"{len(results.table) ** 2 // 2:,} pairs. That ran, but for datasets this size "
-            "the command line is faster: `sarscope run " + target_id + " --out report/`"
-        )
+    curation: CurationStage = curation_entry[1]
 
     tabs = st.tabs(
         [
-            "Overview",
-            "Curation",
-            "Properties",
-            "Scaffolds",
-            "R-group SAR",
-            "Landscape",
-            "Models",
-            "Report",
+            "1 · Curation",
+            "2 · Chemical space",
+            "3 · Scaffolds & SAR",
+            "4 · Activity cliffs",
+            "5 · ML",
+            "6 · Explain",
+            "7 · Report",
         ]
     )
     with tabs[0]:
-        show_overview(results)
+        show_curation(curation)
+        with st.expander("Curated molecules"):
+            st.dataframe(curation.table, hide_index=True, width="stretch")
+
     with tabs[1]:
-        show_curation(results)
-    with tabs[2]:
-        show_properties(results)
-    with tabs[3]:
-        show_scaffolds(results)
-    with tabs[4]:
-        show_rgroups(results)
-    with tabs[5]:
-        show_landscape(results)
-    with tabs[6]:
-        show_models(results)
-    with tabs[7]:
         st.caption(
-            "The same folder `sarscope run` writes: a self-contained HTML report, every table "
-            "as CSV, every figure as PNG, and provenance.json recording the exact settings, "
-            "ChEMBL release and package versions behind these numbers."
+            "Compute named RDKit physicochemical descriptors, compare activity groups and "
+            "project the compounds into standardized descriptor PCA space."
         )
-        report_key = (target_id, repr(params.to_dict()))
-        if st.button("Prepare report archive", type="primary"):
-            with st.spinner("Building the report archive…"):
-                st.session_state["report_zip"] = (report_key, report_zip(results))
-        prepared = st.session_state.get("report_zip")
-        if prepared is not None and prepared[0] == report_key:
-            st.download_button(
-                "Download the report folder (.zip)",
-                data=prepared[1],
-                file_name=f"sarscope_{target_id}.zip",
-                mime="application/zip",
+        if st.button("Run chemical-space analysis", key="run_properties"):
+            with st.spinner("Calculating descriptors and PCA…"):
+                st.session_state["property_stage"] = run_property_stage(curation.curation)
+            st.session_state.pop("report_zip", None)
+        properties: PropertyStage | None = st.session_state.get("property_stage")
+        if properties is None:
+            st.info("This step has not run.")
+        else:
+            show_properties(properties)
+
+    with tabs[2]:
+        st.caption(
+            "Murcko diversity and enrichment are the core scaffold step. R-group decomposition "
+            "and matched molecular pairs are separate opt-in calculations."
+        )
+        if st.button("Run scaffold analysis", key="run_scaffolds"):
+            with st.spinner("Calculating Murcko scaffolds and enrichment…"):
+                st.session_state["scaffold_stage"] = run_scaffold_stage(curation.curation)
+            for key in ("ml_stage", "explanation_stage", "report_zip"):
+                st.session_state.pop(key, None)
+        scaffolds: ScaffoldStage | None = st.session_state.get("scaffold_stage")
+        if scaffolds is None:
+            st.info("Run the scaffold step before series-level SAR or ML.")
+        else:
+            show_scaffolds(scaffolds)
+            sar_cols = st.columns(2)
+            if sar_cols[0].button("Run R-group decomposition", key="run_rgroups"):
+                if scaffolds.enrichment.empty:
+                    st.warning("R-group analysis needs at least one enriched scaffold.")
+                else:
+                    with st.spinner("Decomposing the largest scaffold series…"):
+                        scaffolds.rgroups = decompose_top_scaffolds(
+                            scaffolds.table, scaffolds.enrichment
+                        )
+                        st.session_state["scaffold_stage"] = scaffolds
+                        st.session_state.pop("report_zip", None)
+            if sar_cols[1].button("Run matched molecular pairs", key="run_mmp"):
+                with st.spinner("Enumerating single-cut transformations…"):
+                    scaffolds.matched_pairs = matched_molecular_pairs(scaffolds.table)
+                    st.session_state["scaffold_stage"] = scaffolds
+                    st.session_state.pop("report_zip", None)
+            if scaffolds.rgroups:
+                show_rgroups(scaffolds)
+            if not scaffolds.matched_pairs.empty:
+                st.markdown("**Matched molecular pairs**")
+                st.dataframe(scaffolds.matched_pairs, hide_index=True, width="stretch")
+
+    with tabs[3]:
+        st.caption(
+            "Activity cliffs are an all-pairs calculation. Choose the structural definitions "
+            "and thresholds explicitly before running it."
+        )
+        fingerprints = st.multiselect(
+            "Landscape fingerprints", ["ecfp4", "maccs"], default=["ecfp4"], key="landscape_fp"
+        )
+        threshold_cols = st.columns(2)
+        similarity_threshold = threshold_cols[0].slider(
+            "Similarity threshold", 0.5, 0.99, 0.9, 0.01
+        )
+        activity_threshold = threshold_cols[1].slider(
+            "Potency difference (log units)", 0.5, 4.0, 2.0, 0.1
+        )
+        pair_count = len(curation.table) * (len(curation.table) - 1) // 2
+        st.caption(f"This run will examine {pair_count:,} unordered molecular pairs.")
+        if len(curation.table) > LANDSCAPE_WARN:
+            st.warning(
+                "This dataset is large for a hosted all-pairs calculation; use one fingerprint."
             )
-        st.json(results.provenance, expanded=False)
+        if st.button("Run activity-cliff analysis", key="run_landscape"):
+            if not fingerprints:
+                st.error("Choose at least one fingerprint.")
+            else:
+                landscape_params = LandscapeParams(
+                    fingerprints=tuple(fingerprints),
+                    similarity_threshold=similarity_threshold,
+                    activity_threshold=activity_threshold,
+                )
+                run_params = RunParams(
+                    curation=base_params.curation,
+                    classes=base_params.classes,
+                    landscape=landscape_params,
+                )
+                with st.spinner("Building the selected SAS maps…"):
+                    st.session_state["landscape_stage"] = run_landscape_stage(
+                        curation.curation, run_params
+                    )
+                for key in ("ml_stage", "explanation_stage", "report_zip"):
+                    st.session_state.pop(key, None)
+        landscape: LandscapeStage | None = st.session_state.get("landscape_stage")
+        if landscape is None:
+            st.info("This step has not run.")
+        else:
+            show_landscape(landscape)
+
+    with tabs[4]:
+        st.caption(
+            "Choose the prediction task, fingerprint, validation split and algorithms. Nothing "
+            "in this section runs when a chemistry setting changes."
+        )
+        scaffolds = st.session_state.get("scaffold_stage")
+        if scaffolds is None:
+            st.info("Run the scaffold step first; scaffold-aware validation needs its groups.")
+        else:
+            tasks = st.multiselect(
+                "Prediction tasks",
+                ["Continuous pActivity regression", "Activity-class classification"],
+                default=["Continuous pActivity regression"],
+            )
+            algorithms = st.multiselect("Algorithms", FAST_ALGORITHMS, default=["random_forest"])
+            ml_cols = st.columns(3)
+            model_fp = ml_cols[0].selectbox("Fingerprint", ["ecfp4", "maccs"])
+            split = ml_cols[1].selectbox("Validation split", ["scaffold", "time", "random"])
+            cv_folds = ml_cols[2].slider("CV folds", 3, 10, 5)
+            time_cutoff = st.number_input(
+                "Training cutoff year (time split only)", 1950, 2029, 2019
+            )
+            audit = st.checkbox("Run classification leakage audit", value=False)
+            if st.button("Run selected ML", key="run_ml", type="primary"):
+                if not tasks or not algorithms:
+                    st.error("Choose at least one task and one algorithm.")
+                else:
+                    model_params = ModelParams(
+                        features=FeatureParams(fingerprint=model_fp),
+                        algorithms=tuple(algorithms),
+                        regression_algorithms=tuple(algorithms),
+                        split=split,
+                        time_cutoff=int(time_cutoff),
+                        cv_folds=cv_folds,
+                        leakage_audit=audit,
+                    )
+                    landscape_for_params = (
+                        landscape.params.landscape if landscape is not None else LandscapeParams()
+                    )
+                    run_params = RunParams(
+                        curation=base_params.curation,
+                        classes=base_params.classes,
+                        landscape=landscape_for_params,
+                        model=model_params,
+                    )
+                    with st.spinner("Running only the selected models and validation…"):
+                        st.session_state["ml_stage"] = run_ml_stage(
+                            scaffolds,
+                            run_params,
+                            classification="Activity-class classification" in tasks,
+                            regression="Continuous pActivity regression" in tasks,
+                            landscape=landscape,
+                        )
+                    st.session_state.pop("explanation_stage", None)
+                    st.session_state.pop("report_zip", None)
+            ml: MlStage | None = st.session_state.get("ml_stage")
+            if ml is None:
+                st.info("No ML run yet.")
+            else:
+                show_models(ml)
+
+    with tabs[5]:
+        st.caption(
+            "Fit a separate low-dimensional model to named RDKit descriptors on the same "
+            "held-out split. This is for interpretation, not a claim that descriptors are the "
+            "best predictive representation."
+        )
+        ml = st.session_state.get("ml_stage")
+        if ml is None or (ml.regression is None and ml.models is None):
+            st.info("Run ML first to establish the untouched train/test partition.")
+        else:
+            explain_model = st.radio(
+                "Descriptor explanation model",
+                ["random_forest", "mlp"],
+                format_func=lambda value: "Random Forest" if value == "random_forest" else "MLP",
+                horizontal=True,
+            )
+            repeats = st.slider("Permutation repeats", 3, 15, 5)
+            shap_available = find_spec("shap") is not None
+            use_shap = st.checkbox(
+                "Compute TreeSHAP (Random Forest only)",
+                value=False,
+                disabled=not shap_available or explain_model != "random_forest",
+            )
+            if not shap_available:
+                st.caption(
+                    "Optional SHAP is not installed on this host; permutation importance "
+                    "remains available."
+                )
+            if st.button("Run descriptor explanation", key="run_explanation"):
+                selected = ml.regression or ml.models
+                assert selected is not None
+                with st.spinner("Fitting and explaining the descriptor model…"):
+                    st.session_state["explanation_stage"] = explain_descriptor_model(
+                        ml.table,
+                        np.asarray(selected.train_index),
+                        np.asarray(selected.test_index),
+                        algorithm=explain_model,
+                        permutation_repeats=repeats,
+                        compute_shap=use_shap,
+                    )
+            explanation: DescriptorExplanation | None = st.session_state.get("explanation_stage")
+            if explanation is None:
+                st.info("No explanation run yet.")
+            else:
+                show_explanation(explanation)
+
+    with tabs[6]:
+        properties = st.session_state.get("property_stage")
+        scaffolds = st.session_state.get("scaffold_stage")
+        landscape = st.session_state.get("landscape_stage")
+        ml = st.session_state.get("ml_stage")
+        if properties is None or scaffolds is None or landscape is None:
+            st.info(
+                "Run chemical space, scaffolds and activity cliffs before assembling the full "
+                "report. ML, R-groups and matched pairs remain optional."
+            )
+        else:
+            results = assemble_report_results(curation, properties, scaffolds, landscape, ml)
+            report_key = (
+                target_id,
+                repr(results.params.to_dict()),
+                len(scaffolds.rgroups),
+                len(scaffolds.matched_pairs),
+            )
+            if st.button("Prepare report archive", key="prepare_report", type="primary"):
+                with st.spinner("Building the report archive…"):
+                    st.session_state["report_zip"] = (report_key, report_zip(results))
+            prepared = st.session_state.get("report_zip")
+            if prepared is not None and prepared[0] == report_key:
+                st.download_button(
+                    "Download the report folder (.zip)",
+                    data=prepared[1],
+                    file_name=f"sarscope_{target_id}.zip",
+                    mime="application/zip",
+                )
+            st.json(curation.provenance, expanded=False)
 
 
 main()

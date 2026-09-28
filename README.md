@@ -91,6 +91,15 @@ In the browser:
 streamlit run streamlit_app.py
 ```
 
+The browser workflow is deliberately staged rather than automatic: check the
+target, curate it, then run chemical space, scaffolds/SAR, activity cliffs, ML
+and descriptor explanation only when requested. The ML stage includes a small
+MLP alongside the tree and neighbour models. The explanation stage uses named
+RDKit physicochemical descriptors and reports held-out permutation importance;
+Random Forest also reports impurity importance. Optional TreeSHAP support is
+available locally with `pip install "sarscope[explain]"` and is lazy-loaded so
+the hosted app does not inherit SHAP's startup cost.
+
 See [`docs/deploying.md`](docs/deploying.md) to host it.
 
 ## What you get

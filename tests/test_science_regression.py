@@ -43,3 +43,11 @@ def test_time_split_reserves_only_later_compounds():
     result = evaluate_regression(X, y, [f"s{i}" for i in range(80)], labels, params, years)
     assert set(years[result.train_index]) == {2017, 2018, 2019}
     assert set(years[result.test_index]) == {2020}
+
+
+def test_small_mlp_regressor_is_available():
+    from sarscope.analysis.regression import REGRESSION_ALGORITHMS
+
+    model = REGRESSION_ALGORITHMS["neural_net"](42)
+    assert model.hidden_layer_sizes == (64, 32)
+    assert model.early_stopping is False
