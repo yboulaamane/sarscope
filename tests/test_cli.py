@@ -22,12 +22,14 @@ def test_build_params_maps_flags(tmp_path):
             "run", "CHEMBL5145", "--out", str(tmp_path), "--variant", "V600E",
             "--keep-censored", "--split", "random", "--algorithms", "extra_trees",
             "--max-year", "2022", "--no-leakage-audit",
+            "--source-ids", "7", "37",
         ]
     )  # fmt: skip
     params = cli.build_params(args)
     assert params.curation.variant == "V600E"
     assert ">" in params.curation.relations
     assert params.curation.max_document_year == 2022
+    assert params.curation.source_ids == (7, 37)
     assert params.model.split == "random"
     assert params.model.algorithms == ("extra_trees",)
     assert params.model.leakage_audit is False
@@ -38,6 +40,35 @@ def test_build_params_defaults_are_wild_type_and_exact_values(tmp_path):
     params = cli.build_params(args)
     assert params.curation.variant is None
     assert params.curation.relations == ("=",)
+
+
+def test_source_holdout_cli_flags(tmp_path):
+    args = cli.parser().parse_args(
+        ["run", "CHEMBL5145", "--out", str(tmp_path), "--split", "source", "--source-test-id", "37"]
+    )
+    params = cli.build_params(args)
+    assert params.model.split == "source"
+    assert params.model.source_test_id == 37
+
+
+def test_separate_qualitative_and_frozen_benchmark_commands(tmp_path):
+    screen = cli.parser().parse_args(["screen", "1000", "--out", str(tmp_path / "screen")])
+    assert screen.aid == 1000
+    assert screen.snapshot is None
+    freeze = cli.parser().parse_args(["benchmark-freeze", "--out", str(tmp_path / "frozen")])
+    assert freeze.out == tmp_path / "frozen"
+    bench = cli.parser().parse_args(
+        ["benchmark-run", "--frozen", str(tmp_path / "frozen"), "--out", str(tmp_path / "result")]
+    )
+    assert bench.frozen == tmp_path / "frozen"
+    assert bench.validation == "scaffold"
+    origin = cli.parser().parse_args(
+        [
+            "benchmark-run", "--frozen", str(tmp_path / "frozen"),
+            "--out", str(tmp_path / "origin"), "--validation", "origin",
+        ]
+    )  # fmt: skip
+    assert origin.validation == "origin"
 
 
 def test_cache_dir_honours_env(monkeypatch, tmp_path):

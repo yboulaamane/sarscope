@@ -8,10 +8,12 @@ import pytest
 from sarscope.curate import (
     CURATED_COLUMNS,
     MEASUREMENT_COLUMNS,
+    _standardise_one,
     assign_classes,
     curate_chembl,
     curate_table,
     filter_chembl_records,
+    source_safe_table,
     standardize_and_aggregate,
     time_safe_table,
 )
@@ -24,6 +26,7 @@ STEP_ORDER = [
     "relation",
     "units",
     "assay_type",
+    "source_origin",
     "variant",
     "potential_duplicate",
     "validity",
@@ -100,6 +103,67 @@ def test_variant_selection(make_record):
         assert ids(frame) == expected, variant
 
 
+def test_integrated_origins_can_be_filtered_without_new_downloads(make_record):
+    records = [
+        make_record(activity_id=1, src_id=1),
+        make_record(activity_id=2, src_id=7),
+        make_record(activity_id=3, src_id=37),
+    ]
+    frame, steps = filter_chembl_records(records, CurationParams(source_ids=(7, 37)))
+    assert ids(frame) == ["2", "3"]
+    assert next(step for step in steps if step.name == "source_origin").removed == 1
+    assert frame.attrs["source_id_by_record"] == {"2": 7, "3": 37}
+    assert frame.attrs["context_by_record"]["2"]["source_origin"].startswith("PubChem")
+
+
+def test_empty_origin_filter_explains_why_curation_stopped(make_record):
+    params = RunParams(curation=CurationParams(source_ids=(37,)))
+    with pytest.raises(ValueError, match="no measurements remain after curation filters"):
+        curate_chembl([make_record(src_id=1)], params)
+
+
+def test_source_holdout_removes_shared_structures_before_aggregation(make_record):
+    records = [
+        make_record(
+            activity_id=1,
+            molecule_chembl_id="CHEMBL1",
+            parent_molecule_chembl_id="CHEMBL1",
+            canonical_smiles="CCO",
+            src_id=1,
+            standard_value="1000",
+        ),
+        make_record(
+            activity_id=2,
+            molecule_chembl_id="CHEMBL2",
+            parent_molecule_chembl_id="CHEMBL2",
+            canonical_smiles="CCN",
+            src_id=1,
+        ),
+        make_record(
+            activity_id=3,
+            molecule_chembl_id="CHEMBL3",
+            parent_molecule_chembl_id="CHEMBL3",
+            canonical_smiles="CCO",
+            src_id=7,
+            standard_value="1",
+        ),
+        make_record(
+            activity_id=4,
+            molecule_chembl_id="CHEMBL4",
+            parent_molecule_chembl_id="CHEMBL4",
+            canonical_smiles="CCC",
+            src_id=7,
+        ),
+    ]
+    params = RunParams(model=ModelParams(split="source", source_test_id=7))
+    curated = curate_chembl(records, params)
+    safe = source_safe_table(curated, params)
+    assert len(safe) == 3
+    assert safe["source_test"].tolist() == [False, False, True]
+    assert safe.loc[safe["smiles"] == "CCO", "pactivity"].iloc[0] == pytest.approx(6.0)
+    assert safe.loc[safe["source_test"], "smiles"].tolist() == ["CCC"]
+
+
 def test_optional_filters_are_off_by_default_and_work_when_set(make_record):
     records = [
         make_record(activity_id=1),
@@ -156,6 +220,35 @@ def test_mean_aggregation():
     frame = measurements([("m1", "CCO", 6.0), ("m1", "CCO", 7.0), ("m1", "CCO", 9.0)])
     molecules, _, _ = standardize_and_aggregate(frame, CurationParams(aggregate="mean"))
     assert molecules.iloc[0]["pactivity"] == pytest.approx(22 / 3)
+
+
+def test_standardization_cache_separates_tautomer_choices():
+    _standardise_one.cache_clear()
+    first = _standardise_one("CC(C)C(=O)O", True)
+    assert _standardise_one("CC(C)C(=O)O", True) == first
+    assert _standardise_one.cache_info().hits == 1
+    _standardise_one("CC(C)C(=O)O", False)
+    assert _standardise_one.cache_info().misses == 2
+    _standardise_one.cache_clear()
+
+
+def test_standardization_progress_and_aggregation_keep_first_source_year():
+    frame = measurements(
+        [
+            ("CHEMBL10", "CCO.Cl", 6.0),
+            ("CHEMBL9", "CCO", 7.0),
+            ("CHEMBL9", "CCO", 8.0),
+        ]
+    )
+    frame.attrs["document_year_by_record"] = {"r0": 2022, "r1": 2019, "r2": None}
+    updates: list[tuple[int, int]] = []
+    molecules, _, _ = standardize_and_aggregate(
+        frame, CurationParams(), progress=lambda done, total: updates.append((done, total))
+    )
+    assert updates[-1] == (2, 2)
+    assert molecules.iloc[0]["molecule_id"] == "CHEMBL9"
+    assert molecules.iloc[0]["pactivity"] == pytest.approx(7.0)
+    assert molecules.iloc[0]["document_year"] == 2019
 
 
 def test_unparseable_structures_are_rejected_with_a_reason():

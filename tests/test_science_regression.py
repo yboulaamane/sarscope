@@ -47,6 +47,26 @@ def test_time_split_reserves_only_later_compounds():
     assert set(years[result.test_index]) == {2021}
 
 
+def test_source_split_regression_reserves_origin_unique_compounds():
+    rng = np.random.default_rng(48)
+    X = rng.integers(0, 2, (80, 24), dtype=np.uint8)
+    y = np.linspace(5, 9, 80)
+    labels = np.tile(["a", "b", "c", "d"], 20)
+    mask = np.array([False] * 60 + [True] * 20)
+    params = ModelParams(
+        regression_algorithms=("extra_trees",),
+        split="source",
+        source_test_id=37,
+        cv_folds=3,
+        features=FeatureParams(variance_threshold=0.0),
+    )
+    result = evaluate_regression(
+        X, y, [f"s{i}" for i in range(80)], labels, params, source_test=mask
+    )
+    assert set(result.train_index) == set(range(60))
+    assert set(result.test_index) == set(range(60, 80))
+
+
 def test_small_mlp_regressor_is_available():
     from sarscope.analysis.regression import REGRESSION_ALGORITHMS
 

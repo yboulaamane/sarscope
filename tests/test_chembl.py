@@ -134,6 +134,19 @@ def test_cache_is_written_keyed_by_release_and_reused(tmp_path):
     assert not list(tmp_path.rglob("*.tmp"))
 
 
+def test_activity_progress_reports_each_page_and_cached_load(tmp_path):
+    handler, _ = paged_api(n_records=12, page_size=5)
+    updates: list[tuple[int, int]] = []
+    with client(handler, cache_dir=tmp_path) as chembl:
+        chembl.activities("CHEMBL5145", progress=lambda done, total: updates.append((done, total)))
+    assert updates == [(5, 12), (10, 12), (12, 12)]
+
+    updates.clear()
+    with client(handler, cache_dir=tmp_path) as chembl:
+        chembl.activities("CHEMBL5145", progress=lambda done, total: updates.append((done, total)))
+    assert updates == [(12, 12)]
+
+
 def test_count_activities_uses_a_single_row_request():
     handler, calls = paged_api(n_records=42, page_size=10)
     assert client(handler).count_activities("CHEMBL5145") == 42

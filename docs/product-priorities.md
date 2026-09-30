@@ -17,7 +17,9 @@ than recreate a comprehensive biological knowledge portal.
 - ID and gene/protein discovery, with explicit species/type confirmation.
 - Disease term → direct associated gene → reviewed UniProt accession → human single-protein ChEMBL target.
 - User-triggered curation, chemical space, scaffolds, R-groups, matched pairs, cliffs, ML, and descriptor explanation.
-- Continuous regression and classification, scaffold/time/random validation, and held-out cliff-compound errors.
+- Continuous regression and classification, scaffold/time/source-origin/random validation, held-out cliff-compound errors, ROC/PR curves, per-class diagnostics, and confusion matrices.
+- Original ChEMBL source IDs for integrated PubChem BioAssay and BindingDB rows,
+  with cross-origin compound overlap and potency-disagreement diagnostics.
 - Assay-context drill-down, optional assay-ID and target-confidence filtering, and
   a measurement-level time split that keeps post-cutoff records out of early labels.
 - Streamlit selectivity comparison with explicit missingness and assay-context
@@ -41,7 +43,7 @@ target ranking or a claim that an associated gene has suitable compound data.
 | 3 | SAR transformations | Directional support, context counts and contradictory effects are implemented. Next: document-level independence and direct links for each supporting pair. |
 | 4 | Upload and prioritize | Standardisation, reasons for invalid rows, nearest analogues and an editable diverse shortlist are implemented. Next: stronger batch-level deduplication and alternative scoring objectives. |
 | 5 | Uncertainty and prospective evaluation | A training-only empirical band, held-out coverage, novelty/error and leakage-safe time split are implemented. The band is not calibrated conformal uncertainty; validate coverage by target family and split before stronger claims. |
-| 6 | Reproducibility and benchmarks | Provenance, measurement exports and split manifests are implemented. A published multi-family benchmark, frozen datasets and repeatability evidence remain outstanding. |
+| 6 | Reproducibility and benchmarks | Provenance, measurement exports and split manifests are implemented. A fixed BRAF/DRD2/ESR1 snapshot-and-hash benchmark runner completed one [local ChEMBL 37 run](benchmark-chembl37.md). Independent-origin results, repeated-seed evidence and publication remain outstanding. |
 
 ### Scientific issues to address before strong predictive claims
 
@@ -56,6 +58,18 @@ a regression test for a compound measured on both sides of the cutoff. It uses
 *document year*, not actual compound disclosure date, and remains retrospective.
 Compare descriptor, fingerprint, nearest-neighbour and simple baseline models
 on identical frozen splits before using it as prospective evidence.
+
+ChEMBL already integrates BindingDB (source 37) and a subset of PubChem
+BioAssay (source 7). SARscope does not directly merge a second copy of those
+measurements. The source-origin holdout partitions measurements before
+aggregation and excludes compounds also observed in training origins. It is a
+test of transfer to origin-unique compounds, not a guarantee of independent
+biology: assays, chemistry series, and publications may still be related.
+Direct PubChem qualitative screening now has a separate AID-level binary
+classification workflow, with an offline source snapshot and scaffold-held-out
+ROC/PR AUC. It does not coerce inactive calls to pIC50. The concise-response
+import is limited to assays below 10,000 rows; large-screen export import and
+assay-bias checks remain to do.
 
 The existing target comparison is based on aggregated endpoint values, so its
 ratios need assay-context qualification. An unmeasured off-target is unknown,
@@ -89,6 +103,8 @@ usage shows it is necessary. No GPU is needed for these priorities.
 
 - [ChEMBL search and data services](https://chembl.gitbook.io/chembl-interface-documentation/web-services/chembl-data-web-services)
 - [ChEMBL assay confidence and pChEMBL definitions](https://chembl.gitbook.io/chembl-interface-documentation/frequently-asked-questions/chembl-data-questions)
+- [ChEMBL source IDs and BindingDB/PubChem integration](https://chembl.gitbook.io/chembl-interface-documentation/frequently-asked-questions/document-and-data-source-questions)
+- [PubChem BioAssay PUG REST](https://pubchem.ncbi.nlm.nih.gov/docs/pug-rest)
 - [ChEMBL assay context and comparability](https://chembl.gitbook.io/chembl-data-deposition-guide/file-structure/field-names-and-data-types-minimal-data-submission/assay.tsv)
 - [Open Targets direct and indirect disease associations](https://platform-docs.opentargets.org/associations)
 - [Open Targets target prioritisation](https://platform-docs.opentargets.org/web-interface/target-prioritisation)

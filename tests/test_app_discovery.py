@@ -22,8 +22,43 @@ def widget(app, kind, label):
     return next(item for item in getattr(app, kind) if item.label == label)
 
 
+def test_curation_stage_reports_load_and_standardization_progress(monkeypatch, make_record):
+    import streamlit_app as app_module
+
+    statuses = []
+    loaded = []
+    standardized = []
+    record = make_record()
+
+    def cached_fetch(target_id, types, _progress=None):
+        assert target_id == "CHEMBL5145"
+        assert types == ("IC50",)
+        if _progress is not None:
+            _progress(1, 1)
+        return [record]
+
+    monkeypatch.setattr(app_module, "fetch", cached_fetch)
+    stage = app_module.run_curation_stage(
+        "CHEMBL5145",
+        ("IC50",),
+        app_module.RunParams(),
+        "ChEMBL_test",
+        "B-raf",
+        "Homo sapiens",
+        on_status=statuses.append,
+        on_download_progress=lambda done, total: loaded.append((done, total)),
+        on_standardize_progress=lambda done, total: standardized.append((done, total)),
+    )
+    assert loaded == [(1, 1)]
+    assert standardized[-1] == (1, 1)
+    assert stage.timings["load_records"] >= 0
+    assert stage.timings["curation"] >= 0
+    assert len(stage.table) == 1
+    assert any("Loaded 1 raw records" in message for message in statuses)
+
+
 @pytest.fixture
-def app_api(monkeypatch):
+def app_api(monkeypatch, make_record):
     st.cache_data.clear()
     calls = []
 
@@ -72,7 +107,10 @@ def app_api(monkeypatch):
         elif path.endswith("status.json"):
             data = {"chembl_db_version": "ChEMBL_test"}
         elif path.endswith("activity.json"):
-            data = {"page_meta": {"total_count": 15}}
+            data = {"page_meta": {"total_count": 1}}
+            if request.url.params.get("limit") != "1":
+                data["activities"] = [make_record()]
+                data["page_meta"]["next"] = None
         else:
             pytest.fail(f"Unexpected request: {request.url}")
         return httpx.Response(200, json=data, request=request)
@@ -88,6 +126,25 @@ def test_startup_and_mode_changes_make_no_network_requests(app_api):
         widget(app, "radio", "Find a target by").set_value(mode).run()
         assert not app.exception
     assert not app_api
+
+
+def test_curation_button_shows_phase_timings(app_api):
+    app = AppTest.from_file(str(APP), default_timeout=20).run()
+    widget(app, "radio", "Find a target by").set_value("ChEMBL ID").run()
+    widget(app, "text_input", "ChEMBL target ID").set_value("CHEMBL5145").run()
+    widget(app, "button", "Check target").click().run()
+    widget(app, "button", "1 · Curate CHEMBL5145").click().run()
+    assert not app.exception
+    assert any("Activity load:" in item.value for item in app.caption)
+
+
+def test_pubchem_workflow_is_separate_and_idle_until_requested(app_api):
+    app = AppTest.from_file(str(APP), default_timeout=20).run()
+    widget(app, "radio", "Workflow").set_value("PubChem qualitative screen").run()
+    assert not app.exception
+    assert not app_api
+    assert not any(button.label == "Check target" for button in app.button)
+    assert any(button.label == "Run qualitative screen" for button in app.button)
 
 
 def test_gene_search_requires_selection_and_invalidates_old_results(app_api):

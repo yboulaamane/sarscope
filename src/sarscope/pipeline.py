@@ -44,7 +44,13 @@ from sarscope.analysis.regression import (
 )
 from sarscope.analysis.rgroups import ScaffoldSar, decompose_top_scaffolds
 from sarscope.analysis.scaffolds import add_scaffolds, diversity_table, enrichment_table
-from sarscope.curate import CurationResult, curate_chembl, curate_table, time_safe_table
+from sarscope.curate import (
+    CurationResult,
+    curate_chembl,
+    curate_table,
+    source_safe_table,
+    time_safe_table,
+)
 from sarscope.params import RunParams
 from sarscope.predict import PredictionBundle, _row_max_tanimoto, similarity_domain_threshold
 from sarscope.sources.chembl import ChemblClient
@@ -131,13 +137,18 @@ def analyse(curation: CurationResult, params: RunParams) -> RunResults:
     cliff_model_performance = pd.DataFrame()
     regression_test_predictions = pd.DataFrame()
     model_table = table
-    time_error = ""
-    if params.model.split == "time":
+    split_error = ""
+    if params.model.split in ("time", "source"):
         try:
-            model_table = add_scaffolds(time_safe_table(curation, params))
+            safe = (
+                time_safe_table(curation, params)
+                if params.model.split == "time"
+                else source_safe_table(curation, params)
+            )
+            model_table = add_scaffolds(safe)
         except ValueError as exc:
-            time_error = str(exc)
-    reason = time_error or _modelling_blocked(model_table, params)
+            split_error = str(exc)
+    reason = split_error or _modelling_blocked(model_table, params)
     if reason:
         skipped["model"] = reason
         skipped["domain"] = reason
@@ -148,12 +159,14 @@ def analyse(curation: CurationResult, params: RunParams) -> RunResults:
             ecfp_bits=params.model.features.ecfp_bits,
         )
         years = model_table["document_year"].tolist() if "document_year" in model_table else None
+        source_test = model_table["source_test"].tolist() if "source_test" in model_table else None
         models = evaluate(
             X,
             model_table["activity_class"].tolist(),
             model_table["murcko"].tolist(),
             params.model,
             years=years,
+            source_test=source_test,
         )
         regression = evaluate_regression(
             X,
@@ -162,6 +175,7 @@ def analyse(curation: CurationResult, params: RunParams) -> RunResults:
             model_table["activity_class"].tolist(),
             params.model,
             years=years,
+            source_test=source_test,
         )
         regression_test_predictions = regression_error_profile(model_table, X, regression)
         deploy_filter, deploy_model = fit_deployment_model(
@@ -315,25 +329,52 @@ def _modelling_blocked(table: pd.DataFrame, params: RunParams) -> str:
             "so there is nothing to classify. Widen the class bounds, or check "
             "that the potency column is on the scale you think it is."
         )
-    if model.split != "time" and counts.min() < model.cv_folds:
+    if model.split not in ("time", "source") and counts.min() < model.cv_folds:
         return (
             f"the smallest class has {counts.min()} molecules, fewer than the "
             f"{model.cv_folds} cross-validation folds. Lower cv_folds, or widen "
             "the class bounds so the rarest class is better populated."
         )
-    if model.split == "scaffold":
+    if model.split == "source" and "source_test" not in table:
+        return "source split needs ChEMBL measurement origins"
+    if model.split in ("scaffold", "source"):
         # Acyclic molecules are each their own group, so they only ever help.
         groups = int(table["murcko"].nunique() + table["murcko"].isna().sum())
         outer = max(2, round(1 / model.test_fraction))
         # The outer split takes its share of scaffolds first, so cross-validation
         # runs on roughly (1 - test_fraction) of them and needs cv_folds of those.
-        needed = max(outer, math.ceil(model.cv_folds / (1 - model.test_fraction)))
+        needed = (
+            model.cv_folds
+            if model.split == "source"
+            else max(outer, math.ceil(model.cv_folds / (1 - model.test_fraction)))
+        )
+        if model.split == "source":
+            train = table[~table["source_test"]]
+            groups = int(train["murcko"].nunique() + train["murcko"].isna().sum())
         if groups < needed:
+            if model.split == "source":
+                return (
+                    f"source holdout training set needs at least {needed} distinct "
+                    f"scaffolds for {model.cv_folds}-fold CV and has {groups}; "
+                    "use fewer folds or choose another held-out origin"
+                )
             return (
-                f"a scaffold split with {model.cv_folds} folds needs about {needed} distinct "
+                f"a {model.split} split with {model.cv_folds} scaffold CV folds needs about "
+                f"{needed} distinct "
                 f"scaffolds and this dataset has {groups}. Lower cv_folds, or pass "
                 "--split random (which will flatter the model, because one series can "
                 "then sit on both sides of the split)."
+            )
+    if model.split == "source":
+        train = table[~table["source_test"]]
+        test = table[table["source_test"]]
+        if train.empty or test.empty:
+            return "source split needs training and distinct held-out-origin compounds"
+        train_counts = train["activity_class"].value_counts()
+        if len(train_counts) < 2 or train_counts.min() < model.cv_folds:
+            return (
+                f"source split training set cannot support {model.cv_folds}-fold "
+                "stratified scaffold model selection; use fewer folds"
             )
     if model.split == "time":
         if "document_year" not in table:

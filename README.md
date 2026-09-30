@@ -102,6 +102,25 @@ Random Forest also reports impurity importance. Optional TreeSHAP support is
 available locally with `pip install "sarscope[explain]"` and is lazy-loaded so
 the hosted app does not inherit SHAP's startup cost.
 
+For larger targets, the curation step shows activity-page and structure
+progress, then reports separate record-loading and curation times. Raw ChEMBL
+responses are cached by release and selected activity types; standardized
+structures are reused across filter changes while the app process runs. Assay,
+source, and year filters still apply after the raw download, so they reduce
+curation work but not network transfer. On Streamlit Community Cloud, locally
+generated cache files [are not guaranteed to persist](https://docs.streamlit.io/develop/concepts/connections/connecting-to-data)
+after an app restart.
+
+The dark browser UI uses distinct colors for potency classes and staged
+controls. In ML, **Exclude intermediate class** is an explicit opt-in choice:
+it removes those compounds from all selected ML tasks *before* splitting and
+cross-validation, while curation, chemical space, scaffolds and cliffs retain
+them. Potent, active and inactive remain separate classifier labels; the
+option does not silently create a binary endpoint. Continuous regression
+normally benefits from retaining intermediate potencies, so it is off by
+default. The choice and model compound count are recorded in report
+provenance.
+
 Two additional opt-in steps use those results: **Selectivity** compares a
 second ChEMBL target and exposes both shared-compound potency differences and a
 compound-by-target matrix in which an unmeasured target remains *unknown*;
@@ -137,13 +156,13 @@ See [`docs/deploying.md`](docs/deploying.md) to host it.
 | Section | Output |
 |---|---|
 | Overview | Headline numbers, most potent molecules and enriched scaffolds, drawn |
-| Curation | Every record removed, retained measurements and assay context |
+| Curation | Every record removed, retained measurements, assay context, original source and cross-source disagreement |
 | Properties | Six descriptors by activity group, Mann-Whitney tests, PCA |
 | Scaffolds | Murcko diversity, enrichment factors with Wilson lower bounds |
 | R-group SAR | Per-position substituent effects, with cores and substituents drawn |
 | Matched pairs | Single-cut transformations and directional summaries with support and assay-context flags |
 | Landscape | Activity cliffs with both structures, SALI, cliff generators |
-| Models | Classification with held-out ROC AUC, average precision (PR AUC), per-class precision/recall/F1 and confusion matrix; continuous pActivity regression; scaffold/time split, leakage audit, applicability domain and empirical error band |
+| Models | Classification with held-out ROC AUC, average precision (PR AUC), per-class precision/recall/F1 and confusion matrix; continuous pActivity regression; scaffold/time/source-origin split, leakage audit, applicability domain and empirical error band |
 | Model diagnostics | Held-out error on activity-cliff compounds versus the rest |
 | Comparison | Shared-compound selectivity, shared scaffolds and explicit missing target measurements |
 
@@ -161,6 +180,85 @@ be traced back to the ChEMBL release, the package versions and the exact
 settings that produced it.
 
 ## Using your own data
+
+### Evidence origins without duplicate downloads
+
+ChEMBL already includes [BindingDB (source 37) and PubChem BioAssay (source 7)
+records](https://chembl.gitbook.io/chembl-interface-documentation/frequently-asked-questions/document-and-data-source-questions).
+SARscope shows these original source IDs, counts compounds appearing in multiple
+origins, and flags cross-origin potency disagreement. It does not append a
+second copy from the upstream APIs. ChEMBL's PubChem import covers only a
+[subset of confirmatory assay data](https://chembl.gitbook.io/chembl-interface-documentation/frequently-asked-questions/chembl-data-questions),
+so this is not a claim that all PubChem screens or all BindingDB records are
+present. The source filter can focus an analysis on an integrated origin:
+
+```bash
+sarscope run CHEMBL5145 --source-ids 7 37 --out report/
+```
+
+To test transfer across origins, reserve one as an external-origin holdout:
+
+```bash
+sarscope run CHEMBL5145 --split source --source-test-id 37 \
+  --cv-folds 5 --out report/
+```
+
+Measurements are split before aggregation. A structure also measured in another
+origin remains in training and is excluded from the held-out test. This tests
+source transfer only where enough origin-unique compounds exist; it is not an
+independent prospective experiment. Inside training, model selection uses
+scaffold cross-validation. Do not combine `--source-ids` with a filter that
+removes every record of the intended training or test origin.
+
+### Qualitative PubChem screens (separate endpoint)
+
+```bash
+sarscope screen 1000 --out pubchem_aid1000/
+sarscope screen 1000 --snapshot pubchem_aid1000/source_snapshot.json \
+  --out pubchem_aid1000_replay/
+```
+
+This workflow reads one [PubChem BioAssay AID](https://pubchem.ncbi.nlm.nih.gov/docs/pug-rest)'s
+**Active/Inactive** [outcome calls](https://pubchem.ncbi.nlm.nih.gov/docs/bioassay-tag-names) and
+compound SMILES. It excludes inconclusive/unspecified calls and structures
+with conflicting calls. It reports held-out scaffold ROC AUC, PR AUC, MCC,
+precision/enrichment at the top 10%, and the test-set prevalence baseline.
+The original calls and structures are saved in `source_snapshot.json` for
+offline replay. Qualitative labels are **never converted to pIC50** or mixed
+with the ChEMBL potency pipeline. The direct API route refuses assays at the
+10,000-row concise-response safety limit rather than silently truncating them.
+For a larger screen, a complete, versioned assay-export importer is still
+needed. AID 1000 is a small smoke test, not a general performance claim.
+
+### Frozen multi-target-family benchmark
+
+```bash
+sarscope benchmark-freeze --out frozen_chembl_panel/
+sarscope benchmark-run --frozen frozen_chembl_panel/ --out benchmark_results/
+sarscope benchmark-run --frozen frozen_chembl_panel/ --validation origin \
+  --out origin_holdout_results/
+```
+
+The fixed panel is human BRAF (kinase), DRD2 (class A GPCR), and ESR1
+(nuclear receptor). Freezing records the ChEMBL release, exact target identity,
+raw IC50 records and SHA-256 hashes. The offline runner rejects modified
+snapshots or protocol/panel drift. The predeclared analysis uses exact nM
+wild-type/unannotated binding IC50, median aggregation, ECFP4, random-forest
+regression and scaffold holdout; each target is scored against a training-median
+baseline with R²/RMSE/Spearman and molecule-level test predictions. This is
+cross-family **coverage of within-target tests**, not cross-target transfer or
+prospective validation. Frozen ChEMBL records are local artifacts, not bundled
+in this repository; review licensing before redistributing them. A benchmark
+claim requires running the frozen panel, checking per-target results and
+repeating it in a locked environment.
+The optional origin test holds out compounds unique to ChEMBL's integrated
+BindingDB source 37, partitioning measurements before molecule aggregation and
+using scaffold CV inside training. It tests evidence-origin transfer, not
+truly independent biology; shared assay designs or chemistry series can remain.
+The [first local ChEMBL 37 benchmark](docs/benchmark-chembl37.md) reports
+per-family held-out results and limitations; it is not an external validation.
+
+### Local tables
 
 A CSV with an ID, a SMILES and a potency column. Values may already be on the
 p-scale, or given as a concentration:

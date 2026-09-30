@@ -18,7 +18,7 @@ import dataclasses
 from dataclasses import dataclass, field
 from typing import Any, Literal
 
-SplitStrategy = Literal["random", "scaffold", "time"]
+SplitStrategy = Literal["random", "scaffold", "time", "source"]
 FingerprintName = Literal["ecfp4", "maccs", "pubchem"]
 
 
@@ -60,6 +60,8 @@ class CurationParams:
     bao_formats: tuple[str, ...] | None = None
     #: Restrict to explicit ChEMBL assays when a coherent assay subset is needed.
     assay_ids: tuple[str, ...] | None = None
+    #: ChEMBL activity src_id values (e.g. 7 PubChem, 37 BindingDB). None keeps all.
+    source_ids: tuple[int, ...] | None = None
     #: ChEMBL assay-to-target assignment confidence (0–9); None disables filtering.
     min_confidence_score: int | None = None
     #: Keep only records from documents published up to this year. Useful for
@@ -173,11 +175,15 @@ class ModelParams:
     #: "scaffold" keeps every Murcko scaffold wholly on one side of each split,
     #: which is what generalisation to new chemotypes actually means. A random
     #: split scatters one congeneric series across both sides and flatters the
-    #: model accordingly.
+    #: model accordingly. "source" holds out origin-unique compounds and uses
+    #: scaffold CV inside the remaining training data.
     split: SplitStrategy = "scaffold"
     #: For ``split="time"``, train on measurements documented on or before
     #: this year and test only on later molecules.
     time_cutoff: int = 2019
+    #: For ``split="source"``, reserve compounds measured only in this ChEMBL
+    #: origin (e.g. 7 PubChem or 37 BindingDB) as an external-origin test.
+    source_test_id: int | None = None
     #: Random oversampling of minority classes, applied to training folds only.
     oversample: bool = True
     #: Also run the naive order of operations (select features and oversample on

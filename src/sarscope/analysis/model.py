@@ -16,8 +16,10 @@ deserves a proper hyperparameter search afterwards.
        fold is the test set. Acyclic molecules are each their own group.
        "random": StratifiedShuffleSplit. "time": first document year at or
        before the cutoff for training, later first-seen compounds for test.
+       "source": compounds unique to one ChEMBL evidence origin are held out.
     2. Cross-validate on the training set: StratifiedGroupKFold / StratifiedKFold
-       for scaffold / random, or expanding chronological folds for time.
+       for scaffold / random; source uses scaffold CV inside training, while
+       time uses expanding chronological folds.
     3. Inside every fit - each CV fold, and the final fit on the whole training
        set - fit VarianceCorrelationFilter on the fitting rows only, then
        randomly oversample those rows only (duplicate minority-class rows up to
@@ -168,6 +170,7 @@ def evaluate(
     groups: Sequence[str | None],
     params: ModelParams,
     years: Sequence[int | float | None] | None = None,
+    source_test: Sequence[bool] | None = None,
 ) -> ModelResult:
     """Run every algorithm in ``params.algorithms`` under the leak-free protocol,
     and also under the naive protocol if ``params.leakage_audit``.
@@ -186,12 +189,12 @@ def evaluate(
     group_ids = np.array(
         [g if g is not None else f"__acyclic_{i}" for i, g in enumerate(groups)], dtype=object
     )
-    train_idx, test_idx = _outer_split(X, labels, group_ids, params, years)
+    train_idx, test_idx = _outer_split(X, labels, group_ids, params, years, source_test)
 
     rows = []
     for name in names:
         rows.append(_leak_free(name, X, labels, group_ids, train_idx, test_idx, params, years))
-        if params.leakage_audit and params.split != "time":
+        if params.leakage_audit and params.split not in ("time", "source"):
             rows.append(_naive_protocol(name, X, labels, params))
     scores = pd.DataFrame(rows, columns=list(SCORE_COLUMNS))
 
@@ -234,8 +237,19 @@ def _outer_split(
     groups: NDArray[Any],
     params: ModelParams,
     years: Sequence[int | float | None] | None = None,
+    source_test: Sequence[bool] | None = None,
 ) -> tuple[NDArray[np.intp], NDArray[np.intp]]:
-    if params.split == "time":
+    if params.split == "source":
+        if source_test is None:
+            raise ValueError("source split needs a held-out-origin mask")
+        mask = np.asarray(source_test, dtype=bool)
+        if len(mask) != len(y):
+            raise ValueError("source split mask must match the molecule rows")
+        train = np.flatnonzero(~mask)
+        test = np.flatnonzero(mask)
+        if not len(train) or not len(test):
+            raise ValueError("source split needs both training and held-out compounds")
+    elif params.split == "time":
         if years is None:
             raise ValueError("time split needs document_year for every molecule")
         year_values = pd.to_numeric(pd.Series(years), errors="coerce").to_numpy(dtype=float)
@@ -290,7 +304,7 @@ def _cv_folds(
             folds.append((fit, validation))
         return iter(folds)
     placeholder = np.zeros(len(y))
-    if groups is not None and params.split == "scaffold":
+    if groups is not None and params.split in ("scaffold", "source"):
         sgkf = StratifiedGroupKFold(params.cv_folds, shuffle=True, random_state=params.seed)
         return iter(sgkf.split(placeholder, y, groups))
     skf = StratifiedKFold(params.cv_folds, shuffle=True, random_state=params.seed)
