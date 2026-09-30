@@ -11,12 +11,15 @@ from __future__ import annotations
 import collections
 import hashlib
 import io
+import json
 import sys
 import zipfile
+from collections.abc import Callable
 from dataclasses import dataclass, field
 from importlib.util import find_spec
 from pathlib import Path
 from tempfile import TemporaryDirectory
+from time import perf_counter
 from typing import Any, cast
 
 # Streamlit Community Cloud clones the repo and runs this file from the root;
@@ -73,8 +76,14 @@ from sarscope.analysis.scaffolds import (  # noqa: E402
     enrichment_table,
 )
 from sarscope.compare import ComparisonResult, run_compare  # noqa: E402
-from sarscope.curate import CurationResult, curate_chembl, time_safe_table  # noqa: E402
+from sarscope.curate import (  # noqa: E402
+    CurationResult,
+    curate_chembl,
+    source_safe_table,
+    time_safe_table,
+)
 from sarscope.depict import to_svg, unavailable_reason  # noqa: E402
+from sarscope.ml_selection import select_ml_table  # noqa: E402
 from sarscope.params import (  # noqa: E402
     ClassScheme,
     CurationParams,
@@ -94,6 +103,7 @@ from sarscope.pipeline import (  # noqa: E402
 from sarscope.predict import PredictionBundle, similarity_domain_threshold  # noqa: E402
 from sarscope.prioritise import diverse_shortlist, predict_candidates  # noqa: E402
 from sarscope.report import write_report  # noqa: E402
+from sarscope.screen import run_screen_snapshot  # noqa: E402
 from sarscope.sources.chembl import (  # noqa: E402
     ChemblClient,
     ChemblError,
@@ -104,11 +114,23 @@ from sarscope.sources.opentargets import (  # noqa: E402
     disease_targets,
     search_diseases,
 )
+from sarscope.sources.origins import (  # noqa: E402
+    SOURCE_NAMES,
+    source_disagreement,
+    source_summary,
+)
+from sarscope.sources.pubchem import PubChemClient, PubChemError  # noqa: E402
 
 #: Categorical slots of the reference palette. Group 1 / Group 2 keep these
 #: hues everywhere in the app, so colour follows the entity, never the rank.
-BLUE, ORANGE, RED = "#2a78d6", "#eb6834", "#e34948"
-GROUP_COLORS = [BLUE, ORANGE]
+TEAL, PURPLE, ORANGE, RED = "#52dfb6", "#c59bff", "#ffca76", "#ff8194"
+GROUP_COLORS = [TEAL, ORANGE]
+CLASS_COLORS = {
+    "potent": TEAL,
+    "active": PURPLE,
+    "intermediate": ORANGE,
+    "inactive": RED,
+}
 
 #: Above this many molecules, the all-pairs landscape gets slow in a shared
 #: process. The CLI has no cap.
@@ -125,6 +147,10 @@ FIELD_NOTES: dict[str, tuple[str, str]] = {
     ),
     "standard_units": ("Units", "Only molar units convert to the -log10(M) scale."),
     "assay_type": ("Assay type", "B binding, F functional, A ADMET. Binding kept by default."),
+    "src_id": (
+        "Original data source",
+        "1 literature, 7 PubChem BioAssay, 37 BindingDB; these are ChEMBL integrations.",
+    ),
     "assay_variant_mutation": (
         "Protein variant",
         "(none) is wild-type. Mutant assays measure a different protein; "
@@ -160,6 +186,7 @@ class CurationStage:
     table: pd.DataFrame
     provenance: dict[str, Any]
     skipped: dict[str, str] = field(default_factory=dict)
+    timings: dict[str, float] = field(default_factory=dict)
 
 
 @dataclass
@@ -201,6 +228,7 @@ class MlStage:
     prediction_bundle: PredictionBundle | None = None
     skipped: dict[str, str] = field(default_factory=dict)
     regression_test_predictions: pd.DataFrame = field(default_factory=pd.DataFrame)
+    drop_intermediate: bool = False
 
 
 # -- data ---------------------------------------------------------------------
@@ -217,9 +245,14 @@ def lookup(target_id: str, types: tuple[str, ...]) -> tuple[dict[str, Any], str,
 
 
 @st.cache_data(ttl=86_400, show_spinner=False)
-def fetch(target_id: str, types: tuple[str, ...]) -> list[dict[str, Any]]:
+def fetch(
+    target_id: str,
+    types: tuple[str, ...],
+    _progress: Callable[[int, int], None] | None = None,
+) -> list[dict[str, Any]]:
+    # The underscore excludes this transient UI callback from Streamlit's cache key.
     with client() as c:
-        return c.activities(target_id, types)
+        return c.activities(target_id, types, progress=_progress)
 
 
 @st.cache_data(ttl=86_400, max_entries=16, show_spinner=False)
@@ -430,23 +463,58 @@ def run_curation_stage(
     release: str,
     target_name: str,
     organism: str,
+    *,
+    on_status: Callable[[str], None] | None = None,
+    on_download_progress: Callable[[int, int], None] | None = None,
+    on_standardize_progress: Callable[[int, int], None] | None = None,
 ) -> CurationStage:
     """Download and curate only; every later analysis is explicitly opt-in."""
-    records = fetch(target_id, types)
+    started = perf_counter()
+    if on_status is not None:
+        on_status("Loading activity records from ChEMBL or the local cache…")
+    records = fetch(target_id, types, _progress=on_download_progress)
+    load_seconds = perf_counter() - started
+    if on_status is not None:
+        on_status(f"Loaded {len(records):,} raw records in {load_seconds:.1f}s.")
+    assay_seconds = 0.0
     if params.curation.min_confidence_score is not None:
+        if on_status is not None:
+            on_status("Loading assay-target confidence scores…")
+        assay_started = perf_counter()
         scores = assay_confidences(target_id)
         records = [
             {**record, "confidence_score": scores.get(str(record.get("assay_chembl_id")))}
             for record in records
         ]
-    curation = curate_chembl(records, params)
+        assay_seconds = perf_counter() - assay_started
+    if on_status is not None:
+        on_status("Filtering measurements and standardizing distinct structures…")
+    if on_standardize_progress is not None:
+        on_standardize_progress(0, 0)
+    curation_started = perf_counter()
+    curation = curate_chembl(records, params, progress=on_standardize_progress)
+    curation_seconds = perf_counter() - curation_started
+    if on_status is not None:
+        on_status(
+            f"Curated {len(curation.table):,} compounds in {curation_seconds:.1f}s."
+        )
     target = {
         "target_chembl_id": target_id,
         "pref_name": target_name,
         "organism": organism,
     }
     record = provenance.collect(params, provenance.chembl_source(target, release, len(records)))
-    return CurationStage(params, curation, curation.table, record)
+    return CurationStage(
+        params,
+        curation,
+        curation.table,
+        record,
+        timings={
+            "load_records": load_seconds,
+            "assay_confidence": assay_seconds,
+            "curation": curation_seconds,
+        },
+    )
 
 
 def run_property_stage(curation: CurationResult) -> PropertyStage:
@@ -497,15 +565,26 @@ def run_ml_stage(
     classification: bool,
     regression: bool,
     landscape: LandscapeStage | None,
+    drop_intermediate: bool = False,
 ) -> MlStage:
     table = scaffold.table
-    time_error = ""
-    if params.model.split == "time":
+    split_error = ""
+    if params.model.split in ("time", "source"):
         try:
-            table = add_scaffolds(time_safe_table(curation, params))
+            safe = (
+                time_safe_table(curation, params)
+                if params.model.split == "time"
+                else source_safe_table(curation, params)
+            )
+            table = add_scaffolds(safe)
         except ValueError as exc:
-            time_error = str(exc)
-    reason = time_error or _modelling_blocked(table, params)
+            split_error = str(exc)
+    try:
+        table = select_ml_table(table, drop_intermediate=drop_intermediate)
+    except ValueError as exc:
+        split_error = str(exc)
+        table = table.iloc[0:0].copy()
+    reason = split_error or _modelling_blocked(table, params)
     if reason:
         return MlStage(
             params,
@@ -514,12 +593,14 @@ def run_ml_stage(
             None,
             None,
             skipped={"model": reason, "domain": reason},
+            drop_intermediate=drop_intermediate,
         )
     features = params.model.features
     X = fingerprint_matrix(
         table["smiles"].tolist(), features.fingerprint, ecfp_bits=features.ecfp_bits
     )
     years = table["document_year"].tolist()
+    source_test = table["source_test"].tolist() if "source_test" in table else None
     models = (
         evaluate(
             X,
@@ -527,6 +608,7 @@ def run_ml_stage(
             table["murcko"].tolist(),
             params.model,
             years=years,
+            source_test=source_test,
         )
         if classification
         else None
@@ -539,6 +621,7 @@ def run_ml_stage(
             table["activity_class"].tolist(),
             params.model,
             years=years,
+            source_test=source_test,
         )
         if regression
         else None
@@ -592,6 +675,7 @@ def run_ml_stage(
         cliff_performance,
         bundle,
         regression_test_predictions=regression_test_predictions,
+        drop_intermediate=drop_intermediate,
     )
 
 
@@ -602,6 +686,7 @@ def build_params(settings: dict[str, Any]) -> RunParams:
     return RunParams(
         curation=CurationParams(
             standard_types=tuple(settings["types"]),
+            source_ids=settings["source_ids"],
             relations=("=", "<", ">", "<=", ">=") if settings["censored"] else ("=",),
             variant=variant,
             max_document_year=settings["max_year"],
@@ -618,7 +703,7 @@ def build_params(settings: dict[str, Any]) -> RunParams:
 def bar_chart(frame: pd.DataFrame, value: str, label: str) -> alt.Chart:
     return (
         alt.Chart(frame)
-        .mark_bar(color=BLUE, cornerRadiusEnd=4, size=14)
+        .mark_bar(color=PURPLE, cornerRadiusEnd=4, size=14)
         .encode(
             x=alt.X(f"{value}:Q", title=label),
             y=alt.Y("value:N", sort="-x", title=None),
@@ -801,6 +886,30 @@ def show_curation(results: RunResults | CurationStage) -> None:
     cols[2].metric("Group 2", f"{int((table['group'] == 2).sum()):,}")
     cols[3].metric("Rejected structures", f"{len(results.curation.rejected):,}")
 
+    counts = (
+        table["activity_class"]
+        .value_counts()
+        .reindex(list(CLASS_COLORS), fill_value=0)
+        .rename_axis("activity_class")
+        .reset_index(name="molecules")
+    )
+    st.altair_chart(
+        alt.Chart(counts)
+        .mark_bar(cornerRadiusEnd=6)
+        .encode(
+            x=alt.X("activity_class:N", title="Curated activity class", sort=list(CLASS_COLORS)),
+            y=alt.Y("molecules:Q", title="Compounds"),
+            color=alt.Color(
+                "activity_class:N",
+                scale=alt.Scale(domain=list(CLASS_COLORS), range=list(CLASS_COLORS.values())),
+                legend=None,
+            ),
+            tooltip=["activity_class:N", "molecules:Q"],
+        )
+        .properties(height=150),
+        width="stretch",
+    )
+
     st.caption(
         "Every record that left the dataset, and the step that removed it. These choices "
         "change every number below, which is why they are recorded rather than assumed."
@@ -821,6 +930,25 @@ def show_curation(results: RunResults | CurationStage) -> None:
     st.dataframe(log, hide_index=True, width="stretch")
     evidence = results.curation.evidence
     if not evidence.empty:
+        origins = source_summary(evidence)
+        if not origins.empty:
+            st.markdown("**Where these measurements came from**")
+            st.caption(
+                "These are original ChEMBL source IDs. PubChem and BindingDB entries are "
+                "already integrated into ChEMBL; shared molecules are flagged rather than "
+                "counted as independent evidence. This does not cover every record in either "
+                "upstream database."
+            )
+            st.dataframe(origins, hide_index=True, width="stretch")
+            disagreements = source_disagreement(evidence)
+            if not disagreements.empty:
+                with st.expander("Compounds measured in more than one origin"):
+                    st.caption(
+                        "Largest differences between source-specific median potencies. "
+                        "Different assay protocols or endpoints may explain the spread; "
+                        "inspect measurements before pooling."
+                    )
+                    st.dataframe(disagreements.head(100), hide_index=True, width="stretch")
         st.markdown("**Assay evidence behind the pooled molecule values**")
         st.caption(
             "Each row is a retained measurement. Values from different endpoints or assay "
@@ -1098,6 +1226,18 @@ def show_models(results: RunResults | MlStage) -> None:
             f"({int(test_years.min())}–{int(test_years.max())}). "
             "Model selection uses expanding, earlier-to-later year folds within training."
         )
+    if results.params.model.split == "source":
+        model = results.regression if results.regression is not None else results.models
+        assert model is not None
+        source_id = results.params.model.source_test_id
+        assert source_id is not None
+        st.info(
+            f"**Origin-held-out validation:** trained on {len(model.train_index)} compounds "
+            f"from other ChEMBL origins; tested on {len(model.test_index)} compounds "
+            f"unique to source {source_id} "
+            f"({SOURCE_NAMES.get(source_id, 'other ChEMBL source')}). "
+            "Compounds measured in both origins are excluded from the test set."
+        )
     if results.models is not None:
         st.caption(
             "**leak_free** selects features and resamples inside training folds only, after "
@@ -1154,6 +1294,7 @@ def show_models(results: RunResults | MlStage) -> None:
                 choices = evaluable["activity_class"].tolist()
                 if choices:
                     chosen = st.selectbox("One-vs-rest curve for", choices)
+                    curve_color = CLASS_COLORS.get(chosen, PURPLE)
                     column = results.models.test_score_classes.index(chosen)
                     positive = np.asarray(truth == chosen, dtype=bool)
                     values = class_scores[:, column]
@@ -1166,7 +1307,7 @@ def show_models(results: RunResults | MlStage) -> None:
                     pr_points = pd.DataFrame({"recall": recall, "precision": precision})
                     curve_cols[0].altair_chart(
                         alt.Chart(roc_points)
-                        .mark_line(color=BLUE)
+                        .mark_line(color=curve_color)
                         .encode(
                             x=alt.X("false_positive_rate:Q", scale=alt.Scale(domain=[0, 1])),
                             y=alt.Y("true_positive_rate:Q", scale=alt.Scale(domain=[0, 1])),
@@ -1176,7 +1317,7 @@ def show_models(results: RunResults | MlStage) -> None:
                     )
                     curve_cols[1].altair_chart(
                         alt.Chart(pr_points)
-                        .mark_line(color=BLUE)
+                        .mark_line(color=curve_color)
                         .encode(
                             x=alt.X("recall:Q", scale=alt.Scale(domain=[0, 1])),
                             y=alt.Y("precision:Q", scale=alt.Scale(domain=[0, 1])),
@@ -1226,7 +1367,7 @@ def show_models(results: RunResults | MlStage) -> None:
             st.markdown("**Error versus nearest training analogue**")
             chart = (
                 alt.Chart(profile)
-                .mark_circle(size=55, opacity=0.65, color=BLUE)
+                .mark_circle(size=55, opacity=0.65, color=PURPLE)
                 .encode(
                     x=alt.X("max_training_similarity:Q", title="Nearest training similarity"),
                     y=alt.Y("absolute_error:Q", title="Absolute potency error"),
@@ -1288,7 +1429,7 @@ def importance_chart(frame: pd.DataFrame, title: str) -> alt.Chart:
     shown = frame.head(12).sort_values("importance")
     return (
         alt.Chart(shown)
-        .mark_bar(color=BLUE, cornerRadiusEnd=3)
+        .mark_bar(color=ORANGE, cornerRadiusEnd=3)
         .encode(
             x=alt.X("importance:Q", title="Importance"),
             y=alt.Y("descriptor:N", sort=None, title=None),
@@ -1388,7 +1529,13 @@ def assemble_report_results(
         ),
         rgroups=scaffolds.rgroups,
         skipped={**curation.skipped, **properties.skipped, **(ml.skipped if ml else {})},
-        provenance=curation.provenance,
+        provenance={
+            **curation.provenance,
+            "ml_selection": {
+                "drop_intermediate": ml.drop_intermediate if ml is not None else False,
+                "model_compounds": len(ml.table) if ml is not None else None,
+            },
+        },
     )
 
 
@@ -1427,6 +1574,16 @@ def sidebar() -> dict[str, Any]:
                 0,
                 help="0 keeps all assays; 9 requires a direct single-protein assignment.",
             )
+            origin_labels = {
+                f"{name} · {identifier}": identifier for identifier, name in SOURCE_NAMES.items()
+            }
+            chosen_origins = st.multiselect(
+                "ChEMBL evidence origins (optional)",
+                list(origin_labels),
+                help="Empty keeps all origins. Source 7 is integrated PubChem BioAssay; "
+                "source 37 is integrated BindingDB. This avoids downloading the same "
+                "measurements again from those databases.",
+            )
 
         st.caption(f"SARscope {__version__} · [source](https://github.com/yboulaamane/sarscope)")
 
@@ -1437,32 +1594,190 @@ def sidebar() -> dict[str, Any]:
         "max_year": None if max_year >= 2030 else int(max_year),
         "assay_id": assay_id,
         "min_confidence": min_confidence,
+        "source_ids": tuple(origin_labels[name] for name in chosen_origins) or None,
     }
+
+
+def apply_visual_theme() -> None:
+    """Warm, multicolour accents without adding network assets or startup work."""
+    st.markdown(
+        """
+        <style>
+        .stApp {
+            background: radial-gradient(circle at 88% 4%, rgba(197, 155, 255, .15),
+                transparent 30%), radial-gradient(circle at 5% 32%,
+                rgba(255, 129, 148, .08), transparent 28%), radial-gradient(circle at 80% 90%,
+                rgba(82, 223, 182, .06), transparent 35%), #14131d;
+        }
+        [data-testid="stSidebar"] {
+            background: linear-gradient(180deg, #251e31, #1b1a28 72%);
+            border-right: 1px solid rgba(197, 155, 255, .17);
+        }
+        [data-testid="stMetric"] {
+            position: relative;
+            overflow: hidden;
+            border: 1px solid rgba(197, 155, 255, .22);
+            border-radius: 12px;
+            background: rgba(40, 34, 52, .78);
+            padding: .7rem 1rem;
+        }
+        [data-testid="stMetric"]::before {
+            content: "";
+            position: absolute;
+            inset: 0 0 auto;
+            height: 3px;
+            background: linear-gradient(90deg, #52dfb6, #c59bff, #ffca76, #ff8194);
+        }
+        div.stButton > button[kind="primary"],
+        button[data-testid="stBaseButton-primary"] {
+            background: linear-gradient(105deg, #ffca76, #ff9e8e) !important;
+            color: #24151e !important;
+            border: 1px solid #ffd492 !important;
+            font-weight: 700;
+            box-shadow: 0 4px 18px rgba(255, 158, 142, .22);
+        }
+        div.stButton > button[kind="primary"]:hover,
+        button[data-testid="stBaseButton-primary"]:hover {
+            background: linear-gradient(105deg, #ffdc9e, #ffb7a6) !important;
+            color: #24151e !important;
+        }
+        div.stButton > button[kind="primary"]:focus-visible,
+        button[data-testid="stBaseButton-primary"]:focus-visible {
+            outline: 2px solid #52dfb6;
+            outline-offset: 2px;
+        }
+        div.stButton > button[kind="secondary"],
+        div.stDownloadButton > button {
+            border-color: rgba(197, 155, 255, .48);
+            background: rgba(197, 155, 255, .07);
+        }
+        div.stButton > button[kind="secondary"]:hover,
+        div.stDownloadButton > button:hover {
+            border-color: #52dfb6;
+            color: #f5f1f9;
+            background: rgba(82, 223, 182, .11);
+        }
+        h1 { color: #f5f1f9; letter-spacing: -.035em; }
+        h1::after {
+            content: "";
+            display: block;
+            width: 5.5rem;
+            height: 4px;
+            margin-top: .3rem;
+            border-radius: 4px;
+            background: linear-gradient(90deg, #52dfb6, #c59bff, #ffca76);
+        }
+        h2, h3 { color: #ebd9ff; }
+        div[data-baseweb="tab-list"] { border-bottom: 1px solid #51445f; }
+        button[data-baseweb="tab"][aria-selected="true"] { color: #52dfb6; }
+        div[data-baseweb="tab-highlight"] {
+            background: linear-gradient(90deg, #52dfb6, #c59bff);
+        }
+        </style>
+        """,
+        unsafe_allow_html=True,
+    )
+
+
+def show_pubchem_screen() -> None:
+    st.title("SARscope · PubChem qualitative screen")
+    st.markdown(
+        "Classify **Active vs Inactive** outcomes from one PubChem BioAssay AID. "
+        "This is separate from pIC50 QSAR: screening calls are never converted "
+        "to potency values."
+    )
+    aid = int(st.number_input("PubChem BioAssay AID", min_value=1, value=1000, step=1))
+    st.caption(
+        "The browser workflow is limited to 750 assay calls and runs only when you press "
+        "the button. Use the CLI for larger eligible assays; neither route silently "
+        "truncates a screen."
+    )
+    if st.button("Run qualitative screen", type="primary"):
+        try:
+            with st.spinner("Retrieving assay calls and evaluating the scaffold holdout…"):
+                with PubChemClient() as pubchem:
+                    rows, meta = pubchem.concise_assay(aid)
+                    if len(rows) > 750:
+                        raise ValueError(
+                            f"AID {aid} has {len(rows):,} calls; use the CLI for this screen"
+                        )
+                    cids = [
+                        int(row["CID"])
+                        for row in rows
+                        if row.get("CID", "").isdigit()
+                        and row.get("Activity Outcome", "").lower() in ("active", "inactive")
+                    ]
+                    smiles = pubchem.smiles_for_cids(cids)
+                result = run_screen_snapshot(aid, rows, smiles, meta)
+            st.session_state["pubchem_screen"] = (aid, result)
+        except (PubChemError, ValueError) as exc:
+            st.error(f"Screen stopped: {exc}")
+            return
+    saved = st.session_state.get("pubchem_screen")
+    if saved is None or saved[0] != aid:
+        st.info(
+            "Enter an AID and run the screen to inspect its curated calls and held-out metrics."
+        )
+        return
+    result = saved[1]
+    st.subheader(f"{result.metadata['assay_name']} · AID {aid}")
+    st.caption(
+        f"{result.metadata['assay_type']} assay · target accession "
+        f"{result.metadata['target_accession'] or 'not provided'}"
+    )
+    metrics = result.scores
+    cols = st.columns(4)
+    cols[0].metric("Curated compounds", f"{len(result.compounds):,}")
+    cols[1].metric("Held-out ROC AUC", f"{metrics['test_roc_auc']:.3f}")
+    cols[2].metric("Held-out PR AUC", f"{metrics['test_pr_auc']:.3f}")
+    cols[3].metric("Test prevalence", f"{metrics['test_prevalence']:.3f}")
+    st.caption(
+        "PR AUC baseline equals test prevalence. This single scaffold split is exploratory, "
+        "not a prospective or multi-assay performance claim."
+    )
+    st.json(result.audit)
+    st.dataframe(result.predictions, hide_index=True, width="stretch")
+    snapshot = {
+        "assay": result.metadata,
+        "rows": result.source_rows,
+        "smiles_by_cid": result.source_smiles,
+    }
+    st.download_button(
+        "Download source snapshot",
+        json.dumps(snapshot, indent=2) + "\n",
+        file_name=f"pubchem_aid{aid}_source_snapshot.json",
+        mime="application/json",
+    )
+    st.download_button(
+        "Download held-out predictions",
+        result.predictions.to_csv(index=False),
+        file_name=f"pubchem_aid{aid}_predictions.csv",
+        mime="text/csv",
+    )
 
 
 def main() -> None:
     st.set_page_config(page_title="SARscope", layout="wide", page_icon="🔬")
+    apply_visual_theme()
+    with st.sidebar:
+        workflow = st.radio("Workflow", ["ChEMBL potency & SAR", "PubChem qualitative screen"])
+    if workflow == "PubChem qualitative screen":
+        show_pubchem_screen()
+        return
     settings = sidebar()
 
     st.title("SARscope")
     st.markdown(
         "Start from a target ID, gene, protein, or disease and build an auditable "
-        "medicinal-chemistry analysis: "
-        "curate assay records, inspect chemical space and SAR, then build and explain "
-        "predictive models only when the data support them."
+        "medicinal-chemistry analysis. Choose the stages you need; nothing runs automatically."
     )
-    overview = st.columns(3)
-    overview[0].caption(
-        "**1 · Curate**  Confirm the target and activity types, then standardise and "
-        "filter experimental records."
+    st.image(
+        str(Path(__file__).parent / "assets" / "sarscope-hero.svg"),
+        use_container_width=True,
     )
-    overview[1].caption(
-        "**2 · Understand SAR**  Explore physicochemical space, scaffolds, matched pairs, "
-        "R-groups, and activity cliffs."
-    )
-    overview[2].caption(
-        "**3 · Model carefully**  Compare validation strategies, inspect errors and "
-        "feature effects, and check applicability."
+    st.caption(
+        "Find target → Curate evidence → Explore SAR → Validate QSAR. "
+        "Illustration only; PubChem qualitative screening is separate."
     )
     st.caption(
         "QSAR predictions support compound prioritisation; they do not by themselves "
@@ -1534,6 +1849,13 @@ def main() -> None:
         f"1 · Curate {resolved_id}", type="primary", width="stretch"
     )
     load_raw = action_cols[1].button("Inspect raw fields", width="stretch")
+    if n_records >= 5_000:
+        st.caption(
+            f"{n_records:,} raw records match these activity types. The first load may take "
+            "time; curation progress and separate phase timings appear when you start. "
+            "Narrower curation settings reduce processing, but currently do not reduce "
+            "the raw download."
+        )
     if load_raw:
         with st.spinner("Downloading raw activity records…"):
             records = fetch(target_id, tuple(settings["types"]))
@@ -1548,8 +1870,26 @@ def main() -> None:
                         width="stretch",
                     )
     if run_curation:
-        try:
-            with st.spinner("Downloading and curating activity records…"):
+        with st.status(f"Preparing {resolved_id}…", expanded=True) as status:
+            progress_bar = st.progress(0, text="Loading activity records…")
+
+            def update_download(done: int, total: int) -> None:
+                progress_bar.progress(
+                    min(done / total, 1.0) if total else 1.0,
+                    text=f"Loading activity records: {done:,} / {total:,}",
+                )
+
+            def update_standardization(done: int, total: int) -> None:
+                progress_bar.progress(
+                    done / total if total else 0.0,
+                    text=(
+                        f"Standardizing structures: {done:,} / {total:,}"
+                        if total
+                        else "Filtering measurements…"
+                    ),
+                )
+
+            try:
                 stage = run_curation_stage(
                     target_id,
                     tuple(settings["types"]),
@@ -1557,11 +1897,17 @@ def main() -> None:
                     release,
                     str(target["pref_name"]),
                     str(target["organism"]),
+                    on_status=status.write,
+                    on_download_progress=update_download,
+                    on_standardize_progress=update_standardization,
                 )
                 stage.provenance["target_discovery"] = discovery
-        except (ChemblError, ValueError) as exc:
-            st.error(f"Curation stopped: {exc}")
-            return
+            except (ChemblError, ValueError) as exc:
+                status.update(label="Curation stopped", state="error", expanded=True)
+                st.error(f"Curation stopped: {exc}")
+                return
+            progress_bar.empty()
+            status.update(label=f"{resolved_id} curated", state="complete", expanded=False)
         clear_workflow()
         st.session_state["curation_stage"] = (curation_key, stage)
 
@@ -1573,6 +1919,18 @@ def main() -> None:
         )
         return
     curation: CurationStage = curation_entry[1]
+    if curation.timings:
+        timings = curation.timings
+        st.caption(
+            f"Activity load: {timings['load_records']:.1f}s · "
+            f"Curation: {timings['curation']:.1f}s"
+            + (
+                f" · Assay confidence: {timings['assay_confidence']:.1f}s"
+                if timings["assay_confidence"]
+                else ""
+            )
+            + " · Later filter changes reuse standardized structures while this app process lives."
+        )
 
     tabs = st.tabs(
         [
@@ -1720,10 +2078,36 @@ def main() -> None:
                 ["Continuous pActivity regression", "Activity-class classification"],
                 default=["Continuous pActivity regression"],
             )
+            intermediate_count = int((scaffolds.table["activity_class"] == "intermediate").sum())
+            drop_intermediate = st.checkbox(
+                f"Exclude intermediate class from ML ({intermediate_count:,} compounds)",
+                value=False,
+                disabled=intermediate_count == 0,
+                help="Applies only to the selected ML tasks and their held-out validation. "
+                "Curation, chemical space, scaffolds and activity cliffs keep the full dataset. "
+                "Potent and active remain separate classifier labels; this does not "
+                "silently turn the task into binary classification. "
+                "For continuous regression, retaining intermediate compounds usually preserves "
+                "useful potency information.",
+            )
+            retained = len(scaffolds.table) - (intermediate_count if drop_intermediate else 0)
+            st.caption(
+                f"Pre-split ML selection: {retained:,} of {len(scaffolds.table):,} "
+                "curated compounds. Time and source splits can change this count. "
+                "Upstream SAR analyses are unchanged."
+            )
+            if drop_intermediate:
+                st.info(
+                    "Intermediate compounds will be excluded before ML splitting and CV. "
+                    "Potent, active and inactive remain distinct classes; continuous regression "
+                    "also uses this reduced set if selected."
+                )
             algorithms = st.multiselect("Algorithms", FAST_ALGORITHMS, default=["random_forest"])
             ml_cols = st.columns(3)
             model_fp = ml_cols[0].selectbox("Fingerprint", ["ecfp4", "maccs"])
-            split = ml_cols[1].selectbox("Validation split", ["scaffold", "time", "random"])
+            split = ml_cols[1].selectbox(
+                "Validation split", ["scaffold", "time", "source", "random"]
+            )
             cv_folds = ml_cols[2].slider("CV folds", 3, 10, 5)
             time_cutoff = 2019
             if split == "time":
@@ -1743,15 +2127,37 @@ def main() -> None:
                     "the cutoff. Later repeat measurements do not update earlier training "
                     "labels. For compound tables, use the first documented year."
                 )
+            source_test_id = None
+            if split == "source":
+                evidence = curation.curation.evidence
+                available = sorted(
+                    {int(value) for value in evidence.get("src_id", []) if pd.notna(value)}
+                )
+                if available:
+                    source_test_id = st.selectbox(
+                        "Held-out ChEMBL evidence origin",
+                        available,
+                        index=available.index(37) if 37 in available else 0,
+                        format_func=lambda value: (
+                            f"{SOURCE_NAMES.get(value, f'ChEMBL source {value}')} · {value}"
+                        ),
+                        help="Only compounds absent from all other origins enter the test.",
+                    )
+                if source_test_id is None:
+                    st.warning("No ChEMBL origin IDs were retained; choose another split.")
+                st.caption(
+                    "Training uses other origins and scaffold CV. Shared structures are "
+                    "excluded from the held-out origin, even if their records disagree."
+                )
             audit = st.checkbox(
                 "Run classification leakage audit",
                 value=False,
-                disabled=split == "time",
+                disabled=split in ("time", "source"),
                 help="The audit uses a random split, so its score gap is not comparable "
-                "with a time-based holdout.",
+                "with a time- or origin-based holdout.",
             )
             if st.button("Run selected ML", key="run_ml", type="primary"):
-                if not tasks or not algorithms:
+                if not tasks or not algorithms or (split == "source" and source_test_id is None):
                     st.error("Choose at least one task and one algorithm.")
                 else:
                     model_params = ModelParams(
@@ -1760,8 +2166,9 @@ def main() -> None:
                         regression_algorithms=tuple(algorithms),
                         split=cast(SplitStrategy, split),
                         time_cutoff=int(time_cutoff),
+                        source_test_id=source_test_id,
                         cv_folds=cv_folds,
-                        leakage_audit=audit and split != "time",
+                        leakage_audit=audit and split not in ("time", "source"),
                     )
                     landscape_for_params = (
                         landscape.params.landscape if landscape is not None else LandscapeParams()
@@ -1780,6 +2187,7 @@ def main() -> None:
                             classification="Activity-class classification" in tasks,
                             regression="Continuous pActivity regression" in tasks,
                             landscape=landscape,
+                            drop_intermediate=drop_intermediate,
                         )
                     st.session_state.pop("explanation_stage", None)
                     st.session_state.pop("report_zip", None)
@@ -1789,6 +2197,18 @@ def main() -> None:
             if ml is None:
                 st.info("No ML run yet.")
             else:
+                if ml.drop_intermediate != drop_intermediate:
+                    st.warning(
+                        "ML selection changed. Press Run selected ML to update these results."
+                    )
+                st.caption(
+                    f"Model dataset: {len(ml.table):,} compounds · "
+                    + (
+                        "intermediate class excluded"
+                        if ml.drop_intermediate
+                        else "all curated activity classes retained"
+                    )
+                )
                 show_models(ml)
 
     with tabs[5]:

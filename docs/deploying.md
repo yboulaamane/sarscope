@@ -64,6 +64,13 @@ only from their corresponding button. This is intentional: a collapsed
 Streamlit expander still executes its body, so expensive work must be gated by
 buttons rather than merely hidden in an expander.
 
+For a large target, the app shows download-page and curation progress plus
+separate phase timings. This is mostly a data-processing cost, not a Streamlit
+rendering limit. The release-keyed raw download cache lives on local storage;
+the bounded standardized-structure cache lives in the Python process. Both
+can be lost when Community Cloud restarts the app, because its local file
+storage [is not guaranteed to persist](https://docs.streamlit.io/develop/concepts/connections/connecting-to-data).
+
 ## When a deploy fails
 
 Click **Manage app** in the lower right to open the build log. The first line

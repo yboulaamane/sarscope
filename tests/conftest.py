@@ -30,6 +30,7 @@ def chembl_record(**overrides: Any) -> dict[str, Any]:
         "data_validity_comment": None,
         "bao_label": "single protein format",
         "document_year": 2015,
+        "src_id": 1,
     }
     record.update(overrides)
     return record

@@ -163,13 +163,22 @@ def _write_tables(results: RunResults, out: Path) -> dict[str, pd.DataFrame]:
     }
     if not results.curation.evidence.empty:
         written["retained_measurements"] = results.curation.evidence
+        from sarscope.sources.origins import source_disagreement, source_summary
+
+        summary = source_summary(results.curation.evidence)
+        if not summary.empty:
+            written["source_origins"] = summary
+        disagreements = source_disagreement(results.curation.evidence)
+        if not disagreements.empty:
+            written["source_disagreement"] = disagreements
     if not results.model_table.empty and results.regression is not None:
         model = results.model_table.copy()
         model["split"] = "train"
         model.loc[results.regression.test_index, "split"] = "test"
-        written["model_split_manifest"] = model[
-            ["molecule_id", "document_year", "split", "pactivity", "n_measurements"]
-        ]
+        fields = ["molecule_id", "document_year", "split", "pactivity", "n_measurements"]
+        if "source_test" in model:
+            fields.append("source_test")
+        written["model_split_manifest"] = model[fields]
     if results.profile is not None:
         written["descriptor_profile"] = results.profile.stats.reset_index().merge(
             results.profile.p_values.rename("p_value").rename_axis("property").reset_index(),
@@ -432,6 +441,22 @@ def _render(
         )
     )
     parts.append(_table_html(tables["curation_log"], limit=40))
+    if "source_origins" in tables:
+        parts.append("<h3>Original data sources within ChEMBL</h3>")
+        parts.append(
+            "<p class='note'>PubChem BioAssay and BindingDB rows shown here are ChEMBL "
+            "integrations, not additional downloads. Shared molecules can occur in multiple "
+            "origins and are not independent validation data.</p>"
+        )
+        parts.append(_table_html(tables["source_origins"], limit=50))
+    if "source_disagreement" in tables:
+        parts.append("<h3>Cross-origin potency disagreement</h3>")
+        parts.append(
+            "<p class='note'>Source-specific medians for compounds present in multiple "
+            "origins. Differences may reflect assay context; they are not automatically "
+            "reconciled or independent replication.</p>"
+        )
+        parts.append(_table_html(tables["source_disagreement"], limit=30))
     for step, reason in results.skipped.items():
         parts.append(
             f"<div class='warn'><b>{html.escape(step)} skipped.</b> {html.escape(reason)}</div>"

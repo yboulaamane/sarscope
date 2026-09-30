@@ -25,8 +25,10 @@ whose measurements are pooled.
 from __future__ import annotations
 
 import math
+import statistics
 from collections.abc import Callable, Sequence
 from dataclasses import dataclass, field
+from functools import lru_cache
 from typing import Any
 
 import pandas as pd
@@ -34,6 +36,7 @@ from rdkit import Chem
 from sorbent.chem.parse import parse_smiles, standardize, to_inchikey
 
 from sarscope.params import ClassScheme, CurationParams, RunParams
+from sarscope.sources.origins import source_id, source_name
 from sarscope.units import MOLAR_OFFSETS, to_pactivity
 
 #: One row per measurement. The contract between a source and curation.
@@ -156,6 +159,10 @@ def filter_chembl_records(
         ("relation", lambda r: r.get("standard_relation") in params.relations),
         ("units", lambda r: r.get("standard_units") in params.units),
         ("assay_type", lambda r: r.get("assay_type") in params.assay_types),
+        (
+            "source_origin",
+            lambda r: params.source_ids is None or source_id(r.get("src_id")) in params.source_ids,
+        ),
         ("variant", variant_ok),
         (
             "potential_duplicate",
@@ -220,6 +227,9 @@ def filter_chembl_records(
     frame.attrs["document_year_by_record"] = {
         str(r.get("activity_id")): r.get("document_year") for r in kept
     }
+    frame.attrs["source_id_by_record"] = {
+        str(r.get("activity_id")): source_id(r.get("src_id")) for r in kept
+    }
     evidence_fields = (
         "assay_chembl_id",
         "assay_description",
@@ -233,13 +243,19 @@ def filter_chembl_records(
         "assay_variant_mutation",
         "confidence_score",
         "document_year",
+        "src_id",
     )
     frame.attrs["context_by_record"] = {
-        str(r.get("activity_id")): {field: r.get(field) for field in evidence_fields} for r in kept
+        str(r.get("activity_id")): {
+            **{field: r.get(field) for field in evidence_fields},
+            "source_origin": source_name(r.get("src_id")),
+        }
+        for r in kept
     }
     return frame, steps
 
 
+@lru_cache(maxsize=8192)
 def _standardise_one(smiles: str, canonical_tautomer: bool) -> tuple[str, str | None] | str:
     """(standard SMILES, InChIKey), or an error message."""
     mol = parse_smiles(smiles)
@@ -255,7 +271,10 @@ def _standardise_one(smiles: str, canonical_tautomer: bool) -> tuple[str, str | 
 
 
 def standardize_and_aggregate(
-    measurements: pd.DataFrame, params: CurationParams
+    measurements: pd.DataFrame,
+    params: CurationParams,
+    *,
+    progress: Callable[[int, int], None] | None = None,
 ) -> tuple[pd.DataFrame, pd.DataFrame, list[CurationStep]]:
     """Standardise, merge by structure, aggregate replicates.
 
@@ -266,10 +285,12 @@ def standardize_and_aggregate(
     directly because ``process_record`` does not expose the tautomer switch.
     Merge key: InChIKey, or the standardised SMILES when the key is None.
     """
-    results = {
-        smi: _standardise_one(smi, params.canonical_tautomer)
-        for smi in measurements["smiles"].unique()
-    }
+    unique_smiles = measurements["smiles"].unique()
+    results = {}
+    for index, smi in enumerate(unique_smiles, 1):
+        results[smi] = _standardise_one(smi, params.canonical_tautomer)
+        if progress is not None and (index % 100 == 0 or index == len(unique_smiles)):
+            progress(index, len(unique_smiles))
     failed = {smi for smi, r in results.items() if isinstance(r, str)}
     ok = {smi: r for smi, r in results.items() if not isinstance(r, str)}
 
@@ -298,26 +319,43 @@ def standardize_and_aggregate(
         )
     ]
 
+    # A pandas group object per structure is costly on large target datasets.
+    # Group row tuples once instead; the first measurement for the chosen
+    # representative ID and all potency/year aggregation rules stay unchanged.
+    positions = {name: index for index, name in enumerate(good.columns)}
+    grouped: dict[str, list[tuple[Any, ...]]] = {}
+    for record in good.itertuples(index=False, name=None):
+        grouped.setdefault(record[positions["key"]], []).append(record)
     rows = []
     multi_id = 0
-    for _, grp in good.groupby("key", sort=False):
-        source_ids = sorted(set(grp["molecule_id"]), key=id_order)
+    for group in grouped.values():
+        source_ids = sorted({record[positions["molecule_id"]] for record in group}, key=id_order)
         multi_id += len(source_ids) > 1
-        first = grp[grp["molecule_id"] == source_ids[0]].iloc[0]
-        values = grp["pactivity"]
+        first = next(
+            record for record in group if record[positions["molecule_id"]] == source_ids[0]
+        )
+        values = [float(record[positions["pactivity"]]) for record in group]
         row = {
             "molecule_id": source_ids[0],
             "merged_ids": ";".join(source_ids),
-            "smiles": first["std_smiles"],
-            "inchikey": first["inchikey"],
-            "pactivity": float(values.median() if params.aggregate == "median" else values.mean()),
+            "smiles": first[positions["std_smiles"]],
+            "inchikey": first[positions["inchikey"]],
+            "pactivity": float(
+                statistics.median(values)
+                if params.aggregate == "median"
+                else statistics.fmean(values)
+            ),
             "n_measurements": len(values),
-            "pactivity_range": float(values.max() - values.min()),
+            "pactivity_range": float(max(values) - min(values)),
         }
-        if "_document_year" in grp:
-            known_years = grp["_document_year"].dropna()
+        if "_document_year" in positions:
+            known_years = [
+                record[positions["_document_year"]]
+                for record in group
+                if pd.notna(record[positions["_document_year"]])
+            ]
             # A compound becomes available at its first documented year.
-            row["document_year"] = int(known_years.min()) if len(known_years) else pd.NA
+            row["document_year"] = int(min(known_years)) if known_years else pd.NA
         rows.append(row)
     columns = [c for c in CURATED_COLUMNS if c not in ("activity_class", "group")]
     molecules = pd.DataFrame(rows, columns=columns)
@@ -379,10 +417,22 @@ def _classify(molecules: pd.DataFrame, scheme: ClassScheme) -> pd.DataFrame:
     return out[[*CURATED_COLUMNS, *extras]]
 
 
-def curate_chembl(records: Sequence[dict[str, Any]], params: RunParams) -> CurationResult:
+def curate_chembl(
+    records: Sequence[dict[str, Any]],
+    params: RunParams,
+    *,
+    progress: Callable[[int, int], None] | None = None,
+) -> CurationResult:
     """filter_chembl_records -> standardize_and_aggregate -> assign_classes."""
     measurements, steps = filter_chembl_records(records, params.curation)
-    molecules, rejected, more = standardize_and_aggregate(measurements, params.curation)
+    if measurements.empty:
+        raise ValueError(
+            "no measurements remain after curation filters; widen endpoint, assay, "
+            "or evidence-origin settings"
+        )
+    molecules, rejected, more = standardize_and_aggregate(
+        measurements, params.curation, progress=progress
+    )
     table = _classify(molecules, params.classes)
     return CurationResult(
         table, steps + more, rejected, _evidence_table(measurements, table), measurements
@@ -475,3 +525,41 @@ def time_safe_table(curation: CurationResult, params: RunParams) -> pd.DataFrame
     if novel.empty:
         raise ValueError("no newly measured structures remain after the cutoff")
     return pd.concat([early_table, novel], ignore_index=True)
+
+
+def source_safe_table(curation: CurationResult, params: RunParams) -> pd.DataFrame:
+    """Hold out a ChEMBL origin without sharing structures or labels with training.
+
+    Measurements are partitioned before aggregation. A molecule measured in
+    both origins remains in training, but cannot be counted as external test.
+    """
+    source = params.model.source_test_id
+    if source is None:
+        raise ValueError("source split needs a held-out ChEMBL source ID")
+    measured = curation.measurements
+    if measured.empty or "source_id_by_record" not in measured.attrs:
+        raise ValueError("source split needs measurement-level ChEMBL origin IDs")
+    origins = measured["record_id"].map(measured.attrs["source_id_by_record"])
+    if origins.isna().any():
+        raise ValueError(
+            f"source split needs an origin for every measurement; {origins.isna().sum()} missing"
+        )
+    train = measured[origins != source].copy()
+    heldout = measured[origins == source].copy()
+    if train.empty or heldout.empty:
+        raise ValueError(
+            f"source split for origin {source} leaves {len(train)} training and "
+            f"{len(heldout)} held-out measurements"
+        )
+    for part in (train, heldout):
+        part.attrs = measured.attrs.copy()
+    train_table = curate_table(train, params).table
+    test_table = curate_table(heldout, params).table
+    train_keys = set(train_table["inchikey"].fillna(train_table["smiles"]))
+    test_keys = test_table["inchikey"].fillna(test_table["smiles"])
+    novel = test_table[~test_keys.isin(train_keys)].copy()
+    if novel.empty:
+        raise ValueError(f"source {source} has no compounds absent from the other origins")
+    train_table["source_test"] = False
+    novel["source_test"] = True
+    return pd.concat([train_table, novel], ignore_index=True)

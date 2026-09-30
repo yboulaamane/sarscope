@@ -157,6 +157,7 @@ def evaluate_regression(
     stratify_labels: Sequence[str],
     params: ModelParams,
     years: Sequence[int | float | None] | None = None,
+    source_test: Sequence[bool] | None = None,
 ) -> RegressionResult:
     """Evaluate continuous models with fold-local feature selection.
 
@@ -181,7 +182,7 @@ def evaluate_regression(
     group_ids = np.asarray(
         [g if g is not None else f"__acyclic_{i}" for i, g in enumerate(groups)], dtype=object
     )
-    train_idx, test_idx = _outer_split(X, labels, group_ids, params, years)
+    train_idx, test_idx = _outer_split(X, labels, group_ids, params, years, source_test)
     X_train, y_train, groups_train = X[train_idx], target[train_idx], group_ids[train_idx]
     train_years = [years[i] for i in train_idx] if years is not None else None
 

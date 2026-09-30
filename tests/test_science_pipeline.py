@@ -6,7 +6,7 @@ import pandas as pd
 import pytest
 
 from sarscope.analysis.descriptors import CORE_DESCRIPTORS
-from sarscope.curate import CURATED_COLUMNS, CurationResult, CurationStep
+from sarscope.curate import CURATED_COLUMNS, CurationResult, CurationStep, curate_chembl
 from sarscope.params import LandscapeParams, ModelParams, RunParams
 from sarscope.pipeline import _modelling_blocked, analyse
 from sarscope.report import write_report
@@ -155,6 +155,31 @@ def test_too_few_scaffolds_for_a_scaffold_split_is_reported_not_raised(curation)
 def test_a_random_split_works_where_a_scaffold_split_cannot(curation):
     results = analyse(curation, params(cv_folds=5, split="random"))
     assert results.models is not None
+
+
+def test_source_holdout_runs_end_to_end_with_origin_manifest(curation, make_record, tmp_path):
+    records = [
+        make_record(
+            activity_id=i + 1,
+            molecule_chembl_id=row.molecule_id,
+            parent_molecule_chembl_id=row.molecule_id,
+            canonical_smiles=row.smiles,
+            standard_value=str(10 ** (9 - row.pactivity)),
+            src_id=1 if i < 60 else 7,
+        )
+        for i, row in enumerate(curation.table.itertuples())
+    ]
+    run_params = params(split="source", source_test_id=7)
+    results = analyse(curate_chembl(records, run_params), run_params)
+    assert results.models is not None and results.regression is not None
+    assert results.skipped == {}
+    assert results.model_table["source_test"].sum() == 20
+    assert len(results.regression.test_index) == 20
+    out = tmp_path / "source_holdout"
+    write_report(results, out)
+    manifest = pd.read_csv(out / "tables/model_split_manifest.csv")
+    assert (manifest["source_test"] == manifest["split"].eq("test")).all()
+    assert (out / "tables/source_origins.csv").is_file()
 
 
 def test_time_split_reports_too_few_training_years(curation):

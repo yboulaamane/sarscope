@@ -177,6 +177,24 @@ def test_time_split_classification_scores_only_newer_compounds():
     assert set(result.scores["protocol"]) == {"leak_free"}
 
 
+def test_source_split_holds_out_only_marked_compounds():
+    rng = np.random.default_rng(51)
+    X = rng.integers(0, 2, (100, 24), dtype=np.uint8)
+    labels = np.tile(["potent", "active", "intermediate", "inactive"], 25)
+    mask = np.array([False] * 80 + [True] * 20)
+    params = ModelParams(
+        algorithms=("extra_trees",),
+        split="source",
+        source_test_id=7,
+        cv_folds=3,
+        leakage_audit=True,
+    )
+    result = evaluate(X, labels, [f"s{i}" for i in range(100)], params, source_test=mask)
+    assert set(result.train_index) == set(range(80))
+    assert set(result.test_index) == set(range(80, 100))
+    assert set(result.scores["protocol"]) == {"leak_free"}
+
+
 def test_time_cv_explains_insufficient_years():
     labels = np.array(["a", "b"] * 15)
     params = fast_params(split="time")

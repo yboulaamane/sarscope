@@ -246,7 +246,11 @@ class ChemblClient:
         return targets, total
 
     def activities(
-        self, target_id: str, standard_types: Iterable[str] = ("IC50",)
+        self,
+        target_id: str,
+        standard_types: Iterable[str] = ("IC50",),
+        *,
+        progress: Callable[[int, int], None] | None = None,
     ) -> list[dict[str, Any]]:
         """Every activity record for the target and types, all pages, cached."""
         target_id = normalise_target_id(target_id)
@@ -255,9 +259,11 @@ class ChemblClient:
         if cache_file is not None and cache_file.exists():
             with gzip.open(cache_file, "rt", encoding="utf-8") as fh:
                 cached: list[dict[str, Any]] = json.load(fh)
+            if progress is not None:
+                progress(len(cached), len(cached))
             return cached
 
-        records = self._download(target_id, types)
+        records = self._download(target_id, types, progress=progress)
 
         if cache_file is not None:
             cache_file.parent.mkdir(parents=True, exist_ok=True)
@@ -267,7 +273,13 @@ class ChemblClient:
             tmp.replace(cache_file)  # atomic: an interrupted run leaves no half-file
         return records
 
-    def _download(self, target_id: str, types: list[str]) -> list[dict[str, Any]]:
+    def _download(
+        self,
+        target_id: str,
+        types: list[str],
+        *,
+        progress: Callable[[int, int], None] | None = None,
+    ) -> list[dict[str, Any]]:
         params: dict[str, Any] | None = {
             "target_chembl_id": target_id,
             "standard_type__in": ",".join(types),
@@ -281,8 +293,10 @@ class ChemblClient:
             response.raise_for_status()
             page = response.json()
             meta = page["page_meta"]
-            expected = meta["total_count"] if expected is None else expected
+            expected = int(meta["total_count"]) if expected is None else expected
             records.extend(page["activities"])
+            if progress is not None:
+                progress(len(records), expected)
             # "next" is an absolute path carrying the query, so drop our params.
             url = self._base.join(meta["next"]) if meta["next"] else None
             params = None

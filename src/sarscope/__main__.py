@@ -20,6 +20,7 @@ from typing import Any
 from sarscope import __version__
 from sarscope.params import CurationParams, LandscapeParams, ModelParams, RunParams
 from sarscope.sources.chembl import ChemblClient, ChemblError, normalise_target_id
+from sarscope.sources.pubchem import PubChemError
 
 #: Fields summarised by ``sarscope fetch``: each is a curation decision.
 FETCH_SUMMARY_FIELDS: tuple[str, ...] = (
@@ -30,6 +31,7 @@ FETCH_SUMMARY_FIELDS: tuple[str, ...] = (
     "potential_duplicate",
     "data_validity_comment",
     "bao_label",
+    "src_id",
 )
 POOLED_ACTIVITY_TYPES: tuple[str, ...] = ("IC50", "Ki", "Kd", "EC50")
 
@@ -86,6 +88,7 @@ def build_params(args: argparse.Namespace) -> RunParams:
     variant = None if args.variant in (None, "none", "wild-type") else args.variant
     curation = CurationParams(
         standard_types=_types(args),
+        source_ids=tuple(args.source_ids) if args.source_ids else None,
         relations=("=", "<", ">", "<=", ">=") if args.keep_censored else ("=",),
         assay_types=tuple(args.assay_types),
         variant=variant,
@@ -102,6 +105,7 @@ def build_params(args: argparse.Namespace) -> RunParams:
         ),
         split=args.split,
         time_cutoff=args.time_cutoff,
+        source_test_id=args.source_test_id,
         cv_folds=args.cv_folds,
         leakage_audit=not args.no_leakage_audit,
         seed=args.seed,
@@ -192,6 +196,47 @@ def cmd_compare(args: argparse.Namespace) -> int:
     return 0
 
 
+def cmd_screen(args: argparse.Namespace) -> int:
+    from sarscope.screen import (
+        read_screen_snapshot,
+        run_screen,
+        run_screen_snapshot,
+        write_screen,
+    )
+    from sarscope.sources.pubchem import PubChemClient
+
+    if args.snapshot is not None:
+        aid, rows, smiles, meta = read_screen_snapshot(args.snapshot)
+        if args.aid != aid:
+            raise ValueError("requested AID differs from the PubChem snapshot")
+        result = run_screen_snapshot(
+            aid, rows, smiles, meta, cv_folds=args.cv_folds, seed=args.seed
+        )
+    else:
+        with PubChemClient() as client:
+            result = run_screen(args.aid, client, cv_folds=args.cv_folds, seed=args.seed)
+    path = write_screen(result, args.out)
+    print(f"qualitative PubChem AID {args.aid} screen written to {path}")
+    return 0
+
+
+def cmd_benchmark_freeze(args: argparse.Namespace) -> int:
+    from sarscope.benchmark import freeze_benchmark
+
+    with _client(args) as client:
+        path = freeze_benchmark(args.out, client)
+    print(f"frozen multi-family benchmark manifest written to {path}")
+    return 0
+
+
+def cmd_benchmark_run(args: argparse.Namespace) -> int:
+    from sarscope.benchmark import run_benchmark
+
+    path = run_benchmark(args.frozen, args.out, validation=args.validation)
+    print(f"multi-family benchmark results written to {path}")
+    return 0
+
+
 def parser() -> argparse.ArgumentParser:
     p = argparse.ArgumentParser(prog="sarscope", description=__doc__.splitlines()[0])
     p.add_argument("--version", action="version", version=f"sarscope {__version__}")
@@ -233,6 +278,12 @@ def parser() -> argparse.ArgumentParser:
     )
     r.add_argument("--keep-censored", action="store_true", help="keep >, < relations")
     r.add_argument("--assay-types", nargs="+", default=["B"])
+    r.add_argument(
+        "--source-ids",
+        nargs="+",
+        type=int,
+        help="keep ChEMBL activity origins, e.g. 1 literature, 7 PubChem, 37 BindingDB",
+    )
     r.add_argument("--max-year", type=int, help="only documents published up to this year")
     r.add_argument("--fingerprints", nargs="+", default=list(LandscapeParams().fingerprints))
     r.add_argument("--algorithms", nargs="+", help='names from analysis.model, or "all"')
@@ -241,12 +292,15 @@ def parser() -> argparse.ArgumentParser:
         nargs="+",
         help='names from analysis.regression, or "all"',
     )
-    r.add_argument("--split", choices=["scaffold", "random", "time"], default="scaffold")
+    r.add_argument("--split", choices=["scaffold", "random", "time", "source"], default="scaffold")
     r.add_argument(
         "--time-cutoff",
         type=int,
         default=2019,
         help="with --split time: train through this year and test on later compounds",
+    )
+    r.add_argument(
+        "--source-test-id", type=int, help="with --split source: hold out a ChEMBL src_id"
     )
     r.add_argument("--cv-folds", type=int, default=10)
     r.add_argument("--no-leakage-audit", action="store_true")
@@ -277,6 +331,31 @@ def parser() -> argparse.ArgumentParser:
     c.add_argument("--assay-types", nargs="+", default=["B"])
     c.add_argument("--max-year", type=int)
     c.set_defaults(func=cmd_compare)
+
+    screen = sub.add_parser("screen", help="classify qualitative outcomes for one PubChem AID")
+    screen.add_argument("aid", type=int, help="PubChem BioAssay ID")
+    screen.add_argument("--out", type=Path, required=True)
+    screen.add_argument("--cv-folds", type=int, default=3)
+    screen.add_argument("--seed", type=int, default=42)
+    screen.add_argument("--snapshot", type=Path, help="rerun offline from source_snapshot.json")
+    screen.set_defaults(func=cmd_screen)
+
+    freeze = sub.add_parser(
+        "benchmark-freeze", parents=[common], help="freeze three ChEMBL target-family snapshots"
+    )
+    freeze.add_argument("--out", type=Path, required=True)
+    freeze.set_defaults(func=cmd_benchmark_freeze)
+
+    bench = sub.add_parser("benchmark-run", help="run the predeclared frozen benchmark offline")
+    bench.add_argument("--frozen", type=Path, required=True)
+    bench.add_argument("--out", type=Path, required=True)
+    bench.add_argument(
+        "--validation",
+        choices=["scaffold", "origin"],
+        default="scaffold",
+        help="origin holds out BindingDB-origin-unique compounds (ChEMBL src_id 37)",
+    )
+    bench.set_defaults(func=cmd_benchmark_run)
     return p
 
 
@@ -284,7 +363,7 @@ def main(argv: Sequence[str] | None = None) -> int:
     args = parser().parse_args(argv)
     try:
         code: int = args.func(args)
-    except (ChemblError, ValueError) as exc:
+    except (ChemblError, PubChemError, ValueError) as exc:
         print(f"error: {exc}", file=sys.stderr)
         return 1
     return code
