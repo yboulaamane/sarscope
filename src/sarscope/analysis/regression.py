@@ -160,8 +160,9 @@ def evaluate_regression(
 ) -> RegressionResult:
     """Evaluate continuous models with fold-local feature selection.
 
-    The activity classes are used only to stratify the outer and CV splits;
-    the estimators receive the original continuous pActivity values.
+    The activity classes stratify random/scaffold validation only; time
+    validation keeps whole document years in chronological order. Estimators
+    always receive the original continuous pActivity values.
     """
     names = (
         list(REGRESSION_ALGORITHMS)
@@ -182,13 +183,14 @@ def evaluate_regression(
     )
     train_idx, test_idx = _outer_split(X, labels, group_ids, params, years)
     X_train, y_train, groups_train = X[train_idx], target[train_idx], group_ids[train_idx]
+    train_years = [years[i] for i in train_idx] if years is not None else None
 
     rows: list[dict[str, Any]] = []
     cv_errors: dict[str, list[float]] = {}
     for name in names:
         cv: list[tuple[float, float, float]] = []
         residuals: list[float] = []
-        for fit_rows, eval_rows in _cv_folds(labels[train_idx], groups_train, params):
+        for fit_rows, eval_rows in _cv_folds(labels[train_idx], groups_train, params, train_years):
             filt, fitted = _fit(name, X_train[fit_rows], y_train[fit_rows], params)
             prediction = _predict(fitted, filt.transform(X_train[eval_rows]))
             cv.append(regression_metrics(y_train[eval_rows], prediction))

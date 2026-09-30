@@ -184,6 +184,8 @@ def _write_tables(results: RunResults, out: Path) -> dict[str, pd.DataFrame]:
         )
     if results.models is not None:
         written["model_scores"] = results.models.scores
+        written["model_class_metrics"] = results.models.test_class_metrics
+        written["model_confusion_matrix"] = results.models.test_confusion.reset_index()
     if results.regression is not None:
         written["regression_scores"] = results.regression.scores
     if not results.model_test_predictions.empty:
@@ -585,7 +587,16 @@ def _render(
             parts.append(
                 f"<p>Best classifier: <b>{html.escape(results.models.best_algorithm)}</b></p>"
             )
+            parts.append(
+                "<p class='note'>Held-out ROC AUC and PR AUC are macro one-vs-rest over "
+                "evaluable classes. PR AUC means average precision, not trapezoidal area. "
+                "The per-class prevalence is its PR baseline; undefined AUCs remain blank.</p>"
+            )
             parts.append(_table_html(tables["model_scores"], limit=30))
+            parts.append("<h3>Held-out classification by activity class</h3>")
+            parts.append(_table_html(tables["model_class_metrics"], limit=30))
+            parts.append("<h3>Confusion matrix (actual rows, predicted columns)</h3>")
+            parts.append(_table_html(tables["model_confusion_matrix"], limit=30))
         if results.regression is not None:
             parts.append("<h3>Continuous potency regression</h3>")
             parts.append(

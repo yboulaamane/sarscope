@@ -14,9 +14,10 @@ deserves a proper hyperparameter search afterwards.
     1. Hold out ``test_fraction`` of molecules. "scaffold": StratifiedGroupKFold
        with n_splits = round(1 / test_fraction), groups = Murcko scaffold, first
        fold is the test set. Acyclic molecules are each their own group.
-       "random": StratifiedShuffleSplit.
+       "random": StratifiedShuffleSplit. "time": first document year at or
+       before the cutoff for training, later first-seen compounds for test.
     2. Cross-validate on the training set: StratifiedGroupKFold / StratifiedKFold
-       with ``cv_folds`` folds.
+       for scaffold / random, or expanding chronological folds for time.
     3. Inside every fit - each CV fold, and the final fit on the whole training
        set - fit VarianceCorrelationFilter on the fitting rows only, then
        randomly oversample those rows only (duplicate minority-class rows up to
@@ -53,7 +54,7 @@ from __future__ import annotations
 import math
 import warnings
 from collections.abc import Callable, Iterator, Sequence
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from typing import Any
 
 import numpy as np
@@ -69,7 +70,15 @@ from sklearn.ensemble import (
 from sklearn.gaussian_process import GaussianProcessClassifier
 from sklearn.gaussian_process.kernels import RBF
 from sklearn.linear_model import SGDClassifier
-from sklearn.metrics import accuracy_score, balanced_accuracy_score, matthews_corrcoef
+from sklearn.metrics import (
+    accuracy_score,
+    average_precision_score,
+    balanced_accuracy_score,
+    confusion_matrix,
+    matthews_corrcoef,
+    precision_recall_fscore_support,
+    roc_auc_score,
+)
 from sklearn.model_selection import (
     StratifiedGroupKFold,
     StratifiedKFold,
@@ -127,6 +136,11 @@ SCORE_COLUMNS: tuple[str, ...] = (
     "cv_mcc",
     "cv_mcc_sd",
     "test_mcc",
+    "cv_roc_auc_ovr",
+    "test_roc_auc_ovr",
+    "cv_pr_auc_ovr",
+    "test_pr_auc_ovr",
+    "test_auc_classes",
     "n_features",  # after the filter, on the final training fit
 )
 
@@ -142,6 +156,10 @@ class ModelResult:
     #: Held-out predictions from the CV-selected model, aligned to test_index.
     test_predictions: NDArray[Any] | None = None
     test_truth: NDArray[Any] | None = None
+    test_score_classes: tuple[str, ...] = ()
+    test_class_scores: NDArray[np.float64] | None = None
+    test_class_metrics: pd.DataFrame = field(default_factory=pd.DataFrame)
+    test_confusion: pd.DataFrame = field(default_factory=pd.DataFrame)
 
 
 def evaluate(
@@ -172,8 +190,8 @@ def evaluate(
 
     rows = []
     for name in names:
-        rows.append(_leak_free(name, X, labels, group_ids, train_idx, test_idx, params))
-        if params.leakage_audit:
+        rows.append(_leak_free(name, X, labels, group_ids, train_idx, test_idx, params, years))
+        if params.leakage_audit and params.split != "time":
             rows.append(_naive_protocol(name, X, labels, params))
     scores = pd.DataFrame(rows, columns=list(SCORE_COLUMNS))
 
@@ -182,7 +200,17 @@ def evaluate(
     )
     best = ranked.sort_values(["_key", "algorithm"], ascending=[False, True]).iloc[0]["algorithm"]
     best_filter, best_model = _fit_leak_free(str(best), X[train_idx], labels[train_idx], params)
-    best_predictions = _predict(best_model, best_filter.transform(X[test_idx]))
+    best_X_test = best_filter.transform(X[test_idx])
+    best_predictions = _predict(best_model, best_X_test)
+    score_classes, class_scores = _score_matrix(best_model, best_X_test)
+    class_metrics = _class_diagnostics(
+        labels[test_idx], best_predictions, score_classes, class_scores
+    )
+    reported_classes = class_metrics["activity_class"].tolist()
+    matrix = confusion_matrix(labels[test_idx], best_predictions, labels=reported_classes)
+    confusion = pd.DataFrame(matrix, index=reported_classes, columns=reported_classes)
+    confusion.index.name = "actual"
+    confusion.columns.name = "predicted"
     return ModelResult(
         scores,
         str(best),
@@ -190,6 +218,10 @@ def evaluate(
         train_idx,
         best_predictions,
         labels[test_idx],
+        score_classes,
+        class_scores,
+        class_metrics,
+        confusion,
     )
 
 
@@ -229,8 +261,34 @@ def _outer_split(
 
 
 def _cv_folds(
-    y: NDArray[Any], groups: NDArray[Any] | None, params: ModelParams
+    y: NDArray[Any],
+    groups: NDArray[Any] | None,
+    params: ModelParams,
+    years: Sequence[int | float | None] | None = None,
 ) -> Iterator[tuple[NDArray[np.intp], NDArray[np.intp]]]:
+    if params.split == "time":
+        if years is None:
+            raise ValueError("time cross-validation needs document years")
+        year_values = pd.to_numeric(pd.Series(years), errors="coerce").to_numpy(dtype=float)
+        if len(year_values) != len(y) or np.isnan(year_values).any():
+            raise ValueError("time cross-validation needs a known year for every molecule")
+        unique_years = np.unique(year_values)
+        if len(unique_years) <= params.cv_folds:
+            raise ValueError(
+                f"time cross-validation needs at least {params.cv_folds + 1} distinct "
+                f"training years for {params.cv_folds} expanding folds; found {len(unique_years)}"
+            )
+        folds = []
+        for validation_year in unique_years[-params.cv_folds :]:
+            fit = np.flatnonzero(year_values < validation_year).astype(np.intp)
+            validation = np.flatnonzero(year_values == validation_year).astype(np.intp)
+            if len(np.unique(y[fit])) < 2:
+                raise ValueError(
+                    f"time cross-validation has fewer than two activity classes "
+                    f"before {int(validation_year)}; choose a later cutoff or fewer CV folds"
+                )
+            folds.append((fit, validation))
+        return iter(folds)
     placeholder = np.zeros(len(y))
     if groups is not None and params.split == "scaffold":
         sgkf = StratifiedGroupKFold(params.cv_folds, shuffle=True, random_state=params.seed)
@@ -257,6 +315,83 @@ def _metrics(y_true: NDArray[Any], y_pred: NDArray[Any]) -> tuple[float, float, 
         float(balanced_accuracy_score(y_true, y_pred)),
         float(matthews_corrcoef(y_true, y_pred)),
     )
+
+
+def _score_matrix(
+    model: Any, X: NDArray[Any]
+) -> tuple[tuple[str, ...], NDArray[np.float64] | None]:
+    """Class-aligned probability or decision scores for ranking metrics."""
+    classes = tuple(str(value) for value in model.classes_)
+    raw = None
+    if hasattr(model, "predict_proba"):
+        try:
+            with warnings.catch_warnings():
+                warnings.simplefilter("ignore")
+                raw = np.asarray(model.predict_proba(X), dtype=float)
+        except (ValueError, FloatingPointError):
+            pass
+    if raw is None and hasattr(model, "decision_function"):
+        raw = np.asarray(model.decision_function(X), dtype=float)
+        if raw.ndim == 1 and len(classes) == 2:
+            raw = np.column_stack((-raw, raw))
+    if raw is None:
+        return classes, None
+    if raw.shape != (len(X), len(classes)) or not np.isfinite(raw).all():
+        return classes, None
+    return classes, raw
+
+
+def _ranking_metrics(
+    truth: NDArray[Any], classes: tuple[str, ...], scores: NDArray[np.float64] | None
+) -> tuple[float, float, int]:
+    """Macro one-vs-rest ROC AUC and average precision over evaluable classes."""
+    if scores is None:
+        return math.nan, math.nan, 0
+    roc: list[float] = []
+    precision: list[float] = []
+    for column, label in enumerate(classes):
+        positive = np.asarray(truth == label, dtype=bool)
+        if not positive.any() or positive.all():
+            continue
+        roc.append(float(roc_auc_score(positive, scores[:, column])))
+        precision.append(float(average_precision_score(positive, scores[:, column])))
+    if not roc:
+        return math.nan, math.nan, 0
+    return float(np.mean(roc)), float(np.mean(precision)), len(roc)
+
+
+def _class_diagnostics(
+    truth: NDArray[Any],
+    predictions: NDArray[Any],
+    classes: tuple[str, ...],
+    scores: NDArray[np.float64] | None,
+) -> pd.DataFrame:
+    labels = sorted(set(classes) | set(map(str, truth)) | set(map(str, predictions)))
+    prec, recall, f1, support = precision_recall_fscore_support(
+        truth, predictions, labels=labels, zero_division=0
+    )
+    columns = {label: index for index, label in enumerate(classes)}
+    rows = []
+    for index, label in enumerate(labels):
+        positive = np.asarray(truth == label, dtype=bool)
+        roc = ap = math.nan
+        if scores is not None and label in columns and positive.any() and not positive.all():
+            class_score = scores[:, columns[label]]
+            roc = float(roc_auc_score(positive, class_score))
+            ap = float(average_precision_score(positive, class_score))
+        rows.append(
+            {
+                "activity_class": label,
+                "support": int(support[index]),
+                "prevalence": float(positive.mean()),
+                "precision": float(prec[index]),
+                "recall": float(recall[index]),
+                "f1": float(f1[index]),
+                "roc_auc_ovr": roc,
+                "pr_auc_ovr": ap,
+            }
+        )
+    return pd.DataFrame(rows)
 
 
 def _fit(name: str, X: NDArray[Any], y: NDArray[Any], seed: int) -> Any:
@@ -291,9 +426,17 @@ def _row(
     train: tuple[float, float, float],
     cv: list[tuple[float, float, float]],
     test: tuple[float, float, float],
+    cv_ranking: list[tuple[float, float, int]],
+    test_ranking: tuple[float, float, int],
     n_features: int,
 ) -> dict[str, Any]:
     cv_arr = np.array(cv, dtype=float)
+    cv_rank_arr = np.array(cv_ranking, dtype=float)
+
+    def rank_mean(column: int) -> float:
+        finite = cv_rank_arr[np.isfinite(cv_rank_arr[:, column]), column]
+        return float(finite.mean()) if len(finite) else math.nan
+
     return {
         "algorithm": name,
         "protocol": protocol,
@@ -308,6 +451,11 @@ def _row(
         "cv_mcc": float(cv_arr[:, 2].mean()),
         "cv_mcc_sd": float(cv_arr[:, 2].std(ddof=1)) if len(cv) > 1 else math.nan,
         "test_mcc": test[2],
+        "cv_roc_auc_ovr": rank_mean(0),
+        "test_roc_auc_ovr": test_ranking[0],
+        "cv_pr_auc_ovr": rank_mean(1),
+        "test_pr_auc_ovr": test_ranking[1],
+        "test_auc_classes": test_ranking[2],
         "n_features": n_features,
     }
 
@@ -320,16 +468,25 @@ def _leak_free(
     train_idx: NDArray[np.intp],
     test_idx: NDArray[np.intp],
     params: ModelParams,
+    years: Sequence[int | float | None] | None = None,
 ) -> dict[str, Any]:
     X_tr, y_tr, g_tr = X[train_idx], y[train_idx], groups[train_idx]
     cv = []
-    for fit_rows, eval_rows in _cv_folds(y_tr, g_tr, params):
+    cv_ranking = []
+    train_years = [years[i] for i in train_idx] if years is not None else None
+    for fit_rows, eval_rows in _cv_folds(y_tr, g_tr, params, train_years):
         filt, model = _fit_leak_free(name, X_tr[fit_rows], y_tr[fit_rows], params)
-        cv.append(_metrics(y_tr[eval_rows], _predict(model, filt.transform(X_tr[eval_rows]))))
+        X_eval = filt.transform(X_tr[eval_rows])
+        cv.append(_metrics(y_tr[eval_rows], _predict(model, X_eval)))
+        cv_ranking.append(_ranking_metrics(y_tr[eval_rows], *_score_matrix(model, X_eval)))
     filt, model = _fit_leak_free(name, X_tr, y_tr, params)
     train = _metrics(y_tr, _predict(model, filt.transform(X_tr)))
-    test = _metrics(y[test_idx], _predict(model, filt.transform(X[test_idx])))
-    return _row(name, "leak_free", train, cv, test, filt.n_after_correlation_)
+    X_test = filt.transform(X[test_idx])
+    test = _metrics(y[test_idx], _predict(model, X_test))
+    test_ranking = _ranking_metrics(y[test_idx], *_score_matrix(model, X_test))
+    return _row(
+        name, "leak_free", train, cv, test, cv_ranking, test_ranking, filt.n_after_correlation_
+    )
 
 
 def _naive_protocol(
@@ -346,10 +503,13 @@ def _naive_protocol(
         Xo, yo, test_size=params.test_fraction, random_state=params.seed, stratify=yo
     )
     cv = []
+    cv_ranking = []
     for fit_rows, eval_rows in _cv_folds(y_tr, None, params):
         model = _fit(name, X_tr[fit_rows], y_tr[fit_rows], params.seed)
         cv.append(_metrics(y_tr[eval_rows], _predict(model, X_tr[eval_rows])))
+        cv_ranking.append(_ranking_metrics(y_tr[eval_rows], *_score_matrix(model, X_tr[eval_rows])))
     model = _fit(name, X_tr, y_tr, params.seed)
     train = _metrics(y_tr, _predict(model, X_tr))
     test = _metrics(y_te, _predict(model, X_te))
-    return _row(name, "naive", train, cv, test, filt.n_after_correlation_)
+    test_ranking = _ranking_metrics(y_te, *_score_matrix(model, X_te))
+    return _row(name, "naive", train, cv, test, cv_ranking, test_ranking, filt.n_after_correlation_)
