@@ -25,6 +25,8 @@ def test_continuous_models_report_r2_rmse_and_spearman():
     assert len(result.test_predictions) == len(result.test_index)
     assert result.scores.iloc[0]["test_rmse"] < 0.5
     assert result.scores.iloc[0]["test_spearman"] > 0.7
+    assert result.empirical_half_width >= 0
+    assert 0 <= result.empirical_test_coverage <= 1
 
 
 def test_time_split_reserves_only_later_compounds():

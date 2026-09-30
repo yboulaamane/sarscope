@@ -79,6 +79,10 @@ class CurationResult:
     rejected: pd.DataFrame = field(
         default_factory=lambda: pd.DataFrame(columns=["molecule_id", "smiles", "reason"])
     )
+    #: Retained measurements with assay, publication, endpoint and target context.
+    evidence: pd.DataFrame = field(default_factory=pd.DataFrame)
+    #: Pre-aggregation rows needed for measurement-level prospective validation.
+    measurements: pd.DataFrame = field(default_factory=pd.DataFrame)
 
 
 def id_order(identifier: str) -> tuple[int, str]:
@@ -129,6 +133,8 @@ def filter_chembl_records(
     unknown = [u for u in params.units if u not in MOLAR_OFFSETS]
     if unknown:
         raise ValueError(f"cannot convert units {unknown} to a molar scale")
+    if params.min_confidence_score is not None and not 0 <= params.min_confidence_score <= 9:
+        raise ValueError("min_confidence_score must be between 0 and 9")
 
     def variant_ok(r: dict[str, Any]) -> bool:
         if params.variant == "any":
@@ -162,6 +168,18 @@ def filter_chembl_records(
         (
             "bao_format",
             lambda r: params.bao_formats is None or r.get("bao_label") in params.bao_formats,
+        ),
+        (
+            "assay_id",
+            lambda r: params.assay_ids is None or r.get("assay_chembl_id") in params.assay_ids,
+        ),
+        (
+            "target_confidence",
+            lambda r: (
+                params.min_confidence_score is None
+                or (value := _parse_value(r.get("confidence_score"))) is not None
+                and value >= params.min_confidence_score
+            ),
         ),
         ("document_year", year_ok),
         ("structure", lambda r: bool(r.get("canonical_smiles"))),
@@ -201,6 +219,23 @@ def filter_chembl_records(
     # into molecule-level curation for optional chronological validation.
     frame.attrs["document_year_by_record"] = {
         str(r.get("activity_id")): r.get("document_year") for r in kept
+    }
+    evidence_fields = (
+        "assay_chembl_id",
+        "assay_description",
+        "document_chembl_id",
+        "standard_type",
+        "standard_relation",
+        "standard_value",
+        "standard_units",
+        "assay_type",
+        "bao_label",
+        "assay_variant_mutation",
+        "confidence_score",
+        "document_year",
+    )
+    frame.attrs["context_by_record"] = {
+        str(r.get("activity_id")): {field: r.get(field) for field in evidence_fields} for r in kept
     }
     return frame, steps
 
@@ -348,10 +383,95 @@ def curate_chembl(records: Sequence[dict[str, Any]], params: RunParams) -> Curat
     """filter_chembl_records -> standardize_and_aggregate -> assign_classes."""
     measurements, steps = filter_chembl_records(records, params.curation)
     molecules, rejected, more = standardize_and_aggregate(measurements, params.curation)
-    return CurationResult(_classify(molecules, params.classes), steps + more, rejected)
+    table = _classify(molecules, params.classes)
+    return CurationResult(
+        table, steps + more, rejected, _evidence_table(measurements, table), measurements
+    )
 
 
 def curate_table(measurements: pd.DataFrame, params: RunParams) -> CurationResult:
     """Same as curate_chembl but starting from MEASUREMENT_COLUMNS rows."""
     molecules, rejected, steps = standardize_and_aggregate(measurements, params.curation)
-    return CurationResult(_classify(molecules, params.classes), steps, rejected)
+    table = _classify(molecules, params.classes)
+    return CurationResult(
+        table, steps, rejected, _evidence_table(measurements, table), measurements
+    )
+
+
+def _evidence_table(measurements: pd.DataFrame, table: pd.DataFrame) -> pd.DataFrame:
+    """Trace each curated molecule to the individual records that support it."""
+    context = measurements.attrs.get("context_by_record", {})
+    years = measurements.attrs.get("document_year_by_record", {})
+    source_to_curated = {
+        source_id: row.molecule_id
+        for row in table.itertuples()
+        for source_id in str(row.merged_ids).split(";")
+    }
+    rows = []
+    for row in measurements.itertuples(index=False):
+        curated_id = source_to_curated.get(str(row.molecule_id))
+        if curated_id is None:
+            continue
+        record_id = str(row.record_id)
+        record_context = context.get(record_id, {})
+        assay_id = record_context.get("assay_chembl_id")
+        document_id = record_context.get("document_chembl_id")
+        rows.append(
+            {
+                "molecule_id": curated_id,
+                "source_molecule_id": str(row.molecule_id),
+                "record_id": record_id,
+                "pactivity": float(row.pactivity),
+                "smiles": str(row.smiles),
+                "document_year": years.get(record_id),
+                **record_context,
+                "activity_url": (
+                    f"https://www.ebi.ac.uk/chembl/api/data/activity/{record_id}.json"
+                    if record_id.isdigit()
+                    else None
+                ),
+                "assay_url": (
+                    f"https://www.ebi.ac.uk/chembl/api/data/assay/{assay_id}.json"
+                    if assay_id
+                    else None
+                ),
+                "document_url": (
+                    f"https://www.ebi.ac.uk/chembl/api/data/document/{document_id}.json"
+                    if document_id
+                    else None
+                ),
+            }
+        )
+    return pd.DataFrame(rows)
+
+
+def time_safe_table(curation: CurationResult, params: RunParams) -> pd.DataFrame:
+    """Partition measurements before aggregating potency for a future-data test.
+
+    Previously published records define the training label. Later measurements
+    for those structures cannot alter training labels or enter the held-out set.
+    """
+    measured = curation.measurements
+    if measured.empty or "document_year_by_record" not in measured.attrs:
+        raise ValueError("time split needs measurement-level document years")
+    years = pd.to_numeric(
+        measured["record_id"].map(measured.attrs["document_year_by_record"]), errors="coerce"
+    )
+    if years.isna().any():
+        raise ValueError(
+            f"time split needs a year for every retained measurement; {years.isna().sum()} missing"
+        )
+    train = measured[years <= params.model.time_cutoff].copy()
+    later = measured[years > params.model.time_cutoff].copy()
+    if train.empty or later.empty:
+        raise ValueError("time split needs measurements on both sides of the cutoff")
+    for part in (train, later):
+        part.attrs = measured.attrs.copy()
+    early_table = curate_table(train, params).table
+    late_table = curate_table(later, params).table
+    early_keys = set(early_table["inchikey"].fillna(early_table["smiles"]))
+    late_keys = late_table["inchikey"].fillna(late_table["smiles"])
+    novel = late_table[~late_keys.isin(early_keys)]
+    if novel.empty:
+        raise ValueError("no newly measured structures remain after the cutoff")
+    return pd.concat([early_table, novel], ignore_index=True)

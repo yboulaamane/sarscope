@@ -28,6 +28,7 @@ import base64
 import html
 import io
 import json
+import math
 from pathlib import Path
 from typing import Any
 
@@ -160,6 +161,15 @@ def _write_tables(results: RunResults, out: Path) -> dict[str, pd.DataFrame]:
         "scaffold_enrichment": results.enrichment,
         "consensus_cliffs": results.consensus_cliffs,
     }
+    if not results.curation.evidence.empty:
+        written["retained_measurements"] = results.curation.evidence
+    if not results.model_table.empty and results.regression is not None:
+        model = results.model_table.copy()
+        model["split"] = "train"
+        model.loc[results.regression.test_index, "split"] = "test"
+        written["model_split_manifest"] = model[
+            ["molecule_id", "document_year", "split", "pactivity", "n_measurements"]
+        ]
     if results.profile is not None:
         written["descriptor_profile"] = results.profile.stats.reset_index().merge(
             results.profile.p_values.rename("p_value").rename_axis("property").reset_index(),
@@ -178,6 +188,8 @@ def _write_tables(results: RunResults, out: Path) -> dict[str, pd.DataFrame]:
         written["regression_scores"] = results.regression.scores
     if not results.model_test_predictions.empty:
         written["model_test_predictions"] = results.model_test_predictions
+    if not results.regression_test_predictions.empty:
+        written["regression_test_predictions"] = results.regression_test_predictions
     if not results.cliff_model_performance.empty:
         written["cliff_model_performance"] = results.cliff_model_performance
     for i, sar in enumerate(results.rgroups, start=1):
@@ -185,6 +197,8 @@ def _write_tables(results: RunResults, out: Path) -> dict[str, pd.DataFrame]:
         written[f"rgroups_{i:02d}_members"] = sar.members
     if not results.matched_pairs.empty:
         written["matched_molecular_pairs"] = results.matched_pairs
+    if not results.transformation_summary.empty:
+        written["transformation_summary"] = results.transformation_summary
 
     for name, frame in written.items():
         frame.to_csv(out / f"{name}.csv", index=False)
@@ -583,6 +597,14 @@ def _render(
             parts.append(
                 f"<p>Best regressor: <b>{html.escape(results.regression.best_algorithm)}</b></p>"
             )
+            if math.isfinite(results.regression.empirical_half_width):
+                parts.append(
+                    "<p class='note'>Empirical 90% residual band: ±"
+                    f"{results.regression.empirical_half_width:.2f} log units; observed "
+                    "held-out coverage: "
+                    f"{results.regression.empirical_test_coverage:.1%}. The band comes from "
+                    "training-fold residuals and does not guarantee coverage on new chemistry.</p>"
+                )
             parts.append(_table_html(tables["regression_scores"], limit=30))
             parts.append(
                 "<p class='note'>The selected regressor is refitted on the complete curated "

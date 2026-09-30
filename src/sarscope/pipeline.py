@@ -33,7 +33,7 @@ from sarscope.analysis.descriptors import add_descriptors
 from sarscope.analysis.domain import DomainResult, pca_bounding_box
 from sarscope.analysis.features import VarianceCorrelationFilter, bit_vectors, fingerprint_matrix
 from sarscope.analysis.landscape import SasResult, consensus, sas_map
-from sarscope.analysis.mmp import matched_molecular_pairs
+from sarscope.analysis.mmp import matched_molecular_pairs, summarise_transformations
 from sarscope.analysis.model import ModelResult, evaluate
 from sarscope.analysis.profile import GroupProfile, PcaResult, describe_groups, property_pca
 from sarscope.analysis.regression import (
@@ -44,9 +44,9 @@ from sarscope.analysis.regression import (
 )
 from sarscope.analysis.rgroups import ScaffoldSar, decompose_top_scaffolds
 from sarscope.analysis.scaffolds import add_scaffolds, diversity_table, enrichment_table
-from sarscope.curate import CurationResult, curate_chembl, curate_table
+from sarscope.curate import CurationResult, curate_chembl, curate_table, time_safe_table
 from sarscope.params import RunParams
-from sarscope.predict import PredictionBundle, similarity_domain_threshold
+from sarscope.predict import PredictionBundle, _row_max_tanimoto, similarity_domain_threshold
 from sarscope.sources.chembl import ChemblClient
 from sarscope.sources.table import read_activity_table
 
@@ -68,12 +68,16 @@ class RunResults:
     regression: RegressionResult | None
     domain: DomainResult | None
     matched_pairs: pd.DataFrame
+    transformation_summary: pd.DataFrame = field(default_factory=pd.DataFrame)
     #: Held-out, per-compound predictions with activity-cliff membership.
     model_test_predictions: pd.DataFrame = field(default_factory=pd.DataFrame)
     #: Aggregate held-out performance on cliff compounds versus all others.
     cliff_model_performance: pd.DataFrame = field(default_factory=pd.DataFrame)
     #: Refit-on-all-data continuous model written to the report for prediction.
     prediction_bundle: PredictionBundle | None = None
+    #: Rows actually passed to modelling (may differ from the full SAR table).
+    model_table: pd.DataFrame = field(default_factory=pd.DataFrame)
+    regression_test_predictions: pd.DataFrame = field(default_factory=pd.DataFrame)
     #: Per-scaffold R-group decomposition, largest series first.
     rgroups: list[ScaffoldSar] = field(default_factory=list)
     #: step name -> reason, for anything that could not run.
@@ -125,34 +129,43 @@ def analyse(curation: CurationResult, params: RunParams) -> RunResults:
     prediction_bundle: PredictionBundle | None = None
     model_test_predictions = pd.DataFrame()
     cliff_model_performance = pd.DataFrame()
-    reason = _modelling_blocked(table, params)
+    regression_test_predictions = pd.DataFrame()
+    model_table = table
+    time_error = ""
+    if params.model.split == "time":
+        try:
+            model_table = add_scaffolds(time_safe_table(curation, params))
+        except ValueError as exc:
+            time_error = str(exc)
+    reason = time_error or _modelling_blocked(model_table, params)
     if reason:
         skipped["model"] = reason
         skipped["domain"] = reason
     else:
         X = fingerprint_matrix(
-            table["smiles"].tolist(),
+            model_table["smiles"].tolist(),
             params.model.features.fingerprint,
             ecfp_bits=params.model.features.ecfp_bits,
         )
-        years = table["document_year"].tolist() if "document_year" in table else None
+        years = model_table["document_year"].tolist() if "document_year" in model_table else None
         models = evaluate(
             X,
-            table["activity_class"].tolist(),
-            table["murcko"].tolist(),
+            model_table["activity_class"].tolist(),
+            model_table["murcko"].tolist(),
             params.model,
             years=years,
         )
         regression = evaluate_regression(
             X,
-            table["pactivity"].tolist(),
-            table["murcko"].tolist(),
-            table["activity_class"].tolist(),
+            model_table["pactivity"].tolist(),
+            model_table["murcko"].tolist(),
+            model_table["activity_class"].tolist(),
             params.model,
             years=years,
         )
+        regression_test_predictions = regression_error_profile(model_table, X, regression)
         deploy_filter, deploy_model = fit_deployment_model(
-            X, table["pactivity"].tolist(), regression.best_algorithm, params.model
+            X, model_table["pactivity"].tolist(), regression.best_algorithm, params.model
         )
         prediction_bundle = PredictionBundle(
             algorithm=regression.best_algorithm,
@@ -161,9 +174,14 @@ def analyse(curation: CurationResult, params: RunParams) -> RunResults:
             estimator=deploy_model,
             train_fingerprints=X,
             similarity_threshold=similarity_domain_threshold(X),
+            train_ids=model_table["molecule_id"].astype(str).tolist(),
+            train_smiles=model_table["smiles"].astype(str).tolist(),
+            train_pactivity=model_table["pactivity"].astype(float).tolist(),
+            canonical_tautomer=params.curation.canonical_tautomer,
+            empirical_half_width=regression.empirical_half_width,
         )
         model_test_predictions, cliff_model_performance = _cliff_model_errors(
-            table, landscapes, models, regression
+            model_table, landscapes, models, regression
         )
         feats = params.model.features
         filt = VarianceCorrelationFilter(feats.variance_threshold, feats.correlation_threshold).fit(
@@ -188,9 +206,12 @@ def analyse(curation: CurationResult, params: RunParams) -> RunResults:
         regression=regression,
         domain=domain,
         matched_pairs=matched_pairs,
+        transformation_summary=summarise_transformations(matched_pairs, curation.evidence),
         model_test_predictions=model_test_predictions,
         cliff_model_performance=cliff_model_performance,
         prediction_bundle=prediction_bundle,
+        model_table=model_table,
+        regression_test_predictions=regression_test_predictions,
         rgroups=rgroups,
         skipped=skipped,
     )
@@ -250,6 +271,32 @@ def _cliff_model_errors(
             }
         )
     return predictions, pd.DataFrame(rows)
+
+
+def regression_error_profile(
+    table: pd.DataFrame, fingerprints: np.ndarray, result: RegressionResult
+) -> pd.DataFrame:
+    """Held-out regression error versus nearest training compound similarity."""
+    train = fingerprints[result.train_index]
+    nearest = _row_max_tanimoto(fingerprints[result.test_index], train)
+    threshold = similarity_domain_threshold(train)
+    test = table.iloc[result.test_index]
+    frame = pd.DataFrame(
+        {
+            "molecule_id": test["molecule_id"].astype(str).to_numpy(),
+            "document_year": test["document_year"].to_numpy(),
+            "pactivity": result.test_truth,
+            "predicted_pactivity": result.test_predictions,
+            "absolute_error": np.abs(result.test_truth - result.test_predictions),
+            "max_training_similarity": nearest,
+            "in_training_domain": nearest >= threshold,
+        }
+    )
+    if math.isfinite(result.empirical_half_width):
+        frame["empirical_lower_pactivity"] = result.test_predictions - result.empirical_half_width
+        frame["empirical_upper_pactivity"] = result.test_predictions + result.empirical_half_width
+        frame["inside_empirical_band"] = frame["absolute_error"] <= result.empirical_half_width
+    return frame
 
 
 def _modelling_blocked(table: pd.DataFrame, params: RunParams) -> str:
@@ -321,6 +368,12 @@ def run_chembl(target_id: str, params: RunParams, client: ChemblClient) -> RunRe
     """Fetch (via the client's cache), curate_chembl, analyse, attach provenance."""
     target = client.target(target_id)
     records = client.activities(target_id, params.curation.standard_types)
+    if params.curation.min_confidence_score is not None:
+        scores = client.assay_confidences(target_id)
+        records = [
+            {**record, "confidence_score": scores.get(str(record.get("assay_chembl_id")))}
+            for record in records
+        ]
     results = analyse(curate_chembl(records, params), params)
     results.provenance = provenance.collect(
         params, provenance.chembl_source(target, client.release, len(records))

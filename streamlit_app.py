@@ -1,14 +1,15 @@
 """SARscope in the browser. Run locally with ``streamlit run streamlit_app.py``.
 
-Analyses run in the browser process, so the heavy steps are opt-in: the
-sidebar caps the dataset and the model bake-off, because a free hosting tier
-has one shared core and a memory ceiling. The CLI (``sarscope run``) has no
-such caps and writes the full report folder.
+Analyses run in the browser process, so the heavy steps are opt-in and
+pairwise landscape analysis has a dataset cap. A free hosting tier has one
+shared core and a memory ceiling. The CLI (``sarscope run``) has no such cap
+and writes the full report folder.
 """
 
 from __future__ import annotations
 
 import collections
+import hashlib
 import io
 import sys
 import zipfile
@@ -16,7 +17,7 @@ from dataclasses import dataclass, field
 from importlib.util import find_spec
 from pathlib import Path
 from tempfile import TemporaryDirectory
-from typing import Any
+from typing import Any, cast
 
 # Streamlit Community Cloud clones the repo and runs this file from the root;
 # it installs requirements.txt but not this project, and the package lives
@@ -50,7 +51,7 @@ from sarscope.analysis.landscape import (  # noqa: E402
     consensus,
     sas_map,
 )
-from sarscope.analysis.mmp import matched_molecular_pairs  # noqa: E402
+from sarscope.analysis.mmp import matched_molecular_pairs, summarise_transformations  # noqa: E402
 from sarscope.analysis.model import ModelResult, evaluate  # noqa: E402
 from sarscope.analysis.profile import (  # noqa: E402
     GroupProfile,
@@ -70,27 +71,37 @@ from sarscope.analysis.scaffolds import (  # noqa: E402
     diversity_table,
     enrichment_table,
 )
-from sarscope.curate import CurationResult, curate_chembl  # noqa: E402
+from sarscope.compare import ComparisonResult, run_compare  # noqa: E402
+from sarscope.curate import CurationResult, curate_chembl, time_safe_table  # noqa: E402
 from sarscope.depict import to_svg, unavailable_reason  # noqa: E402
 from sarscope.params import (  # noqa: E402
     ClassScheme,
     CurationParams,
     FeatureParams,
+    FingerprintName,
     LandscapeParams,
     ModelParams,
     RunParams,
+    SplitStrategy,
 )
 from sarscope.pipeline import (  # noqa: E402
     RunResults,
     _cliff_model_errors,
     _modelling_blocked,
+    regression_error_profile,
 )
 from sarscope.predict import PredictionBundle, similarity_domain_threshold  # noqa: E402
+from sarscope.prioritise import diverse_shortlist, predict_candidates  # noqa: E402
 from sarscope.report import write_report  # noqa: E402
 from sarscope.sources.chembl import (  # noqa: E402
     ChemblClient,
     ChemblError,
     normalise_target_id,
+)
+from sarscope.sources.opentargets import (  # noqa: E402
+    OpenTargetsError,
+    disease_targets,
+    search_diseases,
 )
 
 #: Categorical slots of the reference palette. Group 1 / Group 2 keep these
@@ -101,6 +112,7 @@ GROUP_COLORS = [BLUE, ORANGE]
 #: Above this many molecules, the all-pairs landscape gets slow in a shared
 #: process. The CLI has no cap.
 LANDSCAPE_WARN = 4000
+COMPARE_RECORD_LIMIT = 20_000
 
 ACTIVITY_TYPES = ["IC50", "Ki", "Kd", "EC50"]
 
@@ -164,6 +176,7 @@ class ScaffoldStage:
     enrichment: pd.DataFrame
     rgroups: list[ScaffoldSar] = field(default_factory=list)
     matched_pairs: pd.DataFrame = field(default_factory=pd.DataFrame)
+    transformation_summary: pd.DataFrame = field(default_factory=pd.DataFrame)
 
 
 @dataclass
@@ -186,6 +199,7 @@ class MlStage:
     cliff_model_performance: pd.DataFrame = field(default_factory=pd.DataFrame)
     prediction_bundle: PredictionBundle | None = None
     skipped: dict[str, str] = field(default_factory=dict)
+    regression_test_predictions: pd.DataFrame = field(default_factory=pd.DataFrame)
 
 
 # -- data ---------------------------------------------------------------------
@@ -207,6 +221,207 @@ def fetch(target_id: str, types: tuple[str, ...]) -> list[dict[str, Any]]:
         return c.activities(target_id, types)
 
 
+@st.cache_data(ttl=86_400, max_entries=16, show_spinner=False)
+def assay_confidences(target_id: str) -> dict[str, int]:
+    with client() as c:
+        return c.assay_confidences(target_id)
+
+
+def compare_targets(
+    target_a: str, target_b: str, params: RunParams, second_assay_id: str = ""
+) -> ComparisonResult:
+    with client() as chembl:
+        count = chembl.count_activities(target_b, params.curation.standard_types)
+        if count > COMPARE_RECORD_LIMIT:
+            raise ValueError(
+                f"{target_b} has {count:,} activity records of the selected types. "
+                f"The browser comparison limit is {COMPARE_RECORD_LIMIT:,}; "
+                "use the CLI for this target pair."
+            )
+        return run_compare(
+            target_a,
+            target_b,
+            params,
+            chembl,
+            secondary_assay_ids=(second_assay_id,) if second_assay_id else (),
+        )
+
+
+@st.cache_data(ttl=3600, max_entries=128, show_spinner=False)
+def search_target_names(query: str, human_only: bool) -> tuple[list[dict[str, Any]], int]:
+    with ChemblClient(timeout=20, retries=1) as c:
+        return c.search_targets(query, organism="Homo sapiens" if human_only else None)
+
+
+@st.cache_data(ttl=3600, max_entries=128, show_spinner=False)
+def search_disease_names(query: str) -> dict[str, Any]:
+    return search_diseases(query)
+
+
+@st.cache_data(ttl=3600, max_entries=128, show_spinner=False)
+def load_disease_targets(disease_id: str) -> dict[str, Any]:
+    return disease_targets(disease_id)
+
+
+@st.cache_data(ttl=3600, max_entries=128, show_spinner=False)
+def map_disease_proteins(accessions: tuple[str, ...]) -> tuple[list[dict[str, Any]], int]:
+    with ChemblClient(timeout=20, retries=1) as c:
+        return c.targets_for_accessions(accessions)
+
+
+def target_search_controls() -> tuple[str | None, bool, dict[str, Any]]:
+    """Resolve an explicit user choice; network calls only follow button clicks."""
+    mode = st.radio("Find a target by", ["ChEMBL ID", "Gene / protein", "Disease"], horizontal=True)
+    context: dict[str, Any] = {"mode": mode}
+    if mode == "ChEMBL ID":
+        left, right = st.columns([3, 1], vertical_alignment="bottom")
+        raw_id = left.text_input(
+            "ChEMBL target ID", value="CHEMBL5145", help="e.g. CHEMBL5145 (BRAF) or just 5145"
+        )
+        check = right.button("Check target", type="primary", width="stretch")
+        try:
+            return normalise_target_id(raw_id), check, context
+        except ValueError as exc:
+            if raw_id.strip():
+                st.error(str(exc))
+            return None, False, context
+
+    human_only = True
+    if mode == "Gene / protein":
+        human_only = st.checkbox("Human targets only", value=True)
+    left, right = st.columns([3, 1], vertical_alignment="bottom")
+    query = left.text_input(
+        "Gene or protein name" if mode == "Gene / protein" else "Disease or phenotype",
+        placeholder="BRAF, EGFR, acetylcholinesterase" if mode == "Gene / protein" else "melanoma",
+        key=f"search_query_{mode}",
+        max_chars=200,
+    ).strip()
+    search_key = (mode, query, human_only)
+    if right.button("Search", type="primary", width="stretch", disabled=not query):
+        st.session_state.pop("discovery_results", None)
+        st.session_state.pop("target_lookup", None)
+        clear_workflow()
+        try:
+            with st.spinner(
+                "Searching ChEMBL…" if mode == "Gene / protein" else "Searching diseases…"
+            ):
+                results = (
+                    search_target_names(query, human_only)
+                    if mode == "Gene / protein"
+                    else search_disease_names(query)
+                )
+            st.session_state["discovery_results"] = (search_key, results)
+        except (ChemblError, OpenTargetsError, ValueError) as exc:
+            st.error(str(exc))
+    found = st.session_state.get("discovery_results")
+    if found is None or found[0] != search_key:
+        st.info("Search, review the matches, then choose a target to check.")
+        return None, False, context
+    context.update(query=query, human_only=human_only)
+    if mode == "Gene / protein":
+        candidates, total = found[1]
+    else:
+        diseases = found[1]
+        hits = {hit["id"]: hit for hit in diseases["hits"]}
+        st.caption(
+            f"Showing {len(hits)} of {diseases['total']:,} disease matches. Refine broad searches."
+        )
+        if not hits:
+            st.info("No disease matches. Try another name or a more specific term.")
+            return None, False, context
+        disease_id = st.selectbox(
+            "Choose the disease term",
+            list(hits),
+            index=None,
+            format_func=lambda value: f"{hits[value]['name']} · {value}",
+            key=f"disease_choice_{query}",
+        )
+        if disease_id is None:
+            return None, False, context
+        if st.button("Find associated genes"):
+            st.session_state.pop("disease_associations", None)
+            try:
+                with st.spinner("Loading direct disease associations from Open Targets…"):
+                    st.session_state["disease_associations"] = load_disease_targets(disease_id)
+            except (OpenTargetsError, ValueError) as exc:
+                st.error(str(exc))
+        associations = st.session_state.get("disease_associations")
+        if associations is None or associations["disease_id"] != disease_id:
+            return None, False, context
+        st.caption(
+            f"Open Targets · {associations['disease_name']} · {disease_id}. "
+            f"Showing {len(associations['rows'])} of {associations['total']:,} "
+            "direct associations; "
+            "evidence from descendant disease terms is excluded. Scores summarize evidence, "
+            "not the probability of treatment success. ChEMBL assay coverage is checked separately."
+        )
+        st.markdown(
+            f"[Inspect disease evidence in Open Targets](https://platform.opentargets.org/disease/{disease_id}/associations)"
+        )
+        genes = {row["gene_id"]: row for row in associations["rows"]}
+        if not genes:
+            st.info("No direct associations for this term. Try a more specific disease.")
+            return None, False, context
+        st.dataframe(
+            pd.DataFrame(associations["rows"])[["symbol", "name", "gene_id", "score"]],
+            hide_index=True,
+            width="stretch",
+        )
+        gene_id = st.selectbox(
+            "Choose a gene to resolve in ChEMBL",
+            list(genes),
+            index=None,
+            format_func=lambda value: (
+                f"{genes[value]['symbol']} · {genes[value]['name']} · {value}"
+            ),
+            key=f"gene_choice_{disease_id}",
+        )
+        if gene_id is None:
+            return None, False, context
+        gene = genes[gene_id]
+        if not gene["accessions"]:
+            st.info(
+                "No reviewed UniProt accession is available for this gene. Try gene/protein search."
+            )
+            return None, False, context
+        mapping_key = (disease_id, gene_id, tuple(gene["accessions"]))
+        if st.button("Find ChEMBL targets for this gene"):
+            st.session_state.pop("disease_mapping", None)
+            try:
+                with st.spinner("Matching reviewed UniProt accessions to human single proteins…"):
+                    mapped = map_disease_proteins(tuple(gene["accessions"]))
+                st.session_state["disease_mapping"] = (mapping_key, mapped)
+            except (ChemblError, ValueError) as exc:
+                st.error(str(exc))
+        mapping = st.session_state.get("disease_mapping")
+        if mapping is None or mapping[0] != mapping_key:
+            return None, False, context
+        candidates, total = mapping[1]
+        context.update(
+            {key: value for key, value in associations.items() if key != "rows"},
+            gene=gene,
+        )
+    st.caption(
+        f"Showing {len(candidates)} of {total:,} ChEMBL targets. Confirm species and target type."
+    )
+    if not candidates:
+        st.info("No matching ChEMBL target. Try a different name, gene, or species filter.")
+        return None, False, context
+    targets = {row["target_chembl_id"]: row for row in candidates}
+    target_id = st.selectbox(
+        "Choose a ChEMBL target",
+        list(targets),
+        index=None,
+        format_func=lambda value: (
+            f"{targets[value]['pref_name']} · {value} · {targets[value]['organism']} · "
+            f"{targets[value]['target_type']}"
+        ),
+        key=f"target_choice_{mode}_{query}_{human_only}_{tuple(targets)}",
+    )
+    check = st.button("Check target", type="primary", disabled=target_id is None)
+    return target_id, check, context
+
+
 def run_curation_stage(
     target_id: str,
     types: tuple[str, ...],
@@ -217,6 +432,12 @@ def run_curation_stage(
 ) -> CurationStage:
     """Download and curate only; every later analysis is explicitly opt-in."""
     records = fetch(target_id, types)
+    if params.curation.min_confidence_score is not None:
+        scores = assay_confidences(target_id)
+        records = [
+            {**record, "confidence_score": scores.get(str(record.get("assay_chembl_id")))}
+            for record in records
+        ]
     curation = curate_chembl(records, params)
     target = {
         "target_chembl_id": target_id,
@@ -269,6 +490,7 @@ def run_landscape_stage(curation: CurationResult, params: RunParams) -> Landscap
 
 def run_ml_stage(
     scaffold: ScaffoldStage,
+    curation: CurationResult,
     params: RunParams,
     *,
     classification: bool,
@@ -276,7 +498,13 @@ def run_ml_stage(
     landscape: LandscapeStage | None,
 ) -> MlStage:
     table = scaffold.table
-    reason = _modelling_blocked(table, params)
+    time_error = ""
+    if params.model.split == "time":
+        try:
+            table = add_scaffolds(time_safe_table(curation, params))
+        except ValueError as exc:
+            time_error = str(exc)
+    reason = time_error or _modelling_blocked(table, params)
     if reason:
         return MlStage(
             params,
@@ -325,6 +553,11 @@ def run_ml_stage(
 
     test_predictions = pd.DataFrame()
     cliff_performance = pd.DataFrame()
+    regression_test_predictions = (
+        regression_error_profile(table, X, regression_result)
+        if regression_result is not None
+        else pd.DataFrame()
+    )
     if models is not None and regression_result is not None and landscape is not None:
         test_predictions, cliff_performance = _cliff_model_errors(
             table, landscape.landscapes, models, regression_result
@@ -342,6 +575,11 @@ def run_ml_stage(
             estimator=deploy_model,
             train_fingerprints=X,
             similarity_threshold=similarity_domain_threshold(X),
+            train_ids=table["molecule_id"].astype(str).tolist(),
+            train_smiles=table["smiles"].astype(str).tolist(),
+            train_pactivity=table["pactivity"].astype(float).tolist(),
+            canonical_tautomer=params.curation.canonical_tautomer,
+            empirical_half_width=regression_result.empirical_half_width,
         )
     return MlStage(
         params,
@@ -352,6 +590,7 @@ def run_ml_stage(
         test_predictions,
         cliff_performance,
         bundle,
+        regression_test_predictions=regression_test_predictions,
     )
 
 
@@ -365,6 +604,8 @@ def build_params(settings: dict[str, Any]) -> RunParams:
             relations=("=", "<", ">", "<=", ">=") if settings["censored"] else ("=",),
             variant=variant,
             max_document_year=settings["max_year"],
+            assay_ids=(settings["assay_id"],) if settings["assay_id"] else None,
+            min_confidence_score=settings["min_confidence"] or None,
         ),
         classes=ClassScheme(),
     )
@@ -438,7 +679,7 @@ def histogram(table: pd.DataFrame, column: str) -> alt.Chart:
     )
 
 
-def pca_chart(results: RunResults) -> alt.Chart:
+def pca_chart(results: RunResults | PropertyStage) -> alt.Chart:
     frame = results.pca.scores.copy()
     frame["Group"] = ["Group 1" if g == 1 else "Group 2" for g in results.table["group"]]
     frame["molecule"] = results.table["molecule_id"].to_numpy()
@@ -551,7 +792,7 @@ def show_overview(results: RunResults) -> None:
         )
 
 
-def show_curation(results: RunResults) -> None:
+def show_curation(results: RunResults | CurationStage) -> None:
     table = results.table
     cols = st.columns(4)
     cols[0].metric("Molecules", f"{len(table):,}")
@@ -577,11 +818,40 @@ def show_curation(results: RunResults) -> None:
         ]
     )
     st.dataframe(log, hide_index=True, width="stretch")
+    evidence = results.curation.evidence
+    if not evidence.empty:
+        st.markdown("**Assay evidence behind the pooled molecule values**")
+        st.caption(
+            "Each row is a retained measurement. Values from different endpoints or assay "
+            "formats may share a logarithmic unit without measuring the same biology. "
+            "Use an assay ID in the sidebar to rerun a coherent subset. Confidence scores "
+            "are fetched from ChEMBL assays when a minimum is selected."
+        )
+        fields = ["assay_chembl_id", "standard_type", "bao_label", "confidence_score"]
+        if all(field in evidence for field in fields):
+            overview = (
+                evidence.groupby(fields, dropna=False)
+                .agg(records=("record_id", "size"), molecules=("molecule_id", "nunique"))
+                .reset_index()
+                .sort_values("records", ascending=False)
+            )
+            st.dataframe(overview.head(100), hide_index=True, width="stretch")
+        picked_id = st.text_input("Inspect measurements for molecule ID", key="evidence_id")
+        if picked_id.strip():
+            selected = evidence[evidence["molecule_id"].eq(picked_id.strip())]
+            if selected.empty:
+                st.info("No retained measurements for that curated molecule ID.")
+            else:
+                st.dataframe(selected, hide_index=True, width="stretch")
+                st.caption(
+                    "Record and document IDs trace back to ChEMBL. The report archive "
+                    "contains the complete retained-measurement table."
+                )
     for step, reason in results.skipped.items():
         st.warning(f"**{step} skipped.** {reason}")
 
 
-def show_properties(results: RunResults) -> None:
+def show_properties(results: RunResults | PropertyStage) -> None:
     from sarscope.analysis.descriptors import CORE_DESCRIPTORS
 
     table = results.table.copy()
@@ -628,7 +898,7 @@ def show_properties(results: RunResults) -> None:
         )
 
 
-def show_scaffolds(results: RunResults) -> None:
+def show_scaffolds(results: RunResults | ScaffoldStage) -> None:
     st.caption(
         "Ns scaffolds, Nss of them carrying a single molecule, Ncsk cyclic skeletons. "
         'The skeleton columns use RDKit\'s generic scaffold; "cyclic skeleton" has no single '
@@ -669,7 +939,7 @@ def show_scaffolds(results: RunResults) -> None:
         )
 
 
-def show_rgroups(results: RunResults) -> None:
+def show_rgroups(results: RunResults | ScaffoldStage) -> None:
     if not results.rgroups:
         st.info("No series had enough members to decompose.")
         return
@@ -735,7 +1005,7 @@ def show_rgroups(results: RunResults) -> None:
             )
 
 
-def show_landscape(results: RunResults) -> None:
+def show_landscape(results: RunResults | LandscapeStage) -> None:
     st.caption(
         "Every pair of molecules, placed by structural similarity and potency difference. "
         "Cliffs are similar pairs with very different potency: the pairs a model gets wrong "
@@ -862,6 +1132,33 @@ def show_models(results: RunResults | MlStage) -> None:
         st.markdown(
             f"Best regressor by cross-validated RMSE: **{results.regression.best_algorithm}**"
         )
+        band = results.regression.empirical_half_width
+        if np.isfinite(band):
+            metrics = st.columns(2)
+            metrics[0].metric("Empirical 90% half-width", f"±{band:.2f} log units")
+            metrics[1].metric(
+                "Observed test coverage", f"{results.regression.empirical_test_coverage:.1%}"
+            )
+            st.caption(
+                "This band is the 90th percentile of training-fold absolute errors for the "
+                "CV-selected model. It is an empirical guide, not a formal coverage guarantee; "
+                "the observed test coverage above matters most for new scaffolds and later data."
+            )
+        if not results.regression_test_predictions.empty:
+            profile = results.regression_test_predictions
+            st.markdown("**Error versus nearest training analogue**")
+            chart = (
+                alt.Chart(profile)
+                .mark_circle(size=55, opacity=0.65, color=BLUE)
+                .encode(
+                    x=alt.X("max_training_similarity:Q", title="Nearest training similarity"),
+                    y=alt.Y("absolute_error:Q", title="Absolute potency error"),
+                    tooltip=["molecule_id:N", "pactivity:Q", "predicted_pactivity:Q"],
+                )
+            )
+            st.altair_chart(chart, width="stretch")
+            with st.expander("Held-out predictions and novelty"):
+                st.dataframe(profile, hide_index=True, width="stretch")
     if not results.cliff_model_performance.empty:
         st.markdown("**Held-out error on cliff compounds versus the rest**")
         st.dataframe(results.cliff_model_performance, hide_index=True, width="stretch")
@@ -897,6 +1194,9 @@ WORKFLOW_KEYS = (
     "ml_stage",
     "explanation_stage",
     "report_zip",
+    "comparison_stage",
+    "uploaded_predictions",
+    "shortlist_stage",
 )
 
 
@@ -1001,9 +1301,14 @@ def assemble_report_results(
         regression=ml.regression if ml is not None else None,
         domain=ml.domain if ml is not None else None,
         matched_pairs=scaffolds.matched_pairs,
+        transformation_summary=scaffolds.transformation_summary,
         model_test_predictions=(ml.model_test_predictions if ml is not None else pd.DataFrame()),
         cliff_model_performance=(ml.cliff_model_performance if ml is not None else pd.DataFrame()),
         prediction_bundle=ml.prediction_bundle if ml is not None else None,
+        model_table=ml.table if ml is not None else pd.DataFrame(),
+        regression_test_predictions=(
+            ml.regression_test_predictions if ml is not None else pd.DataFrame()
+        ),
         rgroups=scaffolds.rgroups,
         skipped={**curation.skipped, **properties.skipped, **(ml.skipped if ml else {})},
         provenance=curation.provenance,
@@ -1027,6 +1332,24 @@ def sidebar() -> dict[str, Any]:
             max_year = st.number_input(
                 "Only documents up to year", min_value=1990, max_value=2030, value=2030
             )
+            assay_id = (
+                st.text_input(
+                    "Restrict to ChEMBL assay ID (optional)",
+                    help=(
+                        "Inspect the assay table after curation, then enter one assay ID "
+                        "here and curate again."
+                    ),
+                )
+                .strip()
+                .upper()
+            )
+            min_confidence = st.slider(
+                "Minimum assay-target confidence",
+                0,
+                9,
+                0,
+                help="0 keeps all assays; 9 requires a direct single-protein assignment.",
+            )
 
         st.caption(f"SARscope {__version__} · [source](https://github.com/yboulaamane/sarscope)")
 
@@ -1035,6 +1358,8 @@ def sidebar() -> dict[str, Any]:
         "variant": variant,
         "censored": censored,
         "max_year": None if max_year >= 2030 else int(max_year),
+        "assay_id": assay_id,
+        "min_confidence": min_confidence,
     }
 
 
@@ -1044,7 +1369,8 @@ def main() -> None:
 
     st.title("SARscope")
     st.markdown(
-        "Turn a ChEMBL target into an auditable, stepwise medicinal-chemistry analysis: "
+        "Start from a target ID, gene, protein, or disease and build an auditable "
+        "medicinal-chemistry analysis: "
         "curate assay records, inspect chemical space and SAR, then build and explain "
         "predictive models only when the data support them."
     )
@@ -1071,22 +1397,14 @@ def main() -> None:
         # Everything still works; structures fall back to SMILES text.
         st.warning(f"Structures cannot be drawn here. {reason}")
 
-    left, right = st.columns([3, 1], vertical_alignment="bottom")
-    raw_id = left.text_input(
-        "ChEMBL target ID", value="CHEMBL5145", help="e.g. CHEMBL5145 (BRAF) or just 5145"
-    )
-    check_target = right.button("Check target", type="primary", width="stretch")
-
     if not settings["types"]:
         st.info("Choose at least one activity type in the sidebar.")
         return
-    try:
-        target_id = normalise_target_id(raw_id)
-    except ValueError as exc:
-        st.error(str(exc))
+    target_id, check_target, discovery = target_search_controls()
+    if target_id is None:
         return
 
-    lookup_key = (target_id, tuple(settings["types"]))
+    lookup_key = (target_id, tuple(settings["types"]), repr(discovery))
     if check_target:
         try:
             with st.spinner("Checking this target in ChEMBL…"):
@@ -1104,7 +1422,7 @@ def main() -> None:
 
     target_lookup = st.session_state.get("target_lookup")
     if target_lookup is None or target_lookup.get("key") != lookup_key:
-        st.info("Enter a ChEMBL ID and press **Check target**. No network request runs at startup.")
+        st.info("Press **Check target** to confirm its identity and available activity records.")
         return
     target = target_lookup["target"]
     release = str(target_lookup["release"])
@@ -1132,6 +1450,7 @@ def main() -> None:
         tuple(settings["types"]),
         repr(base_params.curation),
         release,
+        repr(discovery),
     )
     action_cols = st.columns(2)
     run_curation = action_cols[0].button(
@@ -1162,6 +1481,7 @@ def main() -> None:
                     str(target["pref_name"]),
                     str(target["organism"]),
                 )
+                stage.provenance["target_discovery"] = discovery
         except (ChemblError, ValueError) as exc:
             st.error(f"Curation stopped: {exc}")
             return
@@ -1186,6 +1506,8 @@ def main() -> None:
             "5 · ML",
             "6 · Explain",
             "7 · Report",
+            "8 · Selectivity",
+            "9 · Prioritize",
         ]
     )
     with tabs[0]:
@@ -1237,13 +1559,23 @@ def main() -> None:
             if sar_cols[1].button("Run matched molecular pairs", key="run_mmp"):
                 with st.spinner("Enumerating single-cut transformations…"):
                     scaffolds.matched_pairs = matched_molecular_pairs(scaffolds.table)
+                    scaffolds.transformation_summary = summarise_transformations(
+                        scaffolds.matched_pairs, curation.curation.evidence
+                    )
                     st.session_state["scaffold_stage"] = scaffolds
                     st.session_state.pop("report_zip", None)
             if scaffolds.rgroups:
                 show_rgroups(scaffolds)
             if not scaffolds.matched_pairs.empty:
-                st.markdown("**Matched molecular pairs**")
-                st.dataframe(scaffolds.matched_pairs, hide_index=True, width="stretch")
+                st.markdown("**Transformation evidence**")
+                st.caption(
+                    "Positive median delta favours the fragment in the 'to' column. "
+                    "Check pair counts, independent contexts, opposing examples, and "
+                    "whether both compounds were measured in a shared assay."
+                )
+                st.dataframe(scaffolds.transformation_summary, hide_index=True, width="stretch")
+                with st.expander("Individual matched molecular pairs"):
+                    st.dataframe(scaffolds.matched_pairs, hide_index=True, width="stretch")
 
     with tabs[3]:
         st.caption(
@@ -1264,14 +1596,19 @@ def main() -> None:
         st.caption(f"This run will examine {pair_count:,} unordered molecular pairs.")
         if len(curation.table) > LANDSCAPE_WARN:
             st.warning(
-                "This dataset is large for a hosted all-pairs calculation; use one fingerprint."
+                f"The browser limit for all-pairs cliffs is {LANDSCAPE_WARN:,} molecules. "
+                "Use the CLI for the full dataset or curate a coherent assay subset."
             )
-        if st.button("Run activity-cliff analysis", key="run_landscape"):
+        if st.button(
+            "Run activity-cliff analysis",
+            key="run_landscape",
+            disabled=len(curation.table) > LANDSCAPE_WARN,
+        ):
             if not fingerprints:
                 st.error("Choose at least one fingerprint.")
             else:
                 landscape_params = LandscapeParams(
-                    fingerprints=tuple(fingerprints),
+                    fingerprints=cast(tuple[FingerprintName, ...], tuple(fingerprints)),
                     similarity_threshold=similarity_threshold,
                     activity_threshold=activity_threshold,
                 )
@@ -1320,10 +1657,10 @@ def main() -> None:
                     st.error("Choose at least one task and one algorithm.")
                 else:
                     model_params = ModelParams(
-                        features=FeatureParams(fingerprint=model_fp),
+                        features=FeatureParams(fingerprint=cast(FingerprintName, model_fp)),
                         algorithms=tuple(algorithms),
                         regression_algorithms=tuple(algorithms),
-                        split=split,
+                        split=cast(SplitStrategy, split),
                         time_cutoff=int(time_cutoff),
                         cv_folds=cv_folds,
                         leakage_audit=audit,
@@ -1340,6 +1677,7 @@ def main() -> None:
                     with st.spinner("Running only the selected models and validation…"):
                         st.session_state["ml_stage"] = run_ml_stage(
                             scaffolds,
+                            curation.curation,
                             run_params,
                             classification="Activity-class classification" in tasks,
                             regression="Continuous pActivity regression" in tasks,
@@ -1347,6 +1685,8 @@ def main() -> None:
                         )
                     st.session_state.pop("explanation_stage", None)
                     st.session_state.pop("report_zip", None)
+                    st.session_state.pop("uploaded_predictions", None)
+                    st.session_state.pop("shortlist_stage", None)
             ml: MlStage | None = st.session_state.get("ml_stage")
             if ml is None:
                 st.info("No ML run yet.")
@@ -1429,6 +1769,179 @@ def main() -> None:
                     mime="application/zip",
                 )
             st.json(curation.provenance, expanded=False)
+
+    with tabs[7]:
+        st.caption(
+            "Compare this curated target with another ChEMBL target. Shared structures get "
+            "a potency ratio and assay-context label; unmeasured target–compound pairs "
+            "stay unknown. This can download a second target, so run it deliberately."
+        )
+        other_raw = st.text_input("Second ChEMBL target ID", placeholder="CHEMBL279")
+        second_assay_id = (
+            st.text_input(
+                "Second-target assay ID (optional)",
+                help="The primary assay ID in the sidebar does not apply to the second target.",
+            )
+            .strip()
+            .upper()
+        )
+        if st.button("Compare targets", type="primary", key="compare_targets"):
+            try:
+                other_id = normalise_target_id(other_raw)
+                if other_id == target_id:
+                    raise ValueError("Choose a different target for selectivity comparison.")
+                with st.spinner("Curating and matching compounds across both targets…"):
+                    comparison = compare_targets(target_id, other_id, base_params, second_assay_id)
+                st.session_state["comparison_stage"] = (
+                    target_id,
+                    other_id,
+                    repr(base_params.curation),
+                    second_assay_id,
+                    comparison,
+                )
+            except (ChemblError, ValueError) as exc:
+                st.session_state.pop("comparison_stage", None)
+                st.error(str(exc))
+        comparison_entry = st.session_state.get("comparison_stage")
+        if comparison_entry is not None:
+            a_id, b_id, curation_settings, assay_b, comparison = comparison_entry
+            other_key = other_raw.strip().upper()
+            if other_key.isdigit():
+                other_key = f"CHEMBL{other_key}"
+            if (a_id, b_id, curation_settings, assay_b) == (
+                target_id,
+                other_key,
+                repr(base_params.curation),
+                second_assay_id,
+            ):
+                st.subheader(
+                    f"{comparison.target_a['pref_name']} · {a_id} vs "
+                    f"{comparison.target_b['pref_name']} · {b_id}"
+                )
+                st.metric("Shared measured structures", len(comparison.compounds))
+                st.markdown("**Compound–target coverage**")
+                st.caption("A blank potency is an unmeasured target, not inactivity.")
+                st.dataframe(comparison.activity_matrix, hide_index=True, width="stretch")
+                st.download_button(
+                    "Download compound–target matrix",
+                    comparison.activity_matrix.to_csv(index=False),
+                    file_name=f"sarscope_{a_id}_{b_id}_matrix.csv",
+                    mime="text/csv",
+                )
+                st.markdown("**Shared compounds and assay context**")
+                st.caption(
+                    "A potency ratio across different endpoints or assay formats is only a "
+                    "cross-assay observation. Review the underlying assays before "
+                    "calling it selectivity."
+                )
+                st.dataframe(comparison.compounds, hide_index=True, width="stretch")
+                st.markdown("**Shared-scaffold comparison**")
+                st.dataframe(comparison.scaffolds, hide_index=True, width="stretch")
+
+    with tabs[8]:
+        st.caption(
+            "Upload up to 500 SMILES to score with the selected regression model. "
+            "Structures are standardised with the training curation setting. The output "
+            "includes invalid-row reasons, nearest measured analogues, applicability flags, "
+            "and a property-aware diverse shortlist."
+        )
+        ml = st.session_state.get("ml_stage")
+        if ml is None or ml.prediction_bundle is None:
+            st.info("Run continuous pActivity regression in the ML step first.")
+        else:
+            upload = st.file_uploader("Candidate CSV or TSV", type=["csv", "tsv", "tab"])
+            st.caption("Required column: smiles. Optional column: molecule_id.")
+            if upload is not None:
+                data = upload.getvalue()
+                upload_key = (
+                    target_id,
+                    id(ml.prediction_bundle),
+                    hashlib.sha256(data).hexdigest(),
+                )
+                if st.button("Predict uploaded compounds", type="primary"):
+                    try:
+                        if len(data) > 2_000_000:
+                            raise ValueError("Upload a file smaller than 2 MB.")
+                        separator = "\t" if upload.name.lower().endswith((".tsv", ".tab")) else ","
+                        frame = pd.read_csv(io.BytesIO(data), sep=separator)
+                        with st.spinner("Standardising molecules and predicting potency…"):
+                            predicted = predict_candidates(ml.prediction_bundle, frame)
+                        st.session_state["uploaded_predictions"] = (upload_key, predicted)
+                        st.session_state.pop("shortlist_stage", None)
+                    except (ValueError, pd.errors.ParserError, UnicodeError) as exc:
+                        st.session_state.pop("uploaded_predictions", None)
+                        st.error(str(exc))
+                prediction_entry = st.session_state.get("uploaded_predictions")
+                if prediction_entry is not None and prediction_entry[0] == upload_key:
+                    predicted = prediction_entry[1]
+                    valid = predicted[predicted["status"] == "predicted"]
+                    counts = st.columns(3)
+                    counts[0].metric("Predicted", len(valid))
+                    counts[1].metric("Invalid rows", len(predicted) - len(valid))
+                    counts[2].metric(
+                        "Inside domain",
+                        int(valid["in_applicability_domain"].eq(True).sum()) if len(valid) else 0,
+                    )
+                    st.caption(
+                        "Empirical potency bands come from training-fold residuals. "
+                        "They are approximate and may undercover novel scaffolds "
+                        "or later chemistry."
+                    )
+                    st.dataframe(predicted, hide_index=True, width="stretch")
+                    st.download_button(
+                        "Download all predictions",
+                        predicted.to_csv(index=False),
+                        file_name=f"sarscope_{target_id}_predictions.csv",
+                        mime="text/csv",
+                    )
+                    if len(valid):
+                        st.markdown("**Choose shortlist constraints**")
+                        controls = st.columns(3)
+                        max_mw = controls[0].slider("Maximum MW", 200, 900, 500, 25)
+                        max_logp = controls[1].slider("Maximum logP", -1.0, 10.0, 5.0, 0.5)
+                        max_tpsa = controls[2].slider("Maximum TPSA", 20, 250, 140, 10)
+                        other = st.columns(3)
+                        n_shortlist = other[0].slider("Shortlist size", 1, 30, 15)
+                        diversity_weight = other[1].slider("Diversity weight", 0.0, 2.0, 1.0, 0.1)
+                        domain_only = other[2].checkbox("Inside domain only", value=True)
+                        criteria = (
+                            max_mw,
+                            max_logp,
+                            max_tpsa,
+                            n_shortlist,
+                            diversity_weight,
+                            domain_only,
+                        )
+                        if st.button("Build diverse shortlist"):
+                            shortlist = diverse_shortlist(
+                                predicted,
+                                ml.prediction_bundle,
+                                n=n_shortlist,
+                                max_mw=max_mw,
+                                max_logp=max_logp,
+                                max_tpsa=max_tpsa,
+                                in_domain_only=domain_only,
+                                diversity_weight=diversity_weight,
+                            )
+                            st.session_state["shortlist_stage"] = (upload_key, criteria, shortlist)
+                        chosen = st.session_state.get("shortlist_stage")
+                        if chosen is not None and chosen[:2] == (upload_key, criteria):
+                            shortlist = chosen[2]
+                            if shortlist.empty:
+                                st.info("No uploaded compounds meet these constraints.")
+                            else:
+                                st.caption(
+                                    "Ranking balances predicted pActivity with fingerprint "
+                                    "diversity. Inspect analogue evidence and domain flags "
+                                    "before choosing experiments."
+                                )
+                                st.dataframe(shortlist, hide_index=True, width="stretch")
+                                st.download_button(
+                                    "Download shortlist",
+                                    shortlist.to_csv(index=False),
+                                    file_name=f"sarscope_{target_id}_shortlist.csv",
+                                    mime="text/csv",
+                                )
 
 
 main()

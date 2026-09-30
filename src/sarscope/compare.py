@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import html
 import json
-from dataclasses import dataclass
+from dataclasses import dataclass, field, replace
 from pathlib import Path
 from typing import Any
 
@@ -13,7 +13,7 @@ import pandas as pd
 
 from sarscope import provenance
 from sarscope.analysis.scaffolds import add_scaffolds
-from sarscope.curate import curate_chembl
+from sarscope.curate import CurationResult, curate_chembl
 from sarscope.params import RunParams
 from sarscope.sources.chembl import ChemblClient
 
@@ -25,14 +25,15 @@ class ComparisonResult:
     compounds: pd.DataFrame
     scaffolds: pd.DataFrame
     provenance: dict[str, Any]
+    activity_matrix: pd.DataFrame = field(default_factory=pd.DataFrame)
 
 
 def _key(table: pd.DataFrame) -> pd.Series:
     return table["inchikey"].fillna(table["smiles"]).astype(str)
 
 
-def _target_table(records: list[dict[str, Any]], params: RunParams, suffix: str) -> pd.DataFrame:
-    table = add_scaffolds(curate_chembl(records, params).table).copy()
+def _target_table(curation: CurationResult, suffix: str) -> pd.DataFrame:
+    table = add_scaffolds(curation.table).copy()
     table["structure_key"] = _key(table)
     return table.rename(
         columns={
@@ -42,6 +43,33 @@ def _target_table(records: list[dict[str, Any]], params: RunParams, suffix: str)
             "group": f"group_{suffix}",
         }
     )
+
+
+def _context_summary(curation: CurationResult, molecule_id: str) -> dict[str, set[str]]:
+    evidence = curation.evidence
+    if evidence.empty or "molecule_id" not in evidence:
+        return {"endpoint": set(), "format": set(), "document": set(), "assay": set()}
+    rows = evidence[evidence["molecule_id"] == molecule_id]
+    mapping = {
+        "endpoint": "standard_type",
+        "format": "bao_label",
+        "document": "document_chembl_id",
+        "assay": "assay_chembl_id",
+    }
+    return {
+        name: set(rows[column].dropna().astype(str)) if column in rows else set()
+        for name, column in mapping.items()
+    }
+
+
+def _comparison_quality(a: dict[str, set[str]], b: dict[str, set[str]]) -> str:
+    if len(a["endpoint"]) != 1 or a["endpoint"] != b["endpoint"]:
+        return "endpoint mismatch or pooling"
+    if len(a["format"]) != 1 or a["format"] != b["format"]:
+        return "assay-format mismatch or pooling"
+    if a["document"] & b["document"]:
+        return "same endpoint, format and document"
+    return "same endpoint and format; different documents"
 
 
 def compare_tables(
@@ -132,15 +160,71 @@ def compare_tables(
 
 
 def run_compare(
-    target_a: str, target_b: str, params: RunParams, client: ChemblClient
+    target_a: str,
+    target_b: str,
+    params: RunParams,
+    client: ChemblClient,
+    *,
+    secondary_assay_ids: tuple[str, ...] | None = None,
 ) -> ComparisonResult:
     metadata_a = client.target(target_a)
     metadata_b = client.target(target_b)
     raw_a = client.activities(target_a, params.curation.standard_types)
     raw_b = client.activities(target_b, params.curation.standard_types)
-    table_a = _target_table(raw_a, params, "a")
-    table_b = _target_table(raw_b, params, "b")
+    if params.curation.min_confidence_score is not None:
+        scores_a = client.assay_confidences(target_a)
+        scores_b = client.assay_confidences(target_b)
+        raw_a = [
+            {**row, "confidence_score": scores_a.get(str(row.get("assay_chembl_id")))}
+            for row in raw_a
+        ]
+        raw_b = [
+            {**row, "confidence_score": scores_b.get(str(row.get("assay_chembl_id")))}
+            for row in raw_b
+        ]
+    curation_a = curate_chembl(raw_a, params)
+    b_params = (
+        replace(params, curation=replace(params.curation, assay_ids=secondary_assay_ids or None))
+        if secondary_assay_ids is not None
+        else params
+    )
+    curation_b = curate_chembl(raw_b, b_params)
+    if curation_a.table.empty or curation_b.table.empty:
+        raise ValueError(
+            "No comparable molecules remain for one target under these curation settings."
+        )
+    table_a = _target_table(curation_a, "a")
+    table_b = _target_table(curation_b, "b")
     compounds, scaffolds = compare_tables(table_a, table_b)
+    if not compounds.empty:
+        compounds["assay_context"] = [
+            _comparison_quality(
+                _context_summary(curation_a, str(row.molecule_id_a)),
+                _context_summary(curation_b, str(row.molecule_id_b)),
+            )
+            for row in compounds.itertuples()
+        ]
+    activity_matrix = table_a[["structure_key", "molecule_id_a", "smiles", "pactivity_a"]].merge(
+        table_b[["structure_key", "molecule_id_b", "smiles", "pactivity_b"]].rename(
+            columns={"smiles": "smiles_b"}
+        ),
+        on="structure_key",
+        how="outer",
+        validate="one_to_one",
+    )
+    activity_matrix["smiles"] = activity_matrix["smiles"].combine_first(activity_matrix["smiles_b"])
+    activity_matrix = activity_matrix.drop(columns="smiles_b")
+    activity_matrix["measured_on_a"] = activity_matrix["pactivity_a"].notna()
+    activity_matrix["measured_on_b"] = activity_matrix["pactivity_b"].notna()
+    activity_matrix["coverage"] = np.select(
+        [
+            activity_matrix["measured_on_a"] & activity_matrix["measured_on_b"],
+            activity_matrix["measured_on_a"],
+        ],
+        ["both", "A only"],
+        default="B only",
+    )
+    # Missing is unknown, never evidence of inactivity on the other target.
     record = provenance.collect(
         params,
         {
@@ -152,7 +236,8 @@ def run_compare(
             ],
         },
     )
-    return ComparisonResult(metadata_a, metadata_b, compounds, scaffolds, record)
+    record["secondary_assay_ids"] = b_params.curation.assay_ids
+    return ComparisonResult(metadata_a, metadata_b, compounds, scaffolds, record, activity_matrix)
 
 
 def write_comparison(result: ComparisonResult, out_dir: Path) -> Path:
@@ -165,6 +250,7 @@ def write_comparison(result: ComparisonResult, out_dir: Path) -> Path:
     tables.mkdir(parents=True, exist_ok=True)
     result.compounds.to_csv(tables / "shared_compound_selectivity.csv", index=False)
     result.scaffolds.to_csv(tables / "shared_scaffold_selectivity.csv", index=False)
+    result.activity_matrix.to_csv(tables / "compound_target_matrix.csv", index=False)
     (out_dir / "provenance.json").write_text(json.dumps(result.provenance, indent=2))
 
     name_a = str(result.target_a.get("pref_name") or result.target_a.get("target_chembl_id"))

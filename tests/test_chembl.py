@@ -138,3 +138,114 @@ def test_count_activities_uses_a_single_row_request():
     handler, calls = paged_api(n_records=42, page_size=10)
     assert client(handler).count_activities("CHEMBL5145") == 42
     assert httpx.URL(calls[-1]).params["limit"] == "1"
+
+
+def test_assay_confidence_paginates_separately_from_activities():
+    calls = []
+
+    def handler(request):
+        calls.append(request)
+        assert request.url.path == f"{BASE}/assay.json"
+        if len(calls) == 1:
+            assert request.url.params["only"] == "assay_chembl_id,confidence_score"
+            return httpx.Response(
+                200,
+                json={
+                    "assays": [{"assay_chembl_id": "A", "confidence_score": 9}],
+                    "page_meta": {"total_count": 2, "next": f"{BASE}/assay.json?offset=1"},
+                },
+            )
+        return httpx.Response(
+            200,
+            json={
+                "assays": [{"assay_chembl_id": "B", "confidence_score": 7}],
+                "page_meta": {"total_count": 2, "next": None},
+            },
+        )
+
+    with client(handler) as c:
+        assert c.assay_confidences("5145") == {"A": 9, "B": 7}
+    assert len(calls) == 2
+
+
+def test_name_search_preserves_ambiguous_targets_and_reports_total():
+    def handler(request):
+        assert request.url.path == f"{BASE}/target/search.json"
+        assert request.url.params["q"] == "BRAF"
+        assert request.url.params["organism"] == "Homo sapiens"
+        assert request.url.params["limit"] == "25"
+        return httpx.Response(
+            200,
+            json={
+                "targets": [
+                    {
+                        "target_chembl_id": "CHEMBL4106189",
+                        "pref_name": "BRAF/CRAF",
+                        "organism": "Homo sapiens",
+                        "target_type": "PROTEIN COMPLEX",
+                    },
+                    {
+                        "target_chembl_id": "CHEMBL5145",
+                        "pref_name": "B-raf",
+                        "organism": "Homo sapiens",
+                        "target_type": "SINGLE PROTEIN",
+                    },
+                ],
+                "page_meta": {"total_count": 40},
+            },
+        )
+
+    with client(handler) as c:
+        rows, total = c.search_targets(" BRAF ")
+    assert [row["target_chembl_id"] for row in rows] == ["CHEMBL5145", "CHEMBL4106189"]
+    assert total == 40
+
+
+def test_name_search_all_species_and_empty_result():
+    def handler(request):
+        assert "organism" not in request.url.params
+        return httpx.Response(200, json={"targets": [], "page_meta": {"total_count": 0}})
+
+    with client(handler) as c:
+        assert c.search_targets("unknown", organism=None) == ([], 0)
+
+
+def test_accession_mapping_is_exact_human_single_protein_and_bounded():
+    calls = []
+
+    def handler(request):
+        calls.append(request)
+        assert request.url.path == f"{BASE}/target.json"
+        assert request.url.params["target_components__accession__in"] == "P15056,Q02750"
+        assert request.url.params["target_type"] == "SINGLE PROTEIN"
+        assert request.url.params["organism"] == "Homo sapiens"
+        assert "q" not in request.url.params
+        return httpx.Response(200, json={"targets": [], "page_meta": {"total_count": 0}})
+
+    with client(handler) as c:
+        assert c.targets_for_accessions([]) == ([], 0)
+        assert calls == []
+        assert c.targets_for_accessions(["P15056", "P15056", "Q02750"]) == ([], 0)
+    assert len(calls) == 1
+
+
+@pytest.mark.parametrize(
+    "response",
+    [
+        httpx.Response(400, json={"error": "bad query"}),
+        httpx.Response(200, json={"targets": None}),
+        httpx.Response(200, text="not JSON"),
+    ],
+)
+def test_search_failure_is_actionable(response):
+    with client(lambda _: response) as c, pytest.raises(ChemblError, match="search failed"):
+        c.search_targets("BRAF")
+
+
+@pytest.mark.parametrize("query,limit", [("", 25), ("A" * 201, 25), ("BRAF", 100)])
+def test_search_rejects_bad_input_without_network(query, limit):
+    def handler(_):
+        pytest.fail("Invalid search should not reach the network")
+
+    with client(handler) as c, pytest.raises(ValueError):
+        c.search_targets(query, limit=limit)
