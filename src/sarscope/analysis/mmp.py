@@ -89,3 +89,69 @@ def matched_molecular_pairs(
     return result.sort_values(
         "delta_pactivity_b_minus_a", key=lambda values: values.abs(), ascending=False
     ).reset_index(drop=True)
+
+
+def summarise_transformations(pairs: pd.DataFrame, evidence: pd.DataFrame) -> pd.DataFrame:
+    """Summarise directional substitutions with assay context and conflicting examples.
+
+    Fragment order is canonicalised so A→B and B→A do not cancel. Repeated
+    pairs sharing a context are shown as such, rather than treated as
+    statistically independent measurements.
+    """
+    columns = [
+        "fragment_from",
+        "fragment_to",
+        "assay_context",
+        "supporting_pairs",
+        "distinct_contexts",
+        "median_delta",
+        "q25_delta",
+        "q75_delta",
+        "positive_pairs",
+        "negative_pairs",
+        "example_ids",
+    ]
+    if pairs.empty:
+        return pd.DataFrame(columns=columns)
+    assays: dict[str, set[str]] = {}
+    if not evidence.empty and {"molecule_id", "assay_chembl_id"} <= set(evidence):
+        assays = {
+            str(molecule_id): set(rows["assay_chembl_id"].dropna().astype(str))
+            for molecule_id, rows in evidence.groupby("molecule_id")
+        }
+    records = []
+    for row in pairs.itertuples(index=False):
+        left, right = str(row.fragment_a), str(row.fragment_b)
+        delta = float(row.delta_pactivity_b_minus_a)
+        if left > right:
+            left, right, delta = right, left, -delta
+        a_assays, b_assays = assays.get(str(row.id_a), set()), assays.get(str(row.id_b), set())
+        records.append(
+            {
+                "fragment_from": left,
+                "fragment_to": right,
+                "assay_context": "shared assay" if a_assays & b_assays else "unmatched or unknown",
+                "context": row.context,
+                "delta": delta,
+                "example": f"{row.id_a} → {row.id_b}",
+            }
+        )
+    frame = pd.DataFrame(records)
+    result = (
+        frame.groupby(["fragment_from", "fragment_to", "assay_context"], sort=False)
+        .agg(
+            supporting_pairs=("delta", "size"),
+            distinct_contexts=("context", "nunique"),
+            median_delta=("delta", "median"),
+            q25_delta=("delta", lambda values: float(values.quantile(0.25))),
+            q75_delta=("delta", lambda values: float(values.quantile(0.75))),
+            positive_pairs=("delta", lambda values: int((values > 0).sum())),
+            negative_pairs=("delta", lambda values: int((values < 0).sum())),
+            example_ids=("example", lambda values: "; ".join(values.head(5))),
+        )
+        .reset_index()
+    )
+    return result.sort_values(
+        ["distinct_contexts", "supporting_pairs", "median_delta"],
+        ascending=[False, False, False],
+    ).reset_index(drop=True)[columns]

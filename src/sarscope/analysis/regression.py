@@ -77,6 +77,10 @@ class RegressionResult:
     test_truth: NDArray[np.float64]
     fitted_filter: VarianceCorrelationFilter
     fitted_model: Any
+    #: Training-CV residual band; it has no formal coverage guarantee.
+    empirical_half_width: float = math.nan
+    empirical_test_coverage: float = math.nan
+    interval_level: float = 0.9
 
 
 def _spearman(y_true: NDArray[Any], y_pred: NDArray[Any]) -> float:
@@ -180,12 +184,16 @@ def evaluate_regression(
     X_train, y_train, groups_train = X[train_idx], target[train_idx], group_ids[train_idx]
 
     rows: list[dict[str, Any]] = []
+    cv_errors: dict[str, list[float]] = {}
     for name in names:
         cv: list[tuple[float, float, float]] = []
+        residuals: list[float] = []
         for fit_rows, eval_rows in _cv_folds(labels[train_idx], groups_train, params):
             filt, fitted = _fit(name, X_train[fit_rows], y_train[fit_rows], params)
             prediction = _predict(fitted, filt.transform(X_train[eval_rows]))
             cv.append(regression_metrics(y_train[eval_rows], prediction))
+            residuals.extend(np.abs(y_train[eval_rows] - prediction).tolist())
+        cv_errors[name] = residuals
         filt, fitted = _fit(name, X_train, y_train, params)
         train_prediction = _predict(fitted, filt.transform(X_train))
         test_prediction = _predict(fitted, filt.transform(X[test_idx]))
@@ -204,6 +212,17 @@ def evaluate_regression(
     best = str(ranked.sort_values(["_key", "algorithm"]).iloc[0]["algorithm"])
     fitted_filter, fitted_model = _fit(best, X_train, y_train, params)
     test_predictions = _predict(fitted_model, fitted_filter.transform(X[test_idx]))
+    held_out_errors = np.asarray(cv_errors[best], dtype=float)
+    half_width = (
+        float(np.quantile(held_out_errors, 0.9, method="higher"))
+        if len(held_out_errors)
+        else math.nan
+    )
+    coverage = (
+        float(np.mean(np.abs(target[test_idx] - test_predictions) <= half_width))
+        if math.isfinite(half_width)
+        else math.nan
+    )
     return RegressionResult(
         scores=scores,
         best_algorithm=best,
@@ -213,6 +232,8 @@ def evaluate_regression(
         test_truth=target[test_idx],
         fitted_filter=fitted_filter,
         fitted_model=fitted_model,
+        empirical_half_width=half_width,
+        empirical_test_coverage=coverage,
     )
 
 

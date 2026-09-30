@@ -13,8 +13,9 @@ from sarscope.curate import (
     curate_table,
     filter_chembl_records,
     standardize_and_aggregate,
+    time_safe_table,
 )
-from sarscope.params import ClassScheme, CurationParams, RunParams
+from sarscope.params import ClassScheme, CurationParams, ModelParams, RunParams
 
 pytestmark = pytest.mark.science
 
@@ -27,6 +28,8 @@ STEP_ORDER = [
     "potential_duplicate",
     "validity",
     "bao_format",
+    "assay_id",
+    "target_confidence",
     "document_year",
     "structure",
     "value",
@@ -209,6 +212,78 @@ def test_curate_chembl_produces_the_curated_contract(make_record):
     names = [s.name for s in result.steps]
     assert names[: len(STEP_ORDER)] == STEP_ORDER
     assert "aggregation" in names
+
+
+def test_assay_context_is_retained_and_can_be_filtered(make_record):
+    records = [
+        make_record(
+            activity_id=11,
+            assay_chembl_id="CHEMBL_A",
+            document_chembl_id="CHEMBL_D",
+            confidence_score=9,
+            standard_value="100",
+        ),
+        make_record(
+            activity_id=12,
+            assay_chembl_id="CHEMBL_B",
+            confidence_score=6,
+            standard_value="1000",
+        ),
+    ]
+    result = curate_chembl(records, RunParams())
+    assert set(result.evidence["record_id"]) == {"11", "12"}
+    assert set(result.evidence["assay_chembl_id"]) == {"CHEMBL_A", "CHEMBL_B"}
+    assert result.evidence.set_index("record_id").loc["11", "document_chembl_id"] == "CHEMBL_D"
+    assert result.table.iloc[0]["pactivity"] == pytest.approx(6.5)
+
+    restricted = curate_chembl(
+        records,
+        RunParams(curation=CurationParams(assay_ids=("CHEMBL_A",), min_confidence_score=9)),
+    )
+    assert restricted.evidence["record_id"].tolist() == ["11"]
+    assert restricted.evidence.iloc[0]["activity_url"].endswith("/activity/11.json")
+    assert restricted.evidence.iloc[0]["assay_url"].endswith("/assay/CHEMBL_A.json")
+    assert restricted.table.iloc[0]["pactivity"] == pytest.approx(7.0)
+    assert [
+        step.removed for step in restricted.steps if step.name in {"assay_id", "target_confidence"}
+    ] == [1, 0]
+
+
+def test_time_safe_labels_ignore_later_measurement_of_training_compound(make_record):
+    records = [
+        make_record(
+            activity_id=1,
+            molecule_chembl_id="A",
+            parent_molecule_chembl_id="A",
+            canonical_smiles="CCO",
+            standard_value="1000",
+            document_year=2018,
+        ),
+        make_record(
+            activity_id=2,
+            molecule_chembl_id="A",
+            parent_molecule_chembl_id="A",
+            canonical_smiles="CCO",
+            standard_value="1",
+            document_year=2021,
+        ),
+        make_record(
+            activity_id=3,
+            molecule_chembl_id="B",
+            parent_molecule_chembl_id="B",
+            canonical_smiles="CCN",
+            standard_value="100",
+            document_year=2021,
+        ),
+    ]
+    params = RunParams(model=ModelParams(split="time", time_cutoff=2019))
+    curated = curate_chembl(records, params)
+    assert curated.table.set_index("molecule_id").loc["A", "pactivity"] == pytest.approx(7.5)
+    safe = time_safe_table(curated, params).set_index("molecule_id")
+    assert safe.loc["A", "pactivity"] == pytest.approx(6.0)
+    assert safe.loc["A", "n_measurements"] == 1
+    assert safe.loc["B", "document_year"] == 2021
+    assert len(safe) == 2
 
 
 def test_curate_table_produces_the_curated_contract():

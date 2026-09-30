@@ -96,6 +96,8 @@ def test_report_folder(curation, tmp_path):
         "tables/model_scores.csv",
         "tables/regression_scores.csv",
         "tables/model_test_predictions.csv",
+        "tables/model_split_manifest.csv",
+        "tables/regression_test_predictions.csv",
         "tables/cliff_model_performance.csv",
         "tables/matched_molecular_pairs.csv",
         "model.joblib",
@@ -107,6 +109,10 @@ def test_report_folder(curation, tmp_path):
     assert "data:image/png;base64," in text
     assert 'src="figures/' not in text  # self-contained
     assert json.loads((out / "provenance.json").read_text())["params"]["model"]["cv_folds"] == 3
+    manifest = pd.read_csv(out / "tables/model_split_manifest.csv")
+    assert len(manifest) == len(results.model_table)
+    assert set(manifest["split"]) == {"train", "test"}
+    assert manifest["molecule_id"].is_unique
 
 
 def test_report_refuses_an_unrelated_non_empty_folder(curation, tmp_path):

@@ -58,6 +58,10 @@ class CurationParams:
     #: measurement from an enzyme IC50, but "assay format" is too vague to
     #: exclude safely by default.
     bao_formats: tuple[str, ...] | None = None
+    #: Restrict to explicit ChEMBL assays when a coherent assay subset is needed.
+    assay_ids: tuple[str, ...] | None = None
+    #: ChEMBL assay-to-target assignment confidence (0–9); None disables filtering.
+    min_confidence_score: int | None = None
     #: Keep only records from documents published up to this year. Useful for
     #: approximating an older ChEMBL release. None keeps all.
     max_document_year: int | None = None
@@ -171,7 +175,7 @@ class ModelParams:
     #: split scatters one congeneric series across both sides and flatters the
     #: model accordingly.
     split: SplitStrategy = "scaffold"
-    #: For ``split="time"``, train on molecules first documented on or before
+    #: For ``split="time"``, train on measurements documented on or before
     #: this year and test only on later molecules.
     time_cutoff: int = 2019
     #: Random oversampling of minority classes, applied to training folds only.

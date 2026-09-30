@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Any
 
@@ -28,17 +28,32 @@ class PredictionBundle:
     train_fingerprints: NDArray[np.uint8]
     similarity_threshold: float
     target_label: str = "pactivity"
+    train_ids: list[str] = field(default_factory=list)
+    train_smiles: list[str] = field(default_factory=list)
+    train_pactivity: list[float] = field(default_factory=list)
+    canonical_tautomer: bool = True
+    empirical_half_width: float | None = None
+    interval_level: float = 0.9
 
 
 def _row_max_tanimoto(
     query: NDArray[Any], reference: NDArray[Any], *, exclude_diagonal: bool = False
 ) -> NDArray[np.float64]:
     """Maximum binary Tanimoto similarity without materialising a cube."""
+    maxima, _ = _row_nearest_tanimoto(query, reference, exclude_diagonal=exclude_diagonal)
+    return maxima
+
+
+def _row_nearest_tanimoto(
+    query: NDArray[Any], reference: NDArray[Any], *, exclude_diagonal: bool = False
+) -> tuple[NDArray[np.float64], NDArray[np.intp]]:
+    """Nearest training row per query, in bounded matrix blocks."""
     query = np.asarray(query, dtype=np.uint8)
     reference = np.asarray(reference, dtype=np.uint8)
     if len(reference) == 0:
-        return np.full(len(query), np.nan)
+        return np.full(len(query), np.nan), np.full(len(query), -1, dtype=np.intp)
     maxima = np.zeros(len(query), dtype=float)
+    indices = np.zeros(len(query), dtype=np.intp)
     reference_sum = reference.sum(axis=1)
     for start in range(0, len(query), 256):
         block = query[start : start + 256]
@@ -53,8 +68,9 @@ def _row_max_tanimoto(
         if exclude_diagonal and query is reference:
             rows = np.arange(start, min(start + len(block), len(reference)))
             similarities[np.arange(len(rows)), rows] = -1.0
+        indices[start : start + len(block)] = similarities.argmax(axis=1)
         maxima[start : start + len(block)] = similarities.max(axis=1)
-    return maxima
+    return maxima, indices
 
 
 def similarity_domain_threshold(train_fingerprints: NDArray[Any]) -> float:
@@ -96,8 +112,8 @@ def predict_smiles(
     predictions = np.asarray(
         bundle.estimator.predict(bundle.feature_filter.transform(X)), dtype=float
     )
-    similarity = _row_max_tanimoto(X, bundle.train_fingerprints)
-    return pd.DataFrame(
+    similarity, nearest = _row_nearest_tanimoto(X, bundle.train_fingerprints)
+    result = pd.DataFrame(
         {
             "molecule_id": molecule_ids,
             "smiles": smiles,
@@ -107,6 +123,23 @@ def predict_smiles(
             "domain_threshold": bundle.similarity_threshold,
         }
     )
+    half_width = getattr(bundle, "empirical_half_width", None)
+    if half_width is not None and np.isfinite(half_width):
+        result["empirical_lower_pactivity"] = predictions - half_width
+        result["empirical_upper_pactivity"] = predictions + half_width
+    train_ids = getattr(bundle, "train_ids", [])
+    train_smiles = getattr(bundle, "train_smiles", [])
+    train_pactivity = getattr(bundle, "train_pactivity", [])
+    if train_ids and len(train_ids) == len(bundle.train_fingerprints):
+        result["nearest_training_id"] = [train_ids[i] for i in nearest]
+        if len(train_smiles) == len(bundle.train_fingerprints):
+            result["nearest_training_smiles"] = [train_smiles[i] for i in nearest]
+            result["already_measured"] = [
+                smiles[row] == train_smiles[index] for row, index in enumerate(nearest)
+            ]
+        if len(train_pactivity) == len(bundle.train_fingerprints):
+            result["nearest_training_pactivity"] = [train_pactivity[i] for i in nearest]
+    return result
 
 
 def predict_table(

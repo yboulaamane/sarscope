@@ -150,6 +150,101 @@ class ChemblClient:
         )
         return int(page["page_meta"]["total_count"])
 
+    def assay_confidences(self, target_id: str) -> dict[str, int]:
+        """Fetch confidence scores from assay records, not activity records.
+
+        The activity endpoint carries assay IDs but omits confidence_score.
+        This bounded-field request is made only when curation asks for a minimum.
+        """
+        target_id = normalise_target_id(target_id)
+        params: dict[str, Any] | None = {
+            "target_chembl_id": target_id,
+            "only": "assay_chembl_id,confidence_score",
+            "limit": PAGE_SIZE,
+        }
+        url: httpx.URL | None = self._base.join("assay.json")
+        scores: dict[str, int] = {}
+        expected: int | None = None
+        while url is not None:
+            response = self._get(url, params)
+            response.raise_for_status()
+            page = response.json()
+            meta = page["page_meta"]
+            expected = int(meta["total_count"]) if expected is None else expected
+            for row in page["assays"]:
+                if row.get("assay_chembl_id") and row.get("confidence_score") is not None:
+                    scores[str(row["assay_chembl_id"])] = int(row["confidence_score"])
+            url = self._base.join(meta["next"]) if meta["next"] else None
+            params = None
+        if expected is not None and len(scores) > expected:
+            raise ChemblError("ChEMBL returned more assay scores than expected")
+        return scores
+
+    def search_targets(
+        self, query: str, *, organism: str | None = "Homo sapiens", limit: int = 25
+    ) -> tuple[list[dict[str, Any]], int]:
+        """A bounded first page of name/gene matches; callers must confirm an ID.
+
+        Full-text search includes component synonyms. Complexes and species are
+        retained explicitly, rather than treating a gene name as one target.
+        The total is returned so a truncated result set is never presented as complete.
+        """
+        query = query.strip()
+        if not query or len(query) > 200:
+            raise ValueError("Enter a gene or protein name between 1 and 200 characters.")
+        params: dict[str, Any] = {"q": query, "limit": limit}
+        if organism:
+            params["organism"] = organism
+        return self._target_page("target/search.json", params)
+
+    def targets_for_accessions(
+        self, accessions: Iterable[str], *, limit: int = 25
+    ) -> tuple[list[dict[str, Any]], int]:
+        """Resolve reviewed UniProt accessions to human single-protein targets.
+
+        No fuzzy gene-name fallback: a disease gene must map to the actual
+        protein, not a similarly named target or a complex containing it.
+        """
+        ids = sorted({value.strip() for value in accessions if value.strip()})
+        if not ids:
+            return [], 0
+        if len(ids) > 50 or any(not re.fullmatch(r"[A-Z0-9-]+", value) for value in ids):
+            raise ValueError("Expected at most 50 UniProt accessions.")
+        return self._target_page(
+            "target.json",
+            {
+                "target_components__accession__in": ",".join(ids),
+                "organism": "Homo sapiens",
+                "target_type": "SINGLE PROTEIN",
+                "limit": limit,
+            },
+        )
+
+    def _target_page(self, path: str, params: dict[str, Any]) -> tuple[list[dict[str, Any]], int]:
+        if not 1 <= params["limit"] <= 50:
+            raise ValueError("Target search limit must be between 1 and 50.")
+        params["only"] = "target_chembl_id,pref_name,organism,target_type"
+        try:
+            page = self._get_json(path, params)
+            targets = page["targets"]
+            total = int(page["page_meta"]["total_count"])
+            if not isinstance(targets, list) or any(
+                not isinstance(row, dict) or not row.get("target_chembl_id") for row in targets
+            ):
+                raise ValueError("invalid targets")
+        except (httpx.HTTPError, ValueError, KeyError, TypeError) as exc:
+            raise ChemblError("ChEMBL target search failed. Try again or use a target ID.") from exc
+        # Make human single proteins easier to find without hiding other entities.
+        targets.sort(
+            key=lambda row: (
+                row.get("organism") != "Homo sapiens",
+                row.get("target_type") != "SINGLE PROTEIN",
+                row.get("pref_name") or "",
+                row["target_chembl_id"],
+            )
+        )
+        return targets, total
+
     def activities(
         self, target_id: str, standard_types: Iterable[str] = ("IC50",)
     ) -> list[dict[str, Any]]:

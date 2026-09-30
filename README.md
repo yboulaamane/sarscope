@@ -92,13 +92,43 @@ streamlit run streamlit_app.py
 ```
 
 The browser workflow is deliberately staged rather than automatic: check the
-target, curate it, then run chemical space, scaffolds/SAR, activity cliffs, ML
-and descriptor explanation only when requested. The ML stage includes a small
-MLP alongside the tree and neighbour models. The explanation stage uses named
+target, curate it, then run chemical space, scaffolds/SAR, activity cliffs, ML,
+and descriptor explanation only when requested. Assay IDs and minimum ChEMBL
+target-confidence scores can narrow the curated evidence; the retained
+measurements remain inspectable behind each molecule. The ML stage includes a
+small MLP alongside tree and neighbour models. The explanation stage uses named
 RDKit physicochemical descriptors and reports held-out permutation importance;
 Random Forest also reports impurity importance. Optional TreeSHAP support is
 available locally with `pip install "sarscope[explain]"` and is lazy-loaded so
 the hosted app does not inherit SHAP's startup cost.
+
+Two additional opt-in steps use those results: **Selectivity** compares a
+second ChEMBL target and exposes both shared-compound potency differences and a
+compound-by-target matrix in which an unmeasured target remains *unknown*;
+**Prioritize** standardizes and scores an uploaded CSV/TSV of up to 500 SMILES,
+then offers an editable property-filtered, diverse shortlist. Predictions show
+the nearest measured training analogue and a fingerprint-similarity domain flag.
+The 90% residual band is an empirical training-CV diagnostic, not a guaranteed
+prediction interval; held-out coverage and error versus novelty are displayed.
+
+Target discovery accepts a **ChEMBL ID**, **gene/protein name**, or **disease**.
+Name search uses ChEMBL and defaults to human targets; each candidate displays
+its ID, organism, and target type for explicit confirmation. Disease search
+uses Open Targets: choose an ontology term, load up to 25 direct gene
+associations, then resolve a chosen gene through reviewed UniProt accessions
+to human single-protein ChEMBL targets. Association scores summarize evidence;
+they are not treatment-success probabilities or potency measurements. Evidence
+from descendant disease terms is excluded. Search results are capped, show the
+total available count, and can be narrowed by a more specific query.
+
+All discovery calls are button-triggered and cached for one hour, with bounded
+cache sizes. Disease discovery adds no dependencies or startup API calls, and
+direct ChEMBL lookup remains available if Open Targets is unavailable. Reports
+record the discovery path and, for disease discovery, the selected disease,
+gene, association score, mapping accessions, and retrieval timestamp.
+
+See [the product priorities](docs/product-priorities.md) for the implemented
+scope, scientific limitations, and remaining validation work.
 
 See [`docs/deploying.md`](docs/deploying.md) to host it.
 
@@ -107,19 +137,20 @@ See [`docs/deploying.md`](docs/deploying.md) to host it.
 | Section | Output |
 |---|---|
 | Overview | Headline numbers, most potent molecules and enriched scaffolds, drawn |
-| Curation | Every record removed and the step that removed it |
+| Curation | Every record removed, retained measurements and assay context |
 | Properties | Six descriptors by activity group, Mann-Whitney tests, PCA |
 | Scaffolds | Murcko diversity, enrichment factors with Wilson lower bounds |
 | R-group SAR | Per-position substituent effects, with cores and substituents drawn |
-| Matched pairs | Single-cut transformations without requiring a preselected scaffold |
+| Matched pairs | Single-cut transformations and directional summaries with support and assay-context flags |
 | Landscape | Activity cliffs with both structures, SALI, cliff generators |
-| Models | Classification and continuous pActivity regression, scaffold/time split, leakage audit, applicability domain |
+| Models | Classification and continuous pActivity regression, scaffold/time split, leakage audit, applicability domain and empirical error band |
 | Model diagnostics | Held-out error on activity-cliff compounds versus the rest |
+| Comparison | Shared-compound selectivity, shared scaffolds and explicit missing target measurements |
 
 ```text
 report/
   report.html        self-contained: figures and structures inlined
-  model.joblib       selected regressor, refitted on the complete curated dataset
+  model.joblib       selected regressor, refitted on the modelling dataset
   provenance.json    ChEMBL release, package versions, every parameter
   tables/            every table as CSV
   figures/           every figure as PNG
@@ -149,7 +180,10 @@ sarscope run --input actives.csv --input-year-col year --split time \
   --time-cutoff 2019 --out report/
 ```
 
-ChEMBL runs retain each molecule's earliest document year automatically. To
+ChEMBL runs retain measurement-level document years. For a time split, SARscope
+aggregates pre-cutoff records into training labels and only newly measured
+structures enter the later test set; later measurements cannot revise an early
+training label. To
 pool the common potency endpoints explicitly, use `--pool-types`; every value
 is converted to `-log10(molar)` before aggregation and the pooled types are
 recorded in the curation log and provenance. Pooling different endpoint types
@@ -164,7 +198,9 @@ sarscope predict --model report/ --input new_compounds.csv
 ```
 
 The output includes predicted pActivity, maximum fingerprint similarity to the
-training set, and an applicability-domain flag. `model.joblib` is a Python
+training set, a nearest measured analogue, an applicability-domain flag, and
+an empirical residual band when available. The band is not a formal
+distribution-shift guarantee. `model.joblib` is a Python
 pickle-based artifact; load only reports you trust.
 
 ## Development
