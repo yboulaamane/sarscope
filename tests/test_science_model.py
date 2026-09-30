@@ -93,6 +93,44 @@ def test_result_shape():
     assert result.best_algorithm in FAST
     assert not set(result.train_index) & set(result.test_index)
     assert len(result.train_index) + len(result.test_index) == len(y)
+    assert 0 <= result.scores.loc[0, "test_roc_auc_ovr"] <= 1
+    assert 0 <= result.scores.loc[0, "test_pr_auc_ovr"] <= 1
+    assert set(result.test_class_metrics["activity_class"]) == set(y)
+    assert int(result.test_confusion.to_numpy().sum()) == len(result.test_index)
+
+
+def test_roc_and_pr_metrics_use_scores_and_show_undefined_classes():
+    truth = np.array(["inactive", "active", "inactive", "active"])
+    classes = ("active", "inactive")
+    scores = np.array([[0.1, 0.9], [0.9, 0.1], [0.2, 0.8], [0.8, 0.2]])
+    assert model._ranking_metrics(truth, classes, scores) == (1.0, 1.0, 2)
+    diagnostics = model._class_diagnostics(truth, truth, classes, scores)
+    assert set(diagnostics["prevalence"]) == {0.5}
+    assert set(diagnostics["f1"]) == {1.0}
+    roc, ap, count = model._ranking_metrics(np.array(["active"] * 4), classes, scores)
+    assert np.isnan(roc) and np.isnan(ap) and count == 0
+
+
+def test_decision_function_is_used_when_probabilities_are_unavailable():
+    X = np.array([[0.0], [0.1], [0.9], [1.0]])
+    y = np.array(["inactive", "inactive", "active", "active"])
+    fitted = ALGORITHMS["linear_svm"](42).fit(X, y)
+    assert not hasattr(fitted, "predict_proba")
+    classes, scores = model._score_matrix(fitted, X)
+    assert scores is not None and scores.shape == (4, 2)
+    assert model._ranking_metrics(y, classes, scores) == (1.0, 1.0, 2)
+
+
+def test_missing_ranking_scores_leave_auc_undefined():
+    class LabelsOnly:
+        classes_ = np.array(["active", "inactive"])
+
+    classes, scores = model._score_matrix(LabelsOnly(), np.zeros((3, 2)))
+    assert scores is None
+    roc, ap, count = model._ranking_metrics(
+        np.array(["active", "inactive", "active"]), classes, scores
+    )
+    assert np.isnan(roc) and np.isnan(ap) and count == 0
 
 
 def test_no_audit_means_leak_free_only():
@@ -107,6 +145,43 @@ def test_scaffold_split_keeps_each_scaffold_on_one_side():
     train = {groups[i] for i in result.train_index}
     test = {groups[i] for i in result.test_index}
     assert not train & test
+
+
+def test_time_cv_uses_expanding_year_folds_without_future_training_rows():
+    years = np.repeat([2017, 2018, 2019, 2020], 8)
+    labels = np.tile(["active", "inactive"], 16)
+    params = fast_params(split="time", leakage_audit=False)
+    folds = list(model._cv_folds(labels, None, params, years))
+    assert len(folds) == 3
+    for (fit, validation), year in zip(folds, [2018, 2019, 2020], strict=True):
+        assert set(years[fit]) == set(range(2017, year))
+        assert set(years[validation]) == {year}
+        assert years[fit].max() < years[validation].min()
+
+
+def test_time_split_classification_scores_only_newer_compounds():
+    rng = np.random.default_rng(31)
+    X = rng.integers(0, 2, (100, 20), dtype=np.uint8)
+    labels = np.tile(["active", "inactive"], 50)
+    years = np.repeat([2017, 2018, 2019, 2020, 2021], 20)
+    params = ModelParams(
+        algorithms=("extra_trees",),
+        split="time",
+        time_cutoff=2020,
+        cv_folds=3,
+        leakage_audit=True,
+    )
+    result = evaluate(X, labels, [f"s{i}" for i in range(100)], params, years)
+    assert years[result.train_index].max() == 2020
+    assert set(years[result.test_index]) == {2021}
+    assert set(result.scores["protocol"]) == {"leak_free"}
+
+
+def test_time_cv_explains_insufficient_years():
+    labels = np.array(["a", "b"] * 15)
+    params = fast_params(split="time")
+    with pytest.raises(ValueError, match="at least 4 distinct training years"):
+        list(model._cv_folds(labels, None, params, np.repeat([2018, 2019, 2020], 10)))
 
 
 def test_learns_real_signal():

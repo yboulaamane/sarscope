@@ -34,7 +34,7 @@ from sarscope.analysis.domain import DomainResult, pca_bounding_box
 from sarscope.analysis.features import VarianceCorrelationFilter, bit_vectors, fingerprint_matrix
 from sarscope.analysis.landscape import SasResult, consensus, sas_map
 from sarscope.analysis.mmp import matched_molecular_pairs, summarise_transformations
-from sarscope.analysis.model import ModelResult, evaluate
+from sarscope.analysis.model import ModelResult, _cv_folds, evaluate
 from sarscope.analysis.profile import GroupProfile, PcaResult, describe_groups, property_pca
 from sarscope.analysis.regression import (
     RegressionResult,
@@ -315,7 +315,7 @@ def _modelling_blocked(table: pd.DataFrame, params: RunParams) -> str:
             "so there is nothing to classify. Widen the class bounds, or check "
             "that the potency column is on the scale you think it is."
         )
-    if counts.min() < model.cv_folds:
+    if model.split != "time" and counts.min() < model.cv_folds:
         return (
             f"the smallest class has {counts.min()} molecules, fewer than the "
             f"{model.cv_folds} cross-validation folds. Lower cv_folds, or widen "
@@ -354,13 +354,17 @@ def _modelling_blocked(table: pd.DataFrame, params: RunParams) -> str:
                 f"the time split at {model.time_cutoff} leaves {len(train)} training and "
                 f"{len(test)} later test molecules"
             )
-        train_counts = train["activity_class"].value_counts()
-        if len(train_counts) < 2 or train_counts.min() < model.cv_folds:
-            return (
-                f"the pre-{model.time_cutoff + 1} training set cannot support "
-                f"{model.cv_folds}-fold stratified model selection; lower cv_folds or "
-                "choose a later --time-cutoff"
+        try:
+            list(
+                _cv_folds(
+                    train["activity_class"].to_numpy(),
+                    None,
+                    model,
+                    train["document_year"].tolist(),
+                )
             )
+        except ValueError as exc:
+            return str(exc)
     return ""
 
 

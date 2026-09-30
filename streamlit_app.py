@@ -31,6 +31,7 @@ import altair as alt  # noqa: E402
 import numpy as np  # noqa: E402
 import pandas as pd  # noqa: E402
 import streamlit as st  # noqa: E402
+from sklearn.metrics import precision_recall_curve, roc_curve  # noqa: E402
 
 from sarscope import __version__, provenance  # noqa: E402
 from sarscope.__main__ import FETCH_SUMMARY_FIELDS, default_cache_dir  # noqa: E402
@@ -1083,6 +1084,20 @@ def show_models(results: RunResults | MlStage) -> None:
     if results.models is None and results.regression is None:
         st.info(results.skipped.get("model", "Modelling did not run."))
         return
+    if results.params.model.split == "time":
+        model = results.regression if results.regression is not None else results.models
+        assert model is not None
+        model_table = results.model_table if isinstance(results, RunResults) else results.table
+        years = pd.to_numeric(model_table["document_year"], errors="coerce")
+        train_years = years.iloc[model.train_index]
+        test_years = years.iloc[model.test_index]
+        st.info(
+            f"**Time-based validation:** {len(train_years)} compounds first documented "
+            f"through {results.params.model.time_cutoff} train the model; "
+            f"{len(test_years)} newly documented later compounds test it "
+            f"({int(test_years.min())}–{int(test_years.max())}). "
+            "Model selection uses expanding, earlier-to-later year folds within training."
+        )
     if results.models is not None:
         st.caption(
             "**leak_free** selects features and resamples inside training folds only, after "
@@ -1094,10 +1109,13 @@ def show_models(results: RunResults | MlStage) -> None:
             [
                 "algorithm",
                 "protocol",
-                "train_accuracy",
-                "cv_accuracy",
                 "test_accuracy",
                 "test_mcc",
+                "cv_roc_auc_ovr",
+                "test_roc_auc_ovr",
+                "cv_pr_auc_ovr",
+                "test_pr_auc_ovr",
+                "test_auc_classes",
             ]
         ]
         st.dataframe(
@@ -1106,10 +1124,69 @@ def show_models(results: RunResults | MlStage) -> None:
             width="stretch",
             column_config={
                 c: st.column_config.NumberColumn(c.replace("_", " ").title(), format="%.3f")
-                for c in ["train_accuracy", "cv_accuracy", "test_accuracy", "test_mcc"]
+                for c in [
+                    "test_accuracy",
+                    "test_mcc",
+                    "cv_roc_auc_ovr",
+                    "test_roc_auc_ovr",
+                    "cv_pr_auc_ovr",
+                    "test_pr_auc_ovr",
+                ]
             },
         )
         st.markdown(f"Best classifier by CV MCC: **{results.models.best_algorithm}**")
+        st.caption(
+            "ROC AUC and PR AUC are macro one-vs-rest summaries over classes with both "
+            "positives and negatives in the held-out set. PR AUC here is average precision "
+            "(AP), not trapezoidal area; compare it with each class's prevalence. "
+            "AUCs are undefined when no class is evaluable."
+            " Ranking scores from margin-based models are not calibrated probabilities."
+        )
+        st.markdown("**Held-out performance by activity class**")
+        st.dataframe(results.models.test_class_metrics, hide_index=True, width="stretch")
+        with st.expander("Confusion matrix and ROC / PR curves"):
+            st.caption("Rows are measured classes; columns are predicted classes.")
+            st.dataframe(results.models.test_confusion, width="stretch")
+            class_scores = results.models.test_class_scores
+            truth = results.models.test_truth
+            if class_scores is not None and truth is not None:
+                evaluable = results.models.test_class_metrics.dropna(subset=["roc_auc_ovr"])
+                choices = evaluable["activity_class"].tolist()
+                if choices:
+                    chosen = st.selectbox("One-vs-rest curve for", choices)
+                    column = results.models.test_score_classes.index(chosen)
+                    positive = np.asarray(truth == chosen, dtype=bool)
+                    values = class_scores[:, column]
+                    fpr, tpr, _ = roc_curve(positive, values)
+                    precision, recall, _ = precision_recall_curve(positive, values)
+                    curve_cols = st.columns(2)
+                    roc_points = pd.DataFrame(
+                        {"false_positive_rate": fpr, "true_positive_rate": tpr}
+                    )
+                    pr_points = pd.DataFrame({"recall": recall, "precision": precision})
+                    curve_cols[0].altair_chart(
+                        alt.Chart(roc_points)
+                        .mark_line(color=BLUE)
+                        .encode(
+                            x=alt.X("false_positive_rate:Q", scale=alt.Scale(domain=[0, 1])),
+                            y=alt.Y("true_positive_rate:Q", scale=alt.Scale(domain=[0, 1])),
+                        )
+                        .properties(title=f"ROC · {chosen}"),
+                        width="stretch",
+                    )
+                    curve_cols[1].altair_chart(
+                        alt.Chart(pr_points)
+                        .mark_line(color=BLUE)
+                        .encode(
+                            x=alt.X("recall:Q", scale=alt.Scale(domain=[0, 1])),
+                            y=alt.Y("precision:Q", scale=alt.Scale(domain=[0, 1])),
+                        )
+                        .properties(title=f"Precision–recall · {chosen}"),
+                        width="stretch",
+                    )
+                    st.caption(f"PR baseline for {chosen}: {positive.mean():.1%} prevalence.")
+                else:
+                    st.info("ROC / PR curves need both positives and negatives in the test set.")
 
         if "naive" in set(scores["protocol"]):
             wide = scores.pivot(index="algorithm", columns="protocol", values="test_accuracy")
@@ -1648,10 +1725,31 @@ def main() -> None:
             model_fp = ml_cols[0].selectbox("Fingerprint", ["ecfp4", "maccs"])
             split = ml_cols[1].selectbox("Validation split", ["scaffold", "time", "random"])
             cv_folds = ml_cols[2].slider("CV folds", 3, 10, 5)
-            time_cutoff = st.number_input(
-                "Training cutoff year (time split only)", 1950, 2029, 2019
+            time_cutoff = 2019
+            if split == "time":
+                time_cutoff = int(
+                    st.number_input(
+                        "Last training document year",
+                        min_value=1950,
+                        max_value=2029,
+                        value=2019,
+                        help="Train on compounds first documented by this year; test only "
+                        "on new compounds documented later. Cross-validation within training "
+                        "also moves forward by document year.",
+                    )
+                )
+                st.caption(
+                    "Needs document years and at least CV folds + 1 distinct years through "
+                    "the cutoff. Later repeat measurements do not update earlier training "
+                    "labels. For compound tables, use the first documented year."
+                )
+            audit = st.checkbox(
+                "Run classification leakage audit",
+                value=False,
+                disabled=split == "time",
+                help="The audit uses a random split, so its score gap is not comparable "
+                "with a time-based holdout.",
             )
-            audit = st.checkbox("Run classification leakage audit", value=False)
             if st.button("Run selected ML", key="run_ml", type="primary"):
                 if not tasks or not algorithms:
                     st.error("Choose at least one task and one algorithm.")
@@ -1663,7 +1761,7 @@ def main() -> None:
                         split=cast(SplitStrategy, split),
                         time_cutoff=int(time_cutoff),
                         cv_folds=cv_folds,
-                        leakage_audit=audit,
+                        leakage_audit=audit and split != "time",
                     )
                     landscape_for_params = (
                         landscape.params.landscape if landscape is not None else LandscapeParams()

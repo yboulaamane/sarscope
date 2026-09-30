@@ -31,20 +31,20 @@ def test_continuous_models_report_r2_rmse_and_spearman():
 
 def test_time_split_reserves_only_later_compounds():
     rng = np.random.default_rng(8)
-    X = rng.integers(0, 2, (80, 24), dtype=np.uint8)
-    y = np.linspace(5, 9, 80)
-    labels = np.tile(["a", "b", "c", "d"], 20)
-    years = np.repeat([2017, 2018, 2019, 2020], 20)
+    X = rng.integers(0, 2, (100, 24), dtype=np.uint8)
+    y = np.linspace(5, 9, 100)
+    labels = np.tile(["a", "b", "c", "d"], 25)
+    years = np.repeat([2017, 2018, 2019, 2020, 2021], 20)
     params = ModelParams(
         regression_algorithms=("extra_trees",),
         split="time",
-        time_cutoff=2019,
+        time_cutoff=2020,
         cv_folds=3,
         features=FeatureParams(variance_threshold=0.0),
     )
-    result = evaluate_regression(X, y, [f"s{i}" for i in range(80)], labels, params, years)
-    assert set(years[result.train_index]) == {2017, 2018, 2019}
-    assert set(years[result.test_index]) == {2020}
+    result = evaluate_regression(X, y, [f"s{i}" for i in range(100)], labels, params, years)
+    assert set(years[result.train_index]) == {2017, 2018, 2019, 2020}
+    assert set(years[result.test_index]) == {2021}
 
 
 def test_small_mlp_regressor_is_available():

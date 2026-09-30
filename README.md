@@ -143,7 +143,7 @@ See [`docs/deploying.md`](docs/deploying.md) to host it.
 | R-group SAR | Per-position substituent effects, with cores and substituents drawn |
 | Matched pairs | Single-cut transformations and directional summaries with support and assay-context flags |
 | Landscape | Activity cliffs with both structures, SALI, cliff generators |
-| Models | Classification and continuous pActivity regression, scaffold/time split, leakage audit, applicability domain and empirical error band |
+| Models | Classification with held-out ROC AUC, average precision (PR AUC), per-class precision/recall/F1 and confusion matrix; continuous pActivity regression; scaffold/time split, leakage audit, applicability domain and empirical error band |
 | Model diagnostics | Held-out error on activity-cliff compounds versus the rest |
 | Comparison | Shared-compound selectivity, shared scaffolds and explicit missing target measurements |
 
@@ -183,8 +183,15 @@ sarscope run --input actives.csv --input-year-col year --split time \
 ChEMBL runs retain measurement-level document years. For a time split, SARscope
 aggregates pre-cutoff records into training labels and only newly measured
 structures enter the later test set; later measurements cannot revise an early
-training label. To
-pool the common potency endpoints explicitly, use `--pool-types`; every value
+training label. Model selection also uses expanding, earlier-to-later year folds
+within the training period, requiring at least one more distinct training year
+than CV folds. Within those folds, potency labels still reflect all retained
+pre-cutoff measurements, so repeated measurements published after a fold's
+validation year can influence its earlier training labels. The optional
+random-split leakage audit is omitted for time validation because
+its test score would not be comparable to a chronological holdout.
+
+To pool the common potency endpoints explicitly, use `--pool-types`; every value
 is converted to `-log10(molar)` before aggregation and the pooled types are
 recorded in the curation log and provenance. Pooling different endpoint types
 is a modelling choice, not an assertion that IC50, Ki, Kd and EC50 are

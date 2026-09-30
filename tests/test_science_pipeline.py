@@ -8,7 +8,7 @@ import pytest
 from sarscope.analysis.descriptors import CORE_DESCRIPTORS
 from sarscope.curate import CURATED_COLUMNS, CurationResult, CurationStep
 from sarscope.params import LandscapeParams, ModelParams, RunParams
-from sarscope.pipeline import analyse
+from sarscope.pipeline import _modelling_blocked, analyse
 from sarscope.report import write_report
 
 pytestmark = pytest.mark.science
@@ -94,6 +94,8 @@ def test_report_folder(curation, tmp_path):
         "tables/cliffs_ecfp4.csv",
         "tables/cliffs_maccs.csv",
         "tables/model_scores.csv",
+        "tables/model_class_metrics.csv",
+        "tables/model_confusion_matrix.csv",
         "tables/regression_scores.csv",
         "tables/model_test_predictions.csv",
         "tables/model_split_manifest.csv",
@@ -108,6 +110,7 @@ def test_report_folder(curation, tmp_path):
     text = html.read_text()
     assert "data:image/png;base64," in text
     assert 'src="figures/' not in text  # self-contained
+    assert "average precision" in text
     assert json.loads((out / "provenance.json").read_text())["params"]["model"]["cv_folds"] == 3
     manifest = pd.read_csv(out / "tables/model_split_manifest.csv")
     assert len(manifest) == len(results.model_table)
@@ -152,6 +155,13 @@ def test_too_few_scaffolds_for_a_scaffold_split_is_reported_not_raised(curation)
 def test_a_random_split_works_where_a_scaffold_split_cannot(curation):
     results = analyse(curation, params(cv_folds=5, split="random"))
     assert results.models is not None
+
+
+def test_time_split_reports_too_few_training_years(curation):
+    years = [2017] * 20 + [2018] * 20 + [2019] * 20 + [2020] * 20
+    table = curation.table.assign(document_year=years)
+    reason = _modelling_blocked(table, params(split="time", time_cutoff=2019))
+    assert "at least 4 distinct training years" in reason
 
 
 def test_single_class_is_reported_with_a_remedy(curation):
