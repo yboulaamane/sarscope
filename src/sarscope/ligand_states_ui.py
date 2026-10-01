@@ -6,7 +6,7 @@ from typing import Any
 
 import streamlit as st
 
-from sarscope.docking import DockingError, docking_request_key
+from sarscope.docking import DockingError, check_ligand_preparation, docking_request_key
 from sarscope.ligand_states import enumerate_ligand_states, inspect_ligand, validate_ligand_state
 
 
@@ -22,10 +22,48 @@ def _depict(smiles: str) -> None:
     st.image(drawer.GetDrawingText())
 
 
+def _check_state(smiles: str, slot: str, *, key: str, seed: int) -> bool:
+    check_key = f"{key}_{docking_request_key({'smiles': smiles, 'seed': seed})[:12]}_feasibility"
+    if st.button(f"Check selected state in 3D · ligand {slot}", key=f"{check_key}_run"):
+        with st.spinner(
+            f"Checking 3D embedding, minimisation and Meeko preparation (seed {seed})…"
+        ):
+            try:
+                result = check_ligand_preparation(smiles, seed=seed)
+                st.session_state[check_key] = {"success": True, "details": result}
+            except DockingError as exc:
+                st.session_state[check_key] = {"success": False, "error": str(exc)}
+    checked = st.session_state.get(check_key)
+    if checked:
+        if not checked["success"]:
+            st.error(checked["error"])
+            if "Another pair" in checked["error"] or "timeout" in checked["error"].lower():
+                st.caption(
+                    "This is a host/resource check failure, not proof of an invalid stereoisomer."
+                )
+            else:
+                st.caption(
+                    "Preparation failed with this protocol; "
+                    "this is not proof of chemical impossibility."
+                )
+            return False
+        st.success(f"3D/UFF/Meeko preparation passed at seed {seed}. Not assay validation.")
+        with st.expander(f"Ligand {slot} · conformer-check diagnostics"):
+            st.json(checked["details"])
+    else:
+        st.caption(
+            "Optional: test 3D compatibility before docking. Generated stereo alternatives "
+            "are not guaranteed to embed, especially for bridged rings. "
+            "The check uses the current docking seed; docking always rechecks geometry."
+        )
+    return True
+
+
 def review_ligand_states(ligands: list[dict[str, Any]], *, key: str) -> list[dict[str, Any]] | None:
     """Return copies only. No source-data mutation, default stereoisomer or worker job."""
     selected_ligands = []
     ready = True
+    seed = int(st.session_state.get(f"{key}_seed", 42))
     for slot, ligand in zip(("A", "B"), ligands, strict=True):
         source = ligand["smiles"]
         local = f"{key}_stereo_{slot}_{docking_request_key(ligand)[:12]}"
@@ -33,6 +71,9 @@ def review_ligand_states(ligands: list[dict[str, Any]], *, key: str) -> list[dic
             inspection = inspect_ligand(source)
             features = inspection["unassigned_features"]
             if not features:
+                with st.expander(f"Optional ligand {slot} · 3D preparation check"):
+                    if not _check_state(source, slot, key=local, seed=seed):
+                        ready = False
                 selected_ligands.append(ligand.copy())
                 continue
             st.warning(
@@ -86,11 +127,15 @@ def review_ligand_states(ligands: list[dict[str, Any]], *, key: str) -> list[dic
             with st.expander(f"Preview selected docking state · ligand {slot}"):
                 _depict(provenance["selected_smiles"])
                 st.code(provenance["selected_smiles"], language=None)
+            compatible = _check_state(provenance["selected_smiles"], slot, key=local, seed=seed)
+            if not compatible:
+                ready = False
             confirmation = docking_request_key(provenance)[:12]
             if not st.checkbox(
                 f"I accept ligand {slot} as an exploratory stereoisomer, "
                 "not a verified assignment of its experimental activity",
                 key=f"{local}_accept_{confirmation}",
+                disabled=not compatible,
             ):
                 ready = False
             selected_ligands.append(

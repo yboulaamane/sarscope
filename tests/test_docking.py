@@ -212,6 +212,7 @@ def test_pair_docking_real_engine_smoke_and_artifact(exploratory):
     assert phases
     assert result["manifest"]["cpu"] == 1
     assert result["manifest"]["analysed_pose_rank"] == 1
+    assert result["manifest"]["conformer_preparation"]["A"]["stereo_verified_from_3d"]
     assert result["manifest"]["receptor_preparation"] == provenance
     assert len(result["ligands"]) == 2
     if exploratory:
@@ -219,6 +220,7 @@ def test_pair_docking_real_engine_smoke_and_artifact(exploratory):
         assert result["manifest"]["ligands"][0]["source_smiles"] == "CC(O)C(=O)O"
         assert any("exploratory stereoisomer" in w for w in result["manifest"]["warnings"])
     for pose in result["ligands"]:
+        assert pose["conformer_preparation"]["uff_converged"]
         assert math.isfinite(pose["score_kcal_mol"])
         restored = Chem.MolFromMolBlock(pose["sdf"])
         assert Chem.MolToSmiles(restored) == Chem.MolToSmiles(Chem.MolFromSmiles(pose["smiles"]))

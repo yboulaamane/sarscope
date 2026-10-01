@@ -35,4 +35,4 @@ jobs:
       # Pinned dependency setup; tests make no RCSB/ChEMBL requests.
       - run: python -c "from sarscope.receptor_worker import _install_fpocket; _install_fpocket()"
       # Synthetic and offline: engine integration, not target-level validation.
-      - run: pytest -q tests/test_docking.py tests/test_app_docking.py tests/test_receptor.py tests/test_app_receptor.py tests/test_ligand_states.py tests/test_app_ligand_states.py
+      - run: pytest -q tests/test_docking.py tests/test_app_docking.py tests/test_receptor.py tests/test_app_receptor.py tests/test_ligand_states.py tests/test_app_ligand_states.py tests/test_conformers.py

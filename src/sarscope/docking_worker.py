@@ -14,8 +14,8 @@ from importlib.metadata import version
 from pathlib import Path
 from typing import Any
 
+from sarscope.conformers import embed_ligand_conformer, validate_conformer_stereo
 from sarscope.docking import DockingError, DockingSettings, validate_receptor_pair
-from sarscope.ligand_states import validate_ligand_state
 
 
 def _phase(directory: Path, message: str) -> None:
@@ -24,17 +24,9 @@ def _phase(directory: Path, message: str) -> None:
 
 def _prepare_ligand(smiles: str, seed: int) -> tuple[Any, str]:
     from meeko import MoleculePreparation, PDBQTWriterLegacy
-    from rdkit import Chem
     from rdkit.Chem import AllChem
 
-    molecule = Chem.MolFromSmiles(smiles)
-    validate_ligand_state(smiles, smiles)
-    molecule = Chem.AddHs(molecule)
-    embedding = AllChem.ETKDGv3()
-    embedding.randomSeed = seed
-    embedding.numThreads = 1
-    if AllChem.EmbedMolecule(molecule, embedding) != 0:
-        raise DockingError("Could not generate a 3D conformer for one ligand.")
+    molecule, embedding = embed_ligand_conformer(smiles, seed)
     if not AllChem.UFFHasAllMoleculeParams(molecule):
         raise DockingError(
             "UFF parameters are missing for this ligand; preparation is not supported."
@@ -44,6 +36,9 @@ def _prepare_ligand(smiles: str, seed: int) -> tuple[Any, str]:
         raise DockingError(
             "Ligand conformer minimisation did not converge; review its preparation."
         )
+    validate_conformer_stereo(molecule, smiles)
+    embedding |= {"uff_converged": True, "uff_max_iterations": 500}
+    molecule.SetProp("sarscope_embedding", json.dumps(embedding, allow_nan=False))
     setups = MoleculePreparation(rigid_macrocycles=True).prepare(molecule)
     if len(setups) != 1:
         raise DockingError(
@@ -189,10 +184,14 @@ def execute(directory: Path) -> dict[str, Any]:
     poses = []
     for slot, info in zip(("A", "B"), request["ligands"], strict=True):
         _phase(directory, f"Preparing ligand {slot}: 3D conformer and Meeko atom typing…")
-        molecule, pdbqt = _prepare_ligand(info["smiles"], settings.seed)
+        try:
+            molecule, pdbqt = _prepare_ligand(info["smiles"], settings.seed)
+        except DockingError as exc:
+            raise DockingError(f"Ligand {slot} ({info['molecule_id']}): {exc}") from exc
         _phase(directory, f"Docking ligand {slot} with Vina on one CPU…")
         pose = _dock(directory, slot, molecule, pdbqt, settings, binary)
         pose.update(info)
+        pose["conformer_preparation"] = json.loads(molecule.GetProp("sarscope_embedding"))
         poses.append(pose)
     _phase(directory, "Analysing both top-ranked poses with ProLIF…")
     messages = _interactions(directory, poses)
@@ -215,6 +214,10 @@ def execute(directory: Path) -> dict[str, Any]:
             for key in ("protein_pdb", "receptor_pdbqt")
         },
         "ligands": request["ligands"],
+        "conformer_preparation": {
+            slot: pose["conformer_preparation"]
+            for slot, pose in zip(("A", "B"), poses, strict=True)
+        },
         "analysed_pose_rank": 1,
         "ligand_preparation": (
             "ETKDGv3 + UFF; selected SMILES charges/tautomer retained; no pKa enumeration; "
@@ -241,7 +244,15 @@ def execute(directory: Path) -> dict[str, Any]:
 def main() -> None:
     directory = Path(sys.argv[1])
     try:
-        result = execute(directory)
+        request = json.loads((directory / "request.json").read_text())
+        if request.get("action") == "check_ligand":
+            molecule, _ = _prepare_ligand(request["smiles"], request["seed"])
+            result = {
+                "success": True,
+                "embedding": json.loads(molecule.GetProp("sarscope_embedding")),
+            }
+        else:
+            result = execute(directory)
     except Exception as exc:
         (directory / "result.json").write_text(
             json.dumps({"error": f"{type(exc).__name__}: {exc}"})

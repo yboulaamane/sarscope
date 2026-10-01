@@ -300,6 +300,16 @@ def run_pair_docking(
     return result
 
 
+def check_ligand_preparation(smiles: str, *, seed: int = 42) -> dict[str, Any]:
+    """Optional, isolated 3D/UFF/Meeko check; no receptor download or docking."""
+    return run_structure_job(
+        {"action": "check_ligand", "smiles": smiles, "seed": seed},
+        module="sarscope.docking_worker",
+        timeout=45,
+        label="Ligand preparation check",
+    )
+
+
 def run_structure_job(
     request: dict[str, Any],
     *,

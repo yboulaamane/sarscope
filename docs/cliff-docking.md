@@ -32,6 +32,14 @@ There is no hardcoded receptor, BRAF variant or binding pocket.
 8. Review the editable grid and docking settings, confirm the docking checkbox,
    then click **Dock this pair**. Changing settings alone never starts a job.
 
+**Check selected state in 3D** is an optional, separate button for either a source
+ligand or a selected exploratory state. It runs embedding, UFF and Meeko on one
+ligand, without receptor fetching or docking, using the current docking seed.
+An attempted check that fails disables docking for that state/seed until a check
+passes or the selected state/seed changes. Success is preparation compatibility,
+not confirmation of the assayed stereoisomer or chemical validity. A host-lock
+or timeout failure is not evidence of incompatible stereochemistry.
+
 If no suitable experimental structure exists, use a known PDB entry or externally
 prepared receptor. This workflow does not generate a predicted protein structure.
 
@@ -117,6 +125,20 @@ the binding mode, this version is unsuitable; use a validated external workflow.
 - RDKit ETKDGv3 generates a conformer for the selected state and UFF minimises it;
   Meeko prepares the ligand PDBQT. There is no pH-dependent protomer/tautomer
   enumeration. Still-unresolved stereochemistry is rejected by the backend too.
+  Embedding uses up to three bounded strategies: standard ETKDGv3 (200 iterations),
+  random-coordinate ETKDGv3 (100), then random coordinates with small-ring torsions
+  and a recorded alternate seed (100). Each has a 10-second RDKit timeout when
+  the installed version supports it; the worker always has a hard deadline.
+  Chirality enforcement and distance-bounds checks are never disabled. Actual
+  3D-derived stereo is checked before and after UFF minimisation. Methods, seeds,
+  attempt counts, RDKit failure diagnostics and successful UFF convergence are
+  recorded per ligand in the results and manifest.
+  If all strategies fail, the error identifies the ligand and failure categories.
+  Chiral-bounds failures can indicate conflicting bridgehead/R/S/E/Z assignments;
+  they do not prove that a compound is chemically impossible. Review another
+  **exploratory** state or the original source record, rather than automatically
+  changing assigned stereochemistry. Enumeration itself does not guarantee that
+  every candidate has feasible 3D geometry.
 - Vina docks both ligands sequentially against the same receptor, box, seed and
   settings. Up to three raw poses per molecule are retained. Meeko reconstructs
   the top-ranked pose with its original bond orders; chemistry is checked again.
@@ -155,8 +177,9 @@ assay comparability, chemical states and relevant protein conformations.
 
 ## Bounds and reproducibility
 
-Docking jobs use exactly two molecules and one CPU. Preparation, pocket prediction
-and docking share one active-job lock per host. Preparation and pocket prediction
+Docking jobs use exactly two molecules and one CPU. Ligand checks, receptor
+preparation, pocket prediction and docking share one active-job lock per host.
+Ligand checks have a 45-second deadline; receptor preparation and pocket prediction
 each have a 120-second total deadline; docking has a user-selected deadline up to
 300 seconds including ligand preparation and interactions. Limits:
 3 MiB per receptor file, 15,000 receptor atoms, 6–25 Å per box dimension,
@@ -203,7 +226,7 @@ and manual boxes remain available. The cache can disappear when a cloud host
 restarts. This is local geometric pocket detection, not a remote prediction service.
 
 ```bash
-pytest -q tests/test_docking.py tests/test_receptor.py tests/test_app_docking.py tests/test_app_receptor.py tests/test_ligand_states.py tests/test_app_ligand_states.py
+pytest -q tests/test_docking.py tests/test_receptor.py tests/test_app_docking.py tests/test_app_receptor.py tests/test_ligand_states.py tests/test_app_ligand_states.py tests/test_conformers.py
 ```
 
 The real-engine smoke test uses a generated AA dipeptide and two small ligands:
@@ -216,4 +239,5 @@ independent target benchmark or scientific docking validation is run automatical
 References: [Vina preparation/scoring caveats](https://autodock-vina.readthedocs.io/en/latest/faq.html),
 [ProLIF docking conversion](https://prolif.readthedocs.io/en/latest/notebooks/docking.html),
 [ProLIF PDB and implicit-hydrogen workflow](https://prolif.readthedocs.io/en/latest/notebooks/pdb.html),
-[RDKit stereo enumeration](https://www.rdkit.org/docs/source/rdkit.Chem.EnumerateStereoisomers.html).
+[RDKit stereo enumeration](https://www.rdkit.org/docs/source/rdkit.Chem.EnumerateStereoisomers.html),
+[RDKit embedding parameters and failure diagnostics](https://www.rdkit.org/docs/source/rdkit.Chem.rdDistGeom.html).

@@ -91,7 +91,12 @@ An existing `fpocket` on PATH or `SARSCOPE_FPOCKET_BINARY` overrides this downlo
 The cache is expendable and may be lost on a cloud restart. If pocket-engine
 installation fails, bound-reference/manual boxes remain usable.
 
-Only an explicit pair-docking button starts docking. All three worker types use
+Optional ligand 3D/UFF/Meeko checks use a separate button and a 45-second worker
+deadline; no receptor or docking is involved. Bounded embedding retries keep
+chirality checks enabled and record method/seed/failure diagnostics. They add
+no dependencies and do not run on page load.
+
+Only an explicit pair-docking button starts docking. All structure worker types use
 one CPU and share one active-job lock per host. Docking terminates after the
 user-selected total timeout (maximum 300 seconds). Temporary worker files are
 deleted when the job ends; fetched/prepared structures, uploaded inputs and
