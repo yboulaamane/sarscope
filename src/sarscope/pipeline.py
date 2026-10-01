@@ -316,6 +316,7 @@ def regression_error_profile(
             "within_3_fold": np.abs(result.test_truth - result.test_predictions) <= np.log10(3),
             "within_10_fold": np.abs(result.test_truth - result.test_predictions) <= 1.0,
             "max_training_similarity": nearest,
+            "training_similarity_cutoff": threshold,
             "in_training_domain": nearest >= threshold,
         }
     )
