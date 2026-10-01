@@ -1903,7 +1903,16 @@ def clear_workflow(*, keep_curation: bool = False) -> None:
         st.session_state.pop(key, None)
     for key in list(st.session_state):
         if key.startswith("cliff_docking_") and key.endswith(
-            ("_result", "_raw", "_inspection", "_prepared", "_pockets", "_candidates", "_options")
+            (
+                "_result",
+                "_raw",
+                "_inspection",
+                "_prepared",
+                "_pockets",
+                "_candidates",
+                "_options",
+                "_feasibility",
+            )
         ):
             st.session_state.pop(key, None)
 

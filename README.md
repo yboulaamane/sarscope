@@ -132,6 +132,8 @@ an explicit fpocket step predicts candidate sites for review. Prepared receptor
 uploads and manual boxes remain available. Dock just the two molecules;
 undefined ligand stereochemistry is reviewed first, with explicit docking-only
 stereoisomer choices, 2D previews and unchanged source activities.
+Optional 3D preparation checks flag incompatible states before docking; bounded
+embedding retries preserve chirality and export per-ligand diagnostics.
 Outputs include Vina scores and their difference,
 experimental ΔpActivity, a 3D pose overlay, free local ProLIF 2D interaction
 diagrams, and retained/lost/gained residue contacts. A separate ZIP records

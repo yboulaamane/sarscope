@@ -5,7 +5,8 @@ import pytest
 pytest.importorskip("streamlit")
 from streamlit.testing.v1 import AppTest  # noqa: E402
 
-from sarscope import docking_ui  # noqa: E402
+from sarscope import docking_ui, ligand_states_ui  # noqa: E402
+from sarscope.docking import DockingError  # noqa: E402
 from sarscope.ligand_states import validate_ligand_state  # noqa: E402
 
 PAIR = [
@@ -128,3 +129,53 @@ def test_ez_choice_is_offered_without_automatically_assigning_configuration(monk
     choice.set_value(choice.options[0]).run()
     assert not app.exception
     assert not next(c for c in app.checkbox if c.label.startswith("I accept ligand A")).value
+
+
+def test_3d_check_is_opt_in_and_failed_state_cannot_dock(monkeypatch):
+    calls = []
+
+    def check(smiles, **kwargs):
+        calls.append((smiles, kwargs))
+        raise DockingError("Stereo constraints failed in FINAL_CHIRAL_BOUNDS")
+
+    monkeypatch.setattr(ligand_states_ui, "check_ligand_preparation", check)
+    app = panel(monkeypatch)
+    next(b for b in app.button if b.label.startswith("Generate alternatives")).click().run()
+    choice = next(s for s in app.selectbox if s.label.startswith("Docking stereoisomer"))
+    choice.set_value(choice.options[0]).run()
+    assert not calls
+    next(b for b in app.button if b.label == "Check selected state in 3D · ligand A").click().run()
+    assert not app.exception
+    assert len(calls) == 1
+    assert calls[0][1] == {"seed": 42}
+    assert any("FINAL_CHIRAL_BOUNDS" in e.value for e in app.error)
+    assert next(c for c in app.checkbox if c.label.startswith("I accept ligand A")).disabled
+    assert app.button(key="stereo_run").disabled
+    choice = next(s for s in app.selectbox if s.label.startswith("Docking stereoisomer"))
+    choice.set_value(choice.options[1]).run()
+    assert not app.error  # Failed result is specific to the old state.
+    assert not next(c for c in app.checkbox if c.label.startswith("I accept ligand A")).disabled
+    assert len(calls) == 1
+
+
+def test_successful_3d_check_does_not_assign_activity_or_run_docking(monkeypatch):
+    calls = []
+
+    def check(smiles, **kwargs):
+        calls.append(smiles)
+        return {"success": True, "embedding": {"method": "synthetic", "attempts": []}}
+
+    monkeypatch.setattr(ligand_states_ui, "check_ligand_preparation", check)
+    app = panel(monkeypatch)
+    next(b for b in app.button if b.label.startswith("Generate alternatives")).click().run()
+    choice = next(s for s in app.selectbox if s.label.startswith("Docking stereoisomer"))
+    choice.set_value(choice.options[0]).run()
+    next(b for b in app.button if b.label == "Check selected state in 3D · ligand A").click().run()
+    assert not app.exception
+    assert any("Not assay validation" in s.value for s in app.success)
+    accept = next(c for c in app.checkbox if c.label.startswith("I accept ligand A"))
+    assert not accept.value and not accept.disabled
+    assert len(calls) == 1
+    app.number_input(key="stereo_seed").set_value(43).run()
+    assert not app.success  # Changing seed invalidates a cached check without running another one.
+    assert len(calls) == 1
