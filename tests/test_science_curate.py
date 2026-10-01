@@ -97,8 +97,14 @@ def test_variant_selection(make_record):
         make_record(activity_id=1),
         make_record(activity_id=2, assay_variant_mutation="V600E"),
         make_record(activity_id=3, assay_variant_mutation="V600K"),
+        make_record(activity_id=4, assay_variant_mutation="T790M"),
     ]
-    for variant, expected in [(None, ["1"]), ("V600E", ["2"]), ("any", ["1", "2", "3"])]:
+    for variant, expected in [
+        (None, ["1"]),
+        ("V600E", ["2"]),
+        ("T790M", ["4"]),
+        ("any", ["1", "2", "3", "4"]),
+    ]:
         frame, _ = filter_chembl_records(records, CurationParams(variant=variant))
         assert ids(frame) == expected, variant
 

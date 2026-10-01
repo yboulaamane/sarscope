@@ -93,7 +93,7 @@ from sklearn.neural_network import MLPClassifier
 from sklearn.svm import SVC
 from sklearn.tree import DecisionTreeClassifier
 
-from sarscope.analysis.features import VarianceCorrelationFilter
+from sarscope.analysis.features import VarianceCorrelationFilter, feature_filter
 from sarscope.params import ModelParams
 
 #: name -> factory(seed) -> unfitted estimator. Tree ensembles use every core;
@@ -426,8 +426,7 @@ def _fit_leak_free(
     name: str, X: NDArray[Any], y: NDArray[Any], params: ModelParams
 ) -> tuple[VarianceCorrelationFilter, Any]:
     """Filter fitted on these rows only, then oversample these rows only."""
-    feats = params.features
-    filt = VarianceCorrelationFilter(feats.variance_threshold, feats.correlation_threshold).fit(X)
+    filt = feature_filter(params.features).fit(X)
     Xf = filt.transform(X)
     if params.oversample:
         Xf, y = oversample(Xf, y, params.seed)
@@ -510,8 +509,7 @@ def _naive_protocol(
 
     The leaky ordering, run deliberately so the gap can be measured.
     """
-    feats = params.features
-    filt = VarianceCorrelationFilter(feats.variance_threshold, feats.correlation_threshold).fit(X)
+    filt = feature_filter(params.features).fit(X)
     Xo, yo = oversample(filt.transform(X), y, params.seed)
     X_tr, X_te, y_tr, y_te = train_test_split(
         Xo, yo, test_size=params.test_fraction, random_state=params.seed, stratify=yo

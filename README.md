@@ -98,9 +98,39 @@ target-confidence scores can narrow the curated evidence; the retained
 measurements remain inspectable behind each molecule. The ML stage includes a
 small MLP alongside tree and neighbour models. The explanation stage uses named
 RDKit physicochemical descriptors and reports held-out permutation importance;
-Random Forest also reports impurity importance. Optional TreeSHAP support is
-available locally with `pip install "sarscope[explain]"` and is lazy-loaded so
-the hosted app does not inherit SHAP's startup cost.
+Random Forest also reports impurity importance. TreeSHAP is included in the
+hosted requirements and runs only when selected (up to 100 held-out compounds).
+Local installs can enable it with `pip install "sarscope[explain]"`.
+
+ML also supports selected RDKit 2D descriptors or fingerprint–descriptor hybrids.
+Presets span physicochemical, medicinal-chemistry and the full installed 2D
+catalog (excluding Ipc/AvgIpc). Preprocessing is fitted within training folds
+and saved with ordered feature names for prediction. Molfeat's RDKit 2D backend
+is an optional `sarscope[molfeat]` extra, excluded from cloud defaults due to PyTorch.
+Regression adds Ridge, a training-mean reference, MAE, parity/residual plots,
+3-fold/10-fold error rates, novelty summaries and optional scaffold-block bootstrap
+intervals. See [QSAR methodology](docs/qsar-methodology.md) for the Walters/Bjerrum
+examples that informed this design, interpretation, exports and scientific limits.
+
+Class cutoffs are editable in the sidebar, defaulting to pActivity 8 / 7 / 6
+(10 / 100 / 1000 nM). Enrichment Group 1 means potent + active; Group 2 means
+intermediate + inactive. ML classification uses the four labels, while
+regression uses continuous potency. Changed cutoffs require rerunning curation.
+The curation view shows all four class counts and their ranges, including zero
+counts, with horizontal chart labels. Protein-variant filtering accepts an exact
+ChEMBL mutation annotation for any target; it is not restricted to BRAF V600E.
+The default keeps records without a mutation annotation, which does **not**
+confirm that the assayed protein is wild-type.
+The cliff viewer supports molecule-ID filtering, sorting and pagination across
+all discovered pairs; applied cliff thresholds are shown beside the results.
+
+Chemical space offers standardized descriptor PCA and a separate opt-in
+ECFP4 UMAP with Jaccard distance (1 − binary Tanimoto). UMAP is lazy-loaded;
+install `sarscope[space]` locally or use the hosted requirements. Above 2,000
+compounds, the projection uses a clearly labeled uniform sample with seed 42.
+Neighbor count and minimum distance are editable; coordinates and settings
+are downloadable separately from the report ZIP. This unsupervised map is for
+exploration, not a QSAR validation or an applicability-domain test.
 
 For larger targets, the curation step shows activity-page and structure
 progress, then reports separate record-loading and curation times. Raw ChEMBL

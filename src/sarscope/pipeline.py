@@ -31,7 +31,7 @@ import pandas as pd
 from sarscope import provenance
 from sarscope.analysis.descriptors import add_descriptors
 from sarscope.analysis.domain import DomainResult, pca_bounding_box
-from sarscope.analysis.features import VarianceCorrelationFilter, bit_vectors, fingerprint_matrix
+from sarscope.analysis.features import bit_vectors, feature_filter, fingerprint_matrix
 from sarscope.analysis.landscape import SasResult, consensus, sas_map
 from sarscope.analysis.mmp import matched_molecular_pairs, summarise_transformations
 from sarscope.analysis.model import ModelResult, _cv_folds, evaluate
@@ -42,6 +42,7 @@ from sarscope.analysis.regression import (
     fit_deployment_model,
     regression_metrics,
 )
+from sarscope.analysis.representations import model_feature_names, model_matrix, resolved_features
 from sarscope.analysis.rgroups import ScaffoldSar, decompose_top_scaffolds
 from sarscope.analysis.scaffolds import add_scaffolds, diversity_table, enrichment_table
 from sarscope.curate import (
@@ -153,7 +154,8 @@ def analyse(curation: CurationResult, params: RunParams) -> RunResults:
         skipped["model"] = reason
         skipped["domain"] = reason
     else:
-        X = fingerprint_matrix(
+        X = model_matrix(model_table["smiles"].tolist(), params.model.features)
+        domain_X = fingerprint_matrix(
             model_table["smiles"].tolist(),
             params.model.features.fingerprint,
             ecfp_bits=params.model.features.ecfp_bits,
@@ -177,30 +179,28 @@ def analyse(curation: CurationResult, params: RunParams) -> RunResults:
             years=years,
             source_test=source_test,
         )
-        regression_test_predictions = regression_error_profile(model_table, X, regression)
+        regression_test_predictions = regression_error_profile(model_table, domain_X, regression)
         deploy_filter, deploy_model = fit_deployment_model(
             X, model_table["pactivity"].tolist(), regression.best_algorithm, params.model
         )
         prediction_bundle = PredictionBundle(
             algorithm=regression.best_algorithm,
-            features=params.model.features,
+            features=resolved_features(params.model.features),
             feature_filter=deploy_filter,
             estimator=deploy_model,
-            train_fingerprints=X,
-            similarity_threshold=similarity_domain_threshold(X),
+            train_fingerprints=domain_X,
+            similarity_threshold=similarity_domain_threshold(domain_X),
             train_ids=model_table["molecule_id"].astype(str).tolist(),
             train_smiles=model_table["smiles"].astype(str).tolist(),
             train_pactivity=model_table["pactivity"].astype(float).tolist(),
             canonical_tautomer=params.curation.canonical_tautomer,
             empirical_half_width=regression.empirical_half_width,
+            feature_names=model_feature_names(params.model.features),
         )
         model_test_predictions, cliff_model_performance = _cliff_model_errors(
             model_table, landscapes, models, regression
         )
-        feats = params.model.features
-        filt = VarianceCorrelationFilter(feats.variance_threshold, feats.correlation_threshold).fit(
-            X[models.train_index]
-        )
+        filt = feature_filter(params.model.features).fit(X[models.train_index])
         domain = pca_bounding_box(
             filt.transform(X[models.train_index]), filt.transform(X[models.test_index])
         )
@@ -234,7 +234,7 @@ def analyse(curation: CurationResult, params: RunParams) -> RunResults:
 def _cliff_model_errors(
     table: pd.DataFrame,
     landscapes: dict[str, SasResult],
-    classification: ModelResult,
+    classification: ModelResult | None,
     regression: RegressionResult,
 ) -> tuple[pd.DataFrame, pd.DataFrame]:
     """Join held-out predictions to activity-cliff membership and summarise."""
@@ -244,7 +244,9 @@ def _cliff_model_errors(
         cliff_ids.update(result.cliffs["id_b"].astype(str))
 
     # Both evaluators deliberately use the same deterministic outer split.
-    if not np.array_equal(classification.test_index, regression.test_index):
+    if classification is not None and not np.array_equal(
+        classification.test_index, regression.test_index
+    ):
         raise RuntimeError("classification and regression test splits differ")
     test = table.iloc[regression.test_index]
     predictions = pd.DataFrame(
@@ -254,12 +256,18 @@ def _cliff_model_errors(
             "pactivity": regression.test_truth,
             "predicted_pactivity": regression.test_predictions,
             "absolute_error": np.abs(regression.test_truth - regression.test_predictions),
-            "activity_class": np.asarray(classification.test_truth, dtype=str),
-            "predicted_activity_class": np.asarray(classification.test_predictions, dtype=str),
+            "activity_class": test["activity_class"].astype(str).to_numpy(),
+            "predicted_activity_class": (
+                np.asarray(classification.test_predictions, dtype=str)
+                if classification is not None
+                else np.full(len(test), "not evaluated")
+            ),
         }
     )
     predictions["classification_correct"] = (
         predictions["activity_class"] == predictions["predicted_activity_class"]
+        if classification is not None
+        else np.nan
     )
 
     rows: list[dict[str, Any]] = []
@@ -302,6 +310,11 @@ def regression_error_profile(
             "pactivity": result.test_truth,
             "predicted_pactivity": result.test_predictions,
             "absolute_error": np.abs(result.test_truth - result.test_predictions),
+            "residual": result.test_truth - result.test_predictions,
+            "activity_class": test["activity_class"].to_numpy(),
+            "murcko": test["murcko"].to_numpy(),
+            "within_3_fold": np.abs(result.test_truth - result.test_predictions) <= np.log10(3),
+            "within_10_fold": np.abs(result.test_truth - result.test_predictions) <= 1.0,
             "max_training_similarity": nearest,
             "in_training_domain": nearest >= threshold,
         }

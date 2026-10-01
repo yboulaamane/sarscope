@@ -39,10 +39,9 @@ class CurationParams:
     #: ChEMBL assay types: B binding, F functional, A ADMET. A binding IC50 and
     #: a cell-based one measure different things, so the default keeps binding.
     assay_types: tuple[str, ...] = ("B",)
-    #: Which ``assay_variant_mutation`` to keep. None means wild-type only (no
-    #: variant annotation); a string such as "V600E" keeps only that mutant;
-    #: "any" pools everything. 41% of BRAF IC50 records are V600E, and pooling
-    #: wild-type and mutant mixes two proteins.
+    #: Which ``assay_variant_mutation`` annotation to keep. None keeps records
+    #: without a mutation annotation, not confirmed wild-type protein; a string
+    #: keeps that exact annotation for any target; "any" pools all annotations.
     variant: str | None = None
     #: Drop records ChEMBL flags as likely re-reports of an earlier measurement,
     #: so one value cited twice does not count twice in the median. Removes 22%
@@ -83,7 +82,7 @@ class CurationParams:
 class ClassScheme:
     """Potency bins on the -log10(M) scale.
 
-    The default is the common four-way split at 100 nM, 1 uM and 10 uM
+    The default is a four-way split at 10 nM, 100 nM and 1 uM
     (pIC50 8, 7, 6), with Group 1 the potent and active half. Bins are a
     convention, not a fact about the data: change them here and every class
     count, enrichment factor and model label follows.
@@ -137,6 +136,10 @@ class FeatureParams:
     variance_threshold: float = 0.1
     #: Drop one of each feature pair correlated above this.
     correlation_threshold: float = 0.95
+    #: Continuous descriptors and hybrids get fold-local median imputation and scaling.
+    representation: Literal["fingerprint", "rdkit2d", "hybrid", "molfeat2d"] = "fingerprint"
+    #: Ordered names are saved with fitted models; empty uses the medicinal-chemistry preset.
+    descriptor_names: tuple[str, ...] = ()
 
 
 @dataclass(frozen=True)
