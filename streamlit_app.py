@@ -1302,7 +1302,9 @@ def show_rgroups(results: RunResults | ScaffoldStage) -> None:
             )
 
 
-def show_landscape(results: RunResults | LandscapeStage) -> None:
+def show_landscape(
+    results: RunResults | LandscapeStage, target_context: dict[str, Any] | None = None
+) -> None:
     st.caption(
         "Every pair of molecules, placed by structural similarity and potency difference. "
         "Cliffs are similar pairs with very different potency: they can challenge models "
@@ -1410,7 +1412,11 @@ def show_landscape(results: RunResults | LandscapeStage) -> None:
                         }
                         for m in (pair["id_a"], pair["id_b"])
                     ],
-                    key=f"cliff_docking_{sas.fingerprint}",
+                    key=(
+                        f"cliff_docking_{sas.fingerprint}_"
+                        f"{(target_context or {}).get('target_chembl_id', 'manual')}"
+                    ),
+                    target=target_context,
                 )
 
             gens = cliff_generators(sas.cliffs, results.params.landscape.generator_sd)
@@ -1896,7 +1902,9 @@ def clear_workflow(*, keep_curation: bool = False) -> None:
             continue
         st.session_state.pop(key, None)
     for key in list(st.session_state):
-        if key.startswith("cliff_docking_") and key.endswith("_result"):
+        if key.startswith("cliff_docking_") and key.endswith(
+            ("_result", "_raw", "_inspection", "_prepared", "_pockets", "_candidates")
+        ):
             st.session_state.pop(key, None)
 
 
@@ -2747,7 +2755,9 @@ def main() -> None:
         if landscape is None:
             st.info("This step has not run.")
         else:
-            show_landscape(landscape)
+            show_landscape(
+                landscape, target | {"activity_variant": curation.params.curation.variant}
+            )
 
     with tabs[4]:
         st.caption(

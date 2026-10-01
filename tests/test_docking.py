@@ -191,6 +191,11 @@ def test_pair_docking_real_engine_smoke_and_artifact():
     receptor, flexible = PDBQTWriterLegacy.write_from_polymer(polymer)
     assert not flexible
     phases = []
+    provenance = {
+        "site": {"kind": "bound_ligand", "id": "synthetic reference"},
+        "reference_pdb": "REMARK synthetic reference for artifact test only\nEND\n",
+        "excluded_essential_components": [],
+    }
     result = docking.run_pair_docking(
         ligands(),
         polymer.to_pdb(),
@@ -198,10 +203,12 @@ def test_pair_docking_real_engine_smoke_and_artifact():
         DockingSettings((0, 0, 0), (12, 12, 12), exhaustiveness=1, n_poses=1, timeout_seconds=60),
         receptor_label="Synthetic AA dipeptide: technical smoke only",
         on_progress=phases.append,
+        receptor_provenance=provenance,
     )
     assert phases
     assert result["manifest"]["cpu"] == 1
     assert result["manifest"]["analysed_pose_rank"] == 1
+    assert result["manifest"]["receptor_preparation"] == provenance
     assert len(result["ligands"]) == 2
     for pose in result["ligands"]:
         assert math.isfinite(pose["score_kcal_mol"])
@@ -215,4 +222,5 @@ def test_pair_docking_real_engine_smoke_and_artifact():
         assert "ligand_A_prepared.pdbqt" in archive.namelist()
         assert "ligand_B.html" in archive.namelist()
         assert "interaction_changes.csv" in archive.namelist()
+        assert archive.read("reference_ligand.pdb").decode() == provenance["reference_pdb"]
         assert json.loads(archive.read("manifest.json"))["schema"] == "sarscope-pair-docking-v1"

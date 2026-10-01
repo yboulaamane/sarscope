@@ -159,13 +159,53 @@ def show_docking_result(result: dict[str, Any], *, key: str) -> None:
     )
 
 
-def show_cliff_docking(ligands: list[dict[str, Any]], *, key: str) -> None:
+def _uploaded_receptor(key: str) -> dict[str, Any] | None:
+    label = st.text_input("Receptor label / PDB ID", key=f"{key}_label").strip()
+    protein = st.file_uploader("Matching prepared protein PDB", type=["pdb"], key=f"{key}_protein")
+    receptor = st.file_uploader(
+        "Prepared rigid receptor PDBQT", type=["pdbqt"], key=f"{key}_receptor"
+    )
+    reference = st.file_uploader(
+        "Bound reference ligand SDF (optional)",
+        type=["sdf"],
+        key=f"{key}_reference",
+        help="Bound 3D coordinates in the receptor frame, not a free conformer.",
+    )
+    if st.button(
+        "Set box from bound reference", disabled=reference is None, key=f"{key}_box_reference"
+    ):
+        try:
+            assert reference is not None
+            center, size = reference_box(reference.getvalue())
+            for axis, c, s in zip("xyz", center, size, strict=True):
+                st.session_state[f"{key}_center_{axis}"] = c
+                st.session_state[f"{key}_size_{axis}"] = s
+        except DockingError as exc:
+            st.error(str(exc))
+    if protein is None or receptor is None or not label:
+        return None
+    try:
+        if protein.size > MAX_INPUT_BYTES or receptor.size > MAX_INPUT_BYTES:
+            raise DockingError("Each receptor upload must be at most 3 MiB.")
+        return {
+            "protein_pdb": protein.getvalue().decode("utf-8"),
+            "receptor_pdbqt": receptor.getvalue().decode("utf-8"),
+            "receptor_label": label,
+        }
+    except (DockingError, UnicodeDecodeError) as exc:
+        st.error(str(exc))
+        return None
+
+
+def show_cliff_docking(
+    ligands: list[dict[str, Any]], *, key: str, target: dict[str, Any] | None = None
+) -> None:
     """All settings belong to this step, not automatic sidebar presets."""
     with st.expander("Dock this cliff pair · optional Vina + ProLIF"):
         if not st.checkbox("Enable pair docking controls", key=f"{key}_enabled"):
             st.caption(
-                "Nothing runs until you upload a prepared receptor, define its pocket "
-                "and click Dock this pair."
+                "Fetch and prepare a PDB receptor, or upload prepared files. "
+                "Nothing docks until you review the site and click Dock this pair."
             )
             return
         reason = docking_unavailable_reason()
@@ -173,48 +213,27 @@ def show_cliff_docking(ligands: list[dict[str, Any]], *, key: str) -> None:
             st.info(reason)
             return
         st.caption(
-            "Two molecules only, one CPU and one active docking job per host. Upload a "
-            "rigid protein-only receptor PDBQT and its matching protein PDB with identical "
-            "heavy-atom coordinates and identifiers. Review target/variant, protonation, "
-            "ligand stereochemistry and the binding-site box before running. "
-            "No protein preparation, pH-state enumeration or redocking validation "
-            "is performed automatically."
+            "Two molecules only, one CPU and one active structure job per host. "
+            "Ligands are prepared from the selected pair's SMILES. Review the protein "
+            "variant, chemical states and pocket before docking. No pH-state enumeration "
+            "or redocking validation is performed automatically."
         )
         st.markdown(
             "Need receptor files? See the [preparation and interpretation guide]"
             "(https://github.com/yboulaamane/sarscope/blob/main/docs/cliff-docking.md)."
         )
-        label = st.text_input(
-            "Receptor label / PDB ID",
-            key=f"{key}_label",
-            help="Required provenance label; this does not fetch a PDB or verify target identity.",
-        ).strip()
-        protein = st.file_uploader(
-            "Matching prepared protein PDB", type=["pdb"], key=f"{key}_protein"
+        mode = st.radio(
+            "Receptor source",
+            ["Fetch & prepare PDB", "Upload prepared files"],
+            horizontal=True,
+            key=f"{key}_mode",
         )
-        receptor = st.file_uploader(
-            "Prepared rigid receptor PDBQT", type=["pdbqt"], key=f"{key}_receptor"
-        )
-        reference = st.file_uploader(
-            "Bound reference ligand SDF (optional)",
-            type=["sdf"],
-            key=f"{key}_reference",
-            help=(
-                "Already-bound 3D coordinates in the receptor frame; "
-                "not a newly generated free conformer."
-            ),
-        )
-        if st.button(
-            "Set box from bound reference", disabled=reference is None, key=f"{key}_box_reference"
-        ):
-            try:
-                assert reference is not None
-                center, size = reference_box(reference.getvalue())
-                for axis, c, s in zip("xyz", center, size, strict=True):
-                    st.session_state[f"{key}_center_{axis}"] = c
-                    st.session_state[f"{key}_size_{axis}"] = s
-            except DockingError as exc:
-                st.error(str(exc))
+        if mode == "Fetch & prepare PDB":
+            from sarscope.receptor_ui import show_auto_receptor
+
+            prepared = show_auto_receptor(target, key=key)
+        else:
+            prepared = _uploaded_receptor(key)
         centers, sizes = [], []
         for column, axis in zip(st.columns(3), "xyz", strict=True):
             with column:
@@ -257,12 +276,7 @@ def show_cliff_docking(ligands: list[dict[str, Any]], *, key: str) -> None:
         )
         request: dict[str, Any] | None = None
         settings = None
-        if (
-            protein is not None
-            and receptor is not None
-            and label
-            and all(c is not None for c in centers)
-        ):
+        if prepared is not None and all(c is not None for c in centers):
             try:
                 assert all(c is not None for c in centers)
                 center_values = [c for c in centers if c is not None]
@@ -273,14 +287,13 @@ def show_cliff_docking(ligands: list[dict[str, Any]], *, key: str) -> None:
                     seed,
                     timeout_seconds=timeout,
                 )
-                if protein.size > MAX_INPUT_BYTES or receptor.size > MAX_INPUT_BYTES:
-                    raise DockingError("Each receptor upload must be at most 3 MiB.")
                 request = {
                     "ligands": ligands,
-                    "protein_pdb": protein.getvalue().decode("utf-8"),
-                    "receptor_pdbqt": receptor.getvalue().decode("utf-8"),
+                    "protein_pdb": prepared["protein_pdb"],
+                    "receptor_pdbqt": prepared["receptor_pdbqt"],
                     "settings": asdict(settings),
-                    "receptor_label": label,
+                    "receptor_label": prepared["receptor_label"],
+                    "receptor_provenance": prepared.get("provenance"),
                 }
             except (DockingError, UnicodeDecodeError) as exc:
                 st.error(str(exc))
@@ -303,7 +316,8 @@ def show_cliff_docking(ligands: list[dict[str, Any]], *, key: str) -> None:
                             request["protein_pdb"],
                             request["receptor_pdbqt"],
                             settings,
-                            receptor_label=label,
+                            receptor_label=request["receptor_label"],
+                            receptor_provenance=request["receptor_provenance"],
                             on_progress=st.write,
                         )
                         st.session_state[f"{key}_result"] = (request_key, result)
