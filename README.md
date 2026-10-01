@@ -124,9 +124,13 @@ confirm that the assayed protein is wild-type.
 The cliff viewer supports molecule-ID filtering, sorting and pagination across
 all discovered pairs; applied cliff thresholds are shown beside the results.
 
-Selected cliff pairs also have an **opt-in Vina + ProLIF docking panel**. Upload
-a prepared rigid receptor PDBQT and its matching protein PDB, choose the pocket,
-then dock just the two molecules. Outputs include Vina scores and their difference,
+Selected cliff pairs also have an **opt-in Vina + ProLIF docking panel**. Find
+experimental PDB structures by the target's UniProt accession, review the protein
+construct/chains, and prepare the receptor with Meeko without uploading files.
+A selected bound ligand defines the box automatically; when none is suitable,
+an explicit fpocket step predicts candidate sites for review. Prepared receptor
+uploads and manual boxes remain available. Dock just the two molecules;
+outputs include Vina scores and their difference,
 experimental ΔpActivity, a 3D pose overlay, free local ProLIF 2D interaction
 diagrams, and retained/lost/gained residue contacts. A separate ZIP records
 poses, contacts, inputs, versions and protocol. No receptor or target is hardcoded.

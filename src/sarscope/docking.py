@@ -240,6 +240,7 @@ def run_pair_docking(
     *,
     receptor_label: str,
     on_progress: Callable[[str], None] | None = None,
+    receptor_provenance: dict[str, Any] | None = None,
 ) -> dict[str, Any]:
     """One isolated job. Uploaded structures are never submitted to a remote service."""
     if len(ligands) != 2:
@@ -259,10 +260,13 @@ def run_pair_docking(
     if not isinstance(receptor_label, str) or not receptor_label.strip():
         raise DockingError("Record a receptor label or PDB ID for provenance.")
     safe_pdb = validate_receptor_pair(protein_pdb, receptor_pdbqt, settings)
+    if receptor_provenance:
+        from sarscope.receptor import check_site_components
+
+        check_site_components(receptor_provenance, settings)
     reason = docking_unavailable_reason()
     if reason:
         raise DockingError(reason)
-    from filelock import FileLock, Timeout
 
     request = {
         "ligands": clean_ligands,
@@ -271,13 +275,45 @@ def run_pair_docking(
         "settings": asdict(settings),
         "receptor_label": receptor_label,
         "vina_binary": vina_binary(),
+        "receptor_provenance": receptor_provenance,
     }
+    result = run_structure_job(
+        request,
+        module="sarscope.docking_worker",
+        timeout=settings.timeout_seconds,
+        label="Pair docking",
+        on_progress=on_progress,
+    )
+    result["protein_pdb"] = safe_pdb
+    result["receptor_pdbqt"] = receptor_pdbqt
+    result["interaction_changes"] = interaction_changes(
+        result["ligands"][0]["interactions"], result["ligands"][1]["interactions"]
+    )
+    return result
+
+
+def run_structure_job(
+    request: dict[str, Any],
+    *,
+    module: str,
+    timeout: int = 120,
+    label: str = "Structure job",
+    on_progress: Callable[[str], None] | None = None,
+) -> dict[str, Any]:
+    """Shared host lock and process-group deadline for preparation, pockets and docking."""
+    if module not in {"sarscope.docking_worker", "sarscope.receptor_worker"}:
+        raise DockingError("Unknown structure worker.")
+    if os.name != "posix" or type(timeout) is not int or not 1 <= timeout <= 300:
+        raise DockingError("Structure jobs require POSIX and an integer timeout of 1–300 seconds.")
+    from filelock import FileLock, Timeout
+
     lock = FileLock(str(Path(gettempdir()) / "sarscope-pair-docking.lock"))
     try:
         lock.acquire(timeout=0)
     except Timeout as exc:
         raise DockingError(
-            "Another pair is docking on this host. Please try again when it finishes."
+            "Another pair or structure job is running on this host. "
+            "Please try again when it finishes."
         ) from exc
     try:
         with TemporaryDirectory(prefix="sarscope-pair-") as tmp:
@@ -294,7 +330,7 @@ def run_pair_docking(
             env["PYTHONPATH"] = str(Path(__file__).resolve().parents[1])
             with (directory / "worker.log").open("w") as log:
                 process = subprocess.Popen(
-                    [sys.executable, "-m", "sarscope.docking_worker", str(directory)],
+                    [sys.executable, "-m", module, str(directory)],
                     stdout=log,
                     stderr=subprocess.STDOUT,
                     env=env,
@@ -307,10 +343,9 @@ def run_pair_docking(
                             process.wait(timeout=0.5)
                             break
                         except subprocess.TimeoutExpired:
-                            if time.monotonic() - start >= settings.timeout_seconds:
+                            if time.monotonic() - start >= timeout:
                                 raise DockingError(
-                                    "Pair docking exceeded its "
-                                    f"{settings.timeout_seconds}-second total timeout."
+                                    f"{label} exceeded its {timeout}-second total timeout."
                                 ) from None
                         status = directory / "progress.json"
                         if on_progress and status.exists():
@@ -327,17 +362,12 @@ def run_pair_docking(
             output = directory / "result.json"
             if not output.exists():
                 raise DockingError(
-                    "Docking worker stopped without a result; "
+                    f"{label} worker stopped without a result; "
                     "the host may have exhausted resources."
                 )
             result = json.loads(output.read_text())
             if process.returncode or "error" in result:
-                raise DockingError(result.get("error", "Docking worker failed."))
-            result["protein_pdb"] = safe_pdb
-            result["receptor_pdbqt"] = receptor_pdbqt
-            result["interaction_changes"] = interaction_changes(
-                result["ligands"][0]["interactions"], result["ligands"][1]["interactions"]
-            )
+                raise DockingError(result.get("error", f"{label} worker failed."))
             return result
     finally:
         lock.release()
@@ -352,6 +382,9 @@ def docking_result_zip(result: dict[str, Any]) -> bytes:
         archive.writestr("manifest.json", json.dumps(result["manifest"], indent=2))
         archive.writestr("protein.pdb", result["protein_pdb"])
         archive.writestr("receptor.pdbqt", result["receptor_pdbqt"])
+        provenance = result["manifest"].get("receptor_preparation") or {}
+        if provenance.get("reference_pdb"):
+            archive.writestr("reference_ligand.pdb", provenance["reference_pdb"])
         archive.writestr(
             "interaction_changes.csv",
             pd.DataFrame(result["interaction_changes"]).to_csv(index=False),

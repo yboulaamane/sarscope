@@ -32,5 +32,7 @@ jobs:
           cache: pip
       - run: sudo apt-get update && sudo apt-get install -y autodock-vina
       - run: pip install -e ".[dev,app,docking]"
+      # Pinned dependency setup; tests make no RCSB/ChEMBL requests.
+      - run: python -c "from sarscope.receptor_worker import _install_fpocket; _install_fpocket()"
       # Synthetic and offline: engine integration, not target-level validation.
-      - run: pytest -q tests/test_docking.py tests/test_app_docking.py
+      - run: pytest -q tests/test_docking.py tests/test_app_docking.py tests/test_receptor.py tests/test_app_receptor.py

@@ -78,6 +78,7 @@ def test_user_button_only_and_cached_results_hide_when_settings_change(monkeypat
     monkeypatch.setattr(docking_ui.st, "file_uploader", upload)
     app = panel()
     app.checkbox(key="test_docking_enabled").check().run()
+    app.radio(key="test_docking_mode").set_value("Upload prepared files").run()
     assert app.button(key="test_docking_run").disabled
     app.text_input(key="test_docking_label").set_value("Synthetic receptor")
     for axis in "xyz":

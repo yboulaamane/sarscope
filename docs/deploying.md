@@ -74,19 +74,30 @@ Dependency-file changes trigger a cloud rebuild; these optional analyses do
 not eliminate Community Cloud's cold-start delays.
 
 The cliff-pair docking step adds `autodock-vina` to `packages.txt` and Meeko,
-ProLIF, Gemmi, py3Dmol and filelock to `requirements.txt`. These Python packages
-are not imported on the landing page. Vina runs as a standalone executable,
+ProLIF, Gemmi, py3Dmol, filelock and zstandard to `requirements.txt`. Docking and
+receptor-preparation engines are not imported on the landing page. Vina runs as a standalone executable,
 avoiding dependence on Python-specific Vina wheels. ProLIF network HTML is
 generated without Jupyter/IPython and displayed in isolated Streamlit component
 iframes so the two diagrams cannot conflict. No paid interaction-diagram service
 is needed. Browser diagram/viewer JavaScript can load from public CDNs; molecular
 files are not submitted to an external structural-analysis service.
 
-Only an explicit pair-docking button starts work. Jobs use one CPU, permit one
-active job per host, and terminate after the user-selected total timeout (maximum
-300 seconds). Uploaded receptors and temporary worker files are deleted when
-the job ends; results and downloadable inputs remain in that user's session
-until it is reset or ends. These bounds reduce, but do not guarantee avoidance
+PDB discovery and coordinate fetching each require an explicit button. Optional
+Meeko receptor preparation and fpocket pocket detection also have separate
+buttons and 120-second worker deadlines. On Linux x86_64, the first pocket request
+downloads a pinned, SHA-256-verified ~1.8 MB conda-forge executable into
+`XDG_CACHE_HOME/sarscope` (default `~/.cache/sarscope`). No Java/compiler is needed.
+An existing `fpocket` on PATH or `SARSCOPE_FPOCKET_BINARY` overrides this download.
+The cache is expendable and may be lost on a cloud restart. If pocket-engine
+installation fails, bound-reference/manual boxes remain usable.
+
+Only an explicit pair-docking button starts docking. All three worker types use
+one CPU and share one active-job lock per host. Docking terminates after the
+user-selected total timeout (maximum 300 seconds). Temporary worker files are
+deleted when the job ends; fetched/prepared structures, uploaded inputs and
+results remain in that user's session until it is reset or ends. No molecular
+files are sent to RCSB or fpocket during preparation/prediction. These bounds
+reduce, but do not guarantee avoidance
 of, shared-host resource limits. Rebuilds can take longer after adding these
 dependencies. See [cliff-pair docking](cliff-docking.md) for supported chemistry.
 

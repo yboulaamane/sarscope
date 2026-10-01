@@ -220,6 +220,7 @@ def execute(directory: Path) -> dict[str, Any]:
     manifest = {
         "schema": "sarscope-pair-docking-v1",
         "receptor_label": request["receptor_label"],
+        "receptor_preparation": request.get("receptor_provenance"),
         "settings": request["settings"],
         "cpu": 1,
         "vina_version": engine,
