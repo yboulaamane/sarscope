@@ -1614,13 +1614,236 @@ def show_models(results: RunResults | MlStage) -> None:
         st.dataframe(results.cliff_model_performance, hide_index=True, width="stretch")
 
     if results.domain is not None:
-        st.metric(
-            "Test compounds inside the applicability domain", f"{results.domain.coverage:.1%}"
+        show_applicability_domain(results)
+
+
+def applicability_domain_chart(
+    domain: DomainResult, train_ids: list[str], test_ids: list[str]
+) -> tuple[alt.LayerChart, pd.DataFrame]:
+    """Plot the fitted criterion, not a new embedding or a test-fitted boundary."""
+    dimensions = domain.train_scores.shape[1]
+    train = pd.DataFrame(domain.train_scores[:, :2], columns=["PC1", "PC2"][:dimensions])
+    test = pd.DataFrame(domain.query_scores[:, :2], columns=["PC1", "PC2"][:dimensions])
+    train["molecule_id"] = train_ids
+    test["molecule_id"] = test_ids
+    train["status"] = "Training compound"
+    train["inside_pca_box"] = True
+    test["status"] = np.where(domain.in_domain, "Test · inside PCA box", "Test · outside PCA box")
+    test["inside_pca_box"] = domain.in_domain
+    points = pd.concat([train, test], ignore_index=True)
+    # Boundaries and downloads always use the full data. Cap only rendered points.
+    rendered = pd.concat(
+        [part.sample(min(2000, len(part)), random_state=42) for part in (train, test)],
+        ignore_index=True,
+    )
+    bounds = pd.DataFrame({"x_min": [train.PC1.min()], "x_max": [train.PC1.max()]})
+    rectangle = (
+        alt.Chart(bounds)
+        .mark_rect(color=PURPLE, opacity=0.13, stroke=PURPLE, strokeWidth=2)
+        .encode(x="x_min:Q", x2="x_max:Q")
+    )
+    if dimensions >= 2:
+        bounds["y_min"], bounds["y_max"] = train.PC2.min(), train.PC2.max()
+        rectangle = rectangle.encode(y="y_min:Q", y2="y_max:Q")
+        y = alt.Y("PC2:Q", title="PC2 · fitted on training features", scale=alt.Scale(zero=False))
+        tooltip = ["molecule_id:N", "status:N", "PC1:Q", "PC2:Q"]
+        height = 350
+    else:
+        # A single retained feature gives a genuine 1D interval, not a fabricated PC2.
+        rectangle = rectangle.encode(y=alt.value(0), y2=alt.value(140))
+        y = alt.value(70)
+        tooltip = ["molecule_id:N", "status:N", "PC1:Q"]
+        height = 140
+    palette = alt.Scale(
+        domain=["Training compound", "Test · inside PCA box", "Test · outside PCA box"],
+        range=[TEAL, PURPLE, RED],
+    )
+    dots = (
+        alt.Chart(rendered)
+        .mark_circle(size=48, opacity=0.6)
+        .encode(
+            x=alt.X(
+                "PC1:Q", title="PC1 · fitted on training features", scale=alt.Scale(zero=False)
+            ),
+            y=y,
+            color=alt.Color("status:N", title=None, scale=palette, legend=alt.Legend(orient="top")),
+            tooltip=tooltip,
+            order=alt.Order("status:N", sort="descending"),
         )
+    )
+    chart = (
+        (rectangle + dots)
+        .properties(height=height, title="Training feature envelope and held-out compounds")
+        .interactive()
+    )
+    return chart, points
+
+
+def show_applicability_domain(results: RunResults | MlStage) -> None:
+    domain = results.domain
+    selected = results.regression or results.models
+    if domain is None or selected is None:
+        return
+    if not len(domain.in_domain):
+        st.info("Applicability-domain coverage is undefined: there are no held-out compounds.")
+        return
+    table = results.table
+    if isinstance(results, RunResults) and not results.model_table.empty:
+        table = results.model_table
+    train_ids = table.iloc[selected.train_index]["molecule_id"].astype(str).tolist()
+    test_ids = table.iloc[selected.test_index]["molecule_id"].astype(str).tolist()
+    inside = int(domain.in_domain.sum())
+    total = len(domain.in_domain)
+    dimensions = domain.train_scores.shape[1]
+    component_label = "both plotted components" if dimensions > 1 else "the plotted component"
+    st.markdown("### Applicability domain · how familiar is the test chemistry?")
+    metrics = st.columns(3)
+    metrics[0].metric("Test compounds inside the applicability domain", f"{domain.coverage:.1%}")
+    metrics[1].metric("Inside PCA box", f"{inside:,} / {total:,}")
+    metrics[2].metric("Outside PCA box", f"{total - inside:,} / {total:,}")
+    st.markdown(
+        f"**What this means:** {inside:,} of {total:,} held-out compounds fall within the "
+        f"training set's ranges on {component_label}. "
+        "The shaded region is that boundary; mint points are training compounds, purple "
+        "points are inside-test compounds and coral points are outside-test compounds. "
+        "Hover for molecule IDs; zoom to inspect overlapping points."
+    )
+    chart, points = applicability_domain_chart(domain, train_ids, test_ids)
+    st.altair_chart(chart, width="stretch")
+    if len(train_ids) > 2000 or total > 2000:
         st.caption(
-            "A PCA bounding box in two components is a generous criterion: a molecule can sit "
-            "inside it and still be far from every training compound."
+            "Rendering up to 2,000 training and 2,000 test points (seed 42). "
+            "Boundary, counts and downloadable coordinates use all compounds."
         )
+    st.warning(
+        "100% inside is not 100% prediction accuracy. This is a permissive feature-space "
+        "screen, not a probability of reliability: a point can lie inside the box but "
+        "far from training examples, in a gap between chemical series, or on an activity cliff. "
+        "A two-component view may also omit variation in other feature dimensions."
+        if dimensions > 1
+        else "Inside this interval is not a prediction-accuracy guarantee: a compound can "
+        "still lack close training analogues or lie on an activity cliff."
+    )
+    with st.expander("How the boundary is calculated"):
+        features = results.params.model.features
+        st.markdown(
+            f"Representation: **{features.representation}**; validation split: "
+            f"**{results.params.model.split}**; training compounds: **{len(train_ids):,}**. "
+            "Preprocessing and PCA are fitted only on the outer training set. "
+            f"For each of the {dimensions} retained PCA components, the boundary is the "
+            "training minimum and maximum; a test point is inside only if every component "
+            "lies in its range (with numerical tolerance). The percentage is a property "
+            "of this split and representation, not an intrinsic property of the target. "
+            "The boundary is not refitted to the held-out compounds."
+        )
+        if dimensions == 1:
+            st.caption(
+                "Only one component is available, so this plot is a 1D interval, not a 2D map."
+            )
+        if results.regression is not None and results.models is not None:
+            st.caption(
+                "Both prediction tasks were selected; this panel uses the regressor's "
+                "outer training/test partition."
+            )
+    profile = results.regression_test_predictions
+    if not profile.empty and profile["molecule_id"].astype(str).tolist() == test_ids:
+        queries = points[points["status"] != "Training compound"].reset_index(drop=True)
+        for name in [
+            "max_training_similarity",
+            "training_similarity_cutoff",
+            "in_training_domain",
+            "pactivity",
+            "predicted_pactivity",
+            "absolute_error",
+        ]:
+            if name in profile:
+                queries[name] = profile[name].to_numpy()
+        st.markdown("**A separate check: similarity to the nearest training analogue**")
+        st.caption(
+            f"Binary {results.params.model.features.fingerprint.upper()} Tanimoto similarity "
+            "ranges from 0 (no shared bits) to 1 (identical fingerprints, not necessarily "
+            "identical molecules). Unlike the PCA box, this checks proximity to a real "
+            "training compound. It uses the original binary fingerprint even for descriptor models."
+        )
+        histogram = queries[["max_training_similarity", "status"]].copy()
+        histogram["bin_left"] = (
+            np.minimum(np.floor(histogram["max_training_similarity"] * 20), 19) / 20
+        )
+        histogram = histogram.groupby(["bin_left", "status"], as_index=False).size()
+        histogram["bin_right"] = histogram["bin_left"] + 0.05
+        bars = (
+            alt.Chart(histogram)
+            .mark_bar(opacity=0.8)
+            .encode(
+                x=alt.X(
+                    "bin_left:Q",
+                    title="Nearest training Tanimoto similarity",
+                    scale=alt.Scale(domain=[0, 1]),
+                ),
+                x2="bin_right:Q",
+                y=alt.Y("size:Q", title="Test compounds", stack="zero"),
+                color=alt.Color(
+                    "status:N",
+                    scale=alt.Scale(
+                        domain=["Test · inside PCA box", "Test · outside PCA box"],
+                        range=[PURPLE, RED],
+                    ),
+                    title="PCA status",
+                    legend=alt.Legend(orient="top"),
+                ),
+                tooltip=[
+                    alt.Tooltip("size:Q", title="Compounds"),
+                    "status:N",
+                    alt.Tooltip("bin_left:Q", title="Similarity from", format=".2f"),
+                    alt.Tooltip("bin_right:Q", title="Similarity to", format=".2f"),
+                ],
+            )
+        )
+        if "training_similarity_cutoff" in queries:
+            cutoff = float(queries["training_similarity_cutoff"].iloc[0])
+            line = (
+                alt.Chart(pd.DataFrame({"cutoff": [cutoff]}))
+                .mark_rule(color=ORANGE, strokeDash=[6, 4], strokeWidth=2)
+                .encode(x="cutoff:Q", tooltip=[alt.Tooltip("cutoff:Q", format=".3f")])
+            )
+            bars = bars + line
+            structural_inside = int(queries["in_training_domain"].sum())
+            st.markdown(
+                f"**Structural similarity coverage: {structural_inside:,} / {total:,} "
+                f"({structural_inside / total:.1%}).** The amber line at **{cutoff:.3f}** "
+                "is the 5th percentile of training compounds' nearest non-self similarities, "
+                "computed without test compounds. This is a separate heuristic, not the "
+                "criterion behind the PCA percentage above. Neither rule guarantees accuracy."
+            )
+        st.altair_chart(bars.properties(height=220), width="stretch")
+        errors = []
+        for label in ("Test · inside PCA box", "Test · outside PCA box"):
+            part = queries[queries["status"] == label]
+            error = part["absolute_error"].to_numpy()
+            errors.append(
+                {
+                    "PCA domain status": label,
+                    "Test compounds": len(part),
+                    "MAE (log units)": float(error.mean()) if len(error) else np.nan,
+                    "RMSE (log units)": float(np.sqrt(np.mean(error**2))) if len(error) else np.nan,
+                }
+            )
+        st.markdown("**Observed regression error, not just domain membership**")
+        st.dataframe(pd.DataFrame(errors), hide_index=True, width="stretch")
+        if inside == total:
+            st.caption(
+                "There are no outside-PCA-box test compounds in this split, so their "
+                "prediction error cannot be assessed or compared with inside compounds."
+            )
+        points = pd.concat(
+            [points[points["status"] == "Training compound"], queries], ignore_index=True
+        )
+    st.download_button(
+        "Download applicability-domain coordinates and flags",
+        points.to_csv(index=False),
+        file_name="applicability_domain.csv",
+        mime="text/csv",
+    )
 
 
 def report_zip(results: RunResults) -> bytes:

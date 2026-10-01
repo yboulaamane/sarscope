@@ -20,8 +20,10 @@ Descriptor/hybrid models median-impute missing/nonfinite values, standardize,
 remove constants and filter correlations using training rows only, refitting
 inside every validation fold. Entirely missing training columns become zero
 and are removed as constants. Fingerprint-only models retain their existing
-variance/correlation filter. Structural-domain and novelty diagnostics always
-use binary fingerprints, never Tanimoto on real-valued descriptors.
+variance/correlation filter. Nearest-analogue similarity and novelty diagnostics
+always use binary fingerprints, never Tanimoto on real-valued descriptors.
+The PCA bounding-box diagnostic instead uses the selected, training-preprocessed
+model features; it is a distinct and more permissive criterion.
 
 Prediction bundles save ordered names, settings, fitted preprocessing and the
 estimator. The feature-schema CSV describes the deployment refit's retained
@@ -64,6 +66,18 @@ Bootstraps are separately downloadable. Parity/residual figures, diagnostic
 tables, novelty summaries and the feature schema enter the report ZIP.
 
 ## Limits
+
+The browser applicability-domain panel overlays training and held-out points on
+the training-fitted PCA ranges, with a 1D interval when only one component is
+available. For regression it also shows nearest-training Tanimoto similarities
+and the separate training-only cutoff (5th percentile of training compounds'
+nearest non-self similarities), plus observed inside/outside regression errors.
+All metrics and boundaries use the full partition; plots cap each partition at
+2,000 points. Coordinates and per-compound flags are downloadable from the panel.
+100% PCA coverage is not prediction accuracy: sparse regions, omitted dimensions,
+activity cliffs and incompatible assays can still cause failures. These browser
+diagnostics are not calibrated reliability probabilities. The coordinate CSV is
+a separate browser download, not an additional report ZIP artifact.
 
 Choose features/models before looking at test performance. Repeatedly adjusting
 settings against test scores makes that test development data; reserve a new

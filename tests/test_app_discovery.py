@@ -319,6 +319,8 @@ def test_descriptor_regression_ui_and_optional_bootstrap_are_user_controlled(app
     assert fitted.regression.best_algorithm == "ridge"
     assert fitted.models is None
     assert fitted.prediction_bundle.feature_names == tuple(names)
+    assert "training_similarity_cutoff" in fitted.regression_test_predictions
+    assert any(item.label == "Inside PCA box" for item in app.metric)
     assert "regression_bootstrap" not in app.session_state
     assert any(item.label == "Within 3-fold" for item in app.metric)
     widget(app, "button", "Estimate metric confidence intervals").click().run()
