@@ -59,7 +59,5 @@ def test_browser_ml_stage_applies_selection_without_changing_upstream_table(monk
     )
     assert stage.drop_intermediate
     assert stage.table["activity_class"].tolist() == ["potent", "active", "inactive"]
-    assert curated["activity_class"].tolist() == [
-        "potent", "active", "intermediate", "inactive"
-    ]
+    assert curated["activity_class"].tolist() == ["potent", "active", "intermediate", "inactive"]
     assert stage.skipped  # tiny fixture is intentionally too small to fit ML

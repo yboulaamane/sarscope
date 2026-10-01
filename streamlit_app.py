@@ -1398,6 +1398,21 @@ def show_landscape(results: RunResults | LandscapeStage) -> None:
                             size=(340, 250),
                         )
 
+            if all(molecule_id in smiles.index for molecule_id in (pair["id_a"], pair["id_b"])):
+                from sarscope.docking_ui import show_cliff_docking
+
+                show_cliff_docking(
+                    [
+                        {
+                            "molecule_id": str(m),
+                            "smiles": str(smiles[m]),
+                            "pactivity": float(potency[m]),
+                        }
+                        for m in (pair["id_a"], pair["id_b"])
+                    ],
+                    key=f"cliff_docking_{sas.fingerprint}",
+                )
+
             gens = cliff_generators(sas.cliffs, results.params.landscape.generator_sd)
             generators = gens[gens["is_generator"]]
             st.markdown(
@@ -1880,6 +1895,9 @@ def clear_workflow(*, keep_curation: bool = False) -> None:
         if keep_curation and key == "curation_stage":
             continue
         st.session_state.pop(key, None)
+    for key in list(st.session_state):
+        if key.startswith("cliff_docking_") and key.endswith("_result"):
+            st.session_state.pop(key, None)
 
 
 def show_regression_diagnostics(result: RegressionResult, profile: pd.DataFrame) -> None:

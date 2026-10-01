@@ -124,6 +124,15 @@ confirm that the assayed protein is wild-type.
 The cliff viewer supports molecule-ID filtering, sorting and pagination across
 all discovered pairs; applied cliff thresholds are shown beside the results.
 
+Selected cliff pairs also have an **opt-in Vina + ProLIF docking panel**. Upload
+a prepared rigid receptor PDBQT and its matching protein PDB, choose the pocket,
+then dock just the two molecules. Outputs include Vina scores and their difference,
+experimental ΔpActivity, a 3D pose overlay, free local ProLIF 2D interaction
+diagrams, and retained/lost/gained residue contacts. A separate ZIP records
+poses, contacts, inputs, versions and protocol. No receptor or target is hardcoded.
+This is hypothesis support, not an explanation proven by docking scores.
+See [cliff-pair docking](docs/cliff-docking.md) for preparation, setup and limits.
+
 Chemical space offers standardized descriptor PCA and a separate opt-in
 ECFP4 UMAP with Jaccard distance (1 − binary Tanimoto). UMAP is lazy-loaded;
 install `sarscope[space]` locally or use the hosted requirements. Above 2,000
