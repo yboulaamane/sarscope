@@ -21,3 +21,16 @@ jobs:
       # The whole suite gates CI now that the analysis layer is implemented.
       # Network tests never run in CI: they call the live ChEMBL API.
       - run: pytest -q -m "not network"
+
+  docking-smoke:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+      - run: sudo apt-get update && sudo apt-get install -y autodock-vina
+      - run: pip install -e ".[dev,app,docking]"
+      # Synthetic and offline: engine integration, not target-level validation.
+      - run: pytest -q tests/test_docking.py tests/test_app_docking.py
