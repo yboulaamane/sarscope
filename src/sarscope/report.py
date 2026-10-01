@@ -37,10 +37,12 @@ import matplotlib
 matplotlib.use("Agg")
 
 import matplotlib.pyplot as plt  # noqa: E402
+import numpy as np  # noqa: E402
 import pandas as pd  # noqa: E402
 
 from sarscope import provenance  # noqa: E402
 from sarscope.analysis.descriptors import CORE_DESCRIPTORS  # noqa: E402
+from sarscope.analysis.diagnostics import novelty_summary, regression_summary  # noqa: E402
 from sarscope.analysis.landscape import cliff_generators  # noqa: E402
 from sarscope.depict import to_data_uri  # noqa: E402
 from sarscope.pipeline import RunResults  # noqa: E402
@@ -197,10 +199,23 @@ def _write_tables(results: RunResults, out: Path) -> dict[str, pd.DataFrame]:
         written["model_confusion_matrix"] = results.models.test_confusion.reset_index()
     if results.regression is not None:
         written["regression_scores"] = results.regression.scores
+        written["regression_diagnostics"] = regression_summary(results.regression)
+    if results.prediction_bundle is not None:
+        bundle = results.prediction_bundle
+        names = getattr(bundle, "feature_names", ())
+        if names:
+            written["model_feature_schema"] = pd.DataFrame(
+                {
+                    "position": range(len(names)),
+                    "feature": names,
+                    "retained": bundle.feature_filter.support_,
+                }
+            )
     if not results.model_test_predictions.empty:
         written["model_test_predictions"] = results.model_test_predictions
     if not results.regression_test_predictions.empty:
         written["regression_test_predictions"] = results.regression_test_predictions
+        written["regression_novelty_summary"] = novelty_summary(results.regression_test_predictions)
     if not results.cliff_model_performance.empty:
         written["cliff_model_performance"] = results.cliff_model_performance
     for i, sar in enumerate(results.rgroups, start=1):
@@ -314,9 +329,11 @@ def _write_figures(results: RunResults, out: Path) -> dict[str, str]:
         fig, ax = plt.subplots(figsize=(6.4, 5.2))
         train = results.domain.train_scores
         query = results.domain.query_scores
+        train_y = train[:, 1] if train.shape[1] > 1 else np.zeros(len(train))
+        query_y = query[:, 1] if query.shape[1] > 1 else np.zeros(len(query))
         ax.scatter(
             train[:, 0],
-            train[:, 1],
+            train_y,
             s=10,
             c=GROUP_COLORS[1],
             alpha=0.45,
@@ -326,7 +343,7 @@ def _write_figures(results: RunResults, out: Path) -> dict[str, str]:
         if query.shape[0]:
             ax.scatter(
                 query[:, 0],
-                query[:, 1],
+                query_y,
                 s=16,
                 c=GROUP_COLORS[2],
                 alpha=0.75,
@@ -334,11 +351,36 @@ def _write_figures(results: RunResults, out: Path) -> dict[str, str]:
                 label="Test",
             )
         ax.set_xlabel("PC1")
-        ax.set_ylabel("PC2")
+        ax.set_ylabel("PC2" if train.shape[1] > 1 else "No second component (zero padding)")
         ax.set_title("Applicability domain (PCA bounding box)", fontsize=11)
         ax.legend(frameon=False, fontsize=9)
         _style(ax)
         images["applicability_domain"] = _save(fig, out / "applicability_domain.png")
+    if results.regression is not None:
+        result = results.regression
+        truth, predicted = result.test_truth, result.test_predictions
+        low = float(min(truth.min(), predicted.min())) - 0.2
+        high = float(max(truth.max(), predicted.max())) + 0.2
+        fig, ax = plt.subplots(figsize=(6.2, 5.2))
+        ax.scatter(truth, predicted, s=14, alpha=0.55, c="#52a88c", linewidths=0)
+        ax.plot([low, high], [low, high], color=MUTED, lw=1)
+        for offset in (-np.log10(3), np.log10(3)):
+            ax.plot([low, high], [low + offset, high + offset], color="#bc8435", ls="--", lw=1)
+        ax.set_xlim(low, high)
+        ax.set_ylim(low, high)
+        ax.set_xlabel("Measured pActivity")
+        ax.set_ylabel("Predicted pActivity")
+        ax.set_title("Held-out predictions (dashed: ±3-fold error)", fontsize=11)
+        _style(ax)
+        images["regression_parity"] = _save(fig, out / "regression_parity.png")
+        fig, ax = plt.subplots(figsize=(6.2, 4.2))
+        ax.scatter(predicted, truth - predicted, s=14, alpha=0.55, c="#9467bd", linewidths=0)
+        ax.axhline(0, color=MUTED, lw=1)
+        ax.set_xlabel("Predicted pActivity")
+        ax.set_ylabel("Measured − predicted (log units)")
+        ax.set_title("Held-out residuals", fontsize=11)
+        _style(ax)
+        images["regression_residuals"] = _save(fig, out / "regression_residuals.png")
     return images
 
 
@@ -642,6 +684,16 @@ def _render(
                     "training-fold residuals and does not guarantee coverage on new chemistry.</p>"
                 )
             parts.append(_table_html(tables["regression_scores"], limit=30))
+            parts.append("<h4>Held-out diagnostic metrics</h4>")
+            parts.append(_table_html(tables["regression_diagnostics"], limit=20))
+            parts.append(_figure(images, "regression_parity"))
+            parts.append(_figure(images, "regression_residuals"))
+            parts.append(
+                "<p class='note'>The mean baseline is fitted only on training labels. "
+                "Within-3-fold and within-10-fold rates describe potency errors, not confidence "
+                "intervals. Feature definitions, training-fitted preprocessing and the "
+                "ordered feature schema are saved with the prediction model.</p>"
+            )
             parts.append(
                 "<p class='note'>The selected regressor is refitted on the complete curated "
                 "dataset and saved as <code>model.joblib</code>. Use it only as a local trusted "

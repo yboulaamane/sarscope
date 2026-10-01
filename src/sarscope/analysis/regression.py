@@ -18,17 +18,21 @@ import numpy as np
 import pandas as pd
 from numpy.typing import NDArray
 from scipy.stats import spearmanr
+from sklearn.dummy import DummyRegressor
 from sklearn.ensemble import ExtraTreesRegressor, GradientBoostingRegressor, RandomForestRegressor
-from sklearn.metrics import mean_squared_error, r2_score
+from sklearn.linear_model import Ridge
+from sklearn.metrics import mean_absolute_error, mean_squared_error, r2_score
 from sklearn.neighbors import KNeighborsRegressor
 from sklearn.neural_network import MLPRegressor
 from sklearn.svm import SVR
 
-from sarscope.analysis.features import VarianceCorrelationFilter
+from sarscope.analysis.features import VarianceCorrelationFilter, feature_filter
 from sarscope.analysis.model import _cv_folds, _outer_split
 from sarscope.params import ModelParams
 
 REGRESSION_ALGORITHMS: dict[str, Callable[[int], Any]] = {
+    "mean_baseline": lambda seed: DummyRegressor(strategy="mean"),
+    "ridge": lambda seed: Ridge(alpha=10.0),
     "nearest_neighbors": lambda seed: KNeighborsRegressor(n_neighbors=4, weights="distance"),
     "svr": lambda seed: SVR(kernel="rbf", C=10.0, gamma="scale", epsilon=0.1),
     "gradient_boosting": lambda seed: GradientBoostingRegressor(
@@ -63,6 +67,10 @@ REGRESSION_SCORE_COLUMNS: tuple[str, ...] = (
     "cv_spearman",
     "cv_spearman_sd",
     "test_spearman",
+    "train_mae",
+    "cv_mae",
+    "cv_mae_sd",
+    "test_mae",
     "n_features",
 )
 
@@ -81,6 +89,7 @@ class RegressionResult:
     empirical_half_width: float = math.nan
     empirical_test_coverage: float = math.nan
     interval_level: float = 0.9
+    baseline_test_predictions: NDArray[np.float64] | None = None
 
 
 def _spearman(y_true: NDArray[Any], y_pred: NDArray[Any]) -> float:
@@ -101,8 +110,7 @@ def regression_metrics(y_true: NDArray[Any], y_pred: NDArray[Any]) -> tuple[floa
 def _fit(
     name: str, X: NDArray[Any], y: NDArray[np.float64], params: ModelParams
 ) -> tuple[VarianceCorrelationFilter, Any]:
-    feats = params.features
-    filt = VarianceCorrelationFilter(feats.variance_threshold, feats.correlation_threshold).fit(X)
+    filt = feature_filter(params.features).fit(X)
     with warnings.catch_warnings():
         warnings.simplefilter("ignore")
         fitted = REGRESSION_ALGORITHMS[name](params.seed).fit(filt.transform(X), y)
@@ -121,6 +129,7 @@ def _row(
     cv: list[tuple[float, float, float]],
     test: tuple[float, float, float],
     n_features: int,
+    mae: tuple[float, list[float], float],
 ) -> dict[str, Any]:
     values = np.asarray(cv, dtype=float)
 
@@ -146,6 +155,10 @@ def _row(
         "cv_spearman": mean(2),
         "cv_spearman_sd": sd(2),
         "test_spearman": test[2],
+        "train_mae": mae[0],
+        "cv_mae": float(np.mean(mae[1])) if mae[1] else math.nan,
+        "cv_mae_sd": float(np.std(mae[1], ddof=1)) if len(mae[1]) > 1 else math.nan,
+        "test_mae": mae[2],
         "n_features": n_features,
     }
 
@@ -175,6 +188,11 @@ def evaluate_regression(
         raise ValueError(
             f"unknown regression algorithm(s) {unknown}; known: {sorted(REGRESSION_ALGORITHMS)}"
         )
+    if not names:
+        raise ValueError("Choose at least one regression algorithm.")
+    requested = names.copy()
+    if "mean_baseline" not in names:
+        names = [*names, "mean_baseline"]
 
     X = np.asarray(X)
     target = np.asarray(y, dtype=float)
@@ -190,11 +208,13 @@ def evaluate_regression(
     cv_errors: dict[str, list[float]] = {}
     for name in names:
         cv: list[tuple[float, float, float]] = []
+        cv_mae: list[float] = []
         residuals: list[float] = []
         for fit_rows, eval_rows in _cv_folds(labels[train_idx], groups_train, params, train_years):
             filt, fitted = _fit(name, X_train[fit_rows], y_train[fit_rows], params)
             prediction = _predict(fitted, filt.transform(X_train[eval_rows]))
             cv.append(regression_metrics(y_train[eval_rows], prediction))
+            cv_mae.append(float(mean_absolute_error(y_train[eval_rows], prediction)))
             residuals.extend(np.abs(y_train[eval_rows] - prediction).tolist())
         cv_errors[name] = residuals
         filt, fitted = _fit(name, X_train, y_train, params)
@@ -207,11 +227,18 @@ def evaluate_regression(
                 cv,
                 regression_metrics(target[test_idx], test_prediction),
                 filt.n_after_correlation_,
+                (
+                    float(mean_absolute_error(y_train, train_prediction)),
+                    cv_mae,
+                    float(mean_absolute_error(target[test_idx], test_prediction)),
+                ),
             )
         )
 
     scores = pd.DataFrame(rows, columns=list(REGRESSION_SCORE_COLUMNS))
-    ranked = scores.assign(_key=scores["cv_rmse"].fillna(math.inf))
+    ranked = scores[scores["algorithm"].isin(requested)].assign(
+        _key=scores.loc[scores["algorithm"].isin(requested), "cv_rmse"].fillna(math.inf)
+    )
     best = str(ranked.sort_values(["_key", "algorithm"]).iloc[0]["algorithm"])
     fitted_filter, fitted_model = _fit(best, X_train, y_train, params)
     test_predictions = _predict(fitted_model, fitted_filter.transform(X[test_idx]))
@@ -237,6 +264,7 @@ def evaluate_regression(
         fitted_model=fitted_model,
         empirical_half_width=half_width,
         empirical_test_coverage=coverage,
+        baseline_test_predictions=np.full(len(test_idx), float(y_train.mean())),
     )
 
 

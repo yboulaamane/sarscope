@@ -37,6 +37,8 @@ pubchem = ["scikit-fingerprints>=2.0"]
 # The browser app (streamlit_app.py).
 app = ["streamlit>=1.38"]
 explain = ["shap>=0.46"]
+space = ["umap-learn>=0.5.7,<0.6"]
+molfeat = ["molfeat>=1.0,<2"]
 dev = [
     "pytest>=8.0",
     "pytest-cov>=5.0",

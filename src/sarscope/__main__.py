@@ -274,7 +274,8 @@ def parser() -> argparse.ArgumentParser:
     )
     r.add_argument("--out", type=Path, required=True)
     r.add_argument(
-        "--variant", help='mutant to keep, e.g. V600E; "any" pools all (default: wild-type)'
+        "--variant",
+        help='exact mutation annotation to keep; "any" pools all (default: no mutation annotation)',
     )
     r.add_argument("--keep-censored", action="store_true", help="keep >, < relations")
     r.add_argument("--assay-types", nargs="+", default=["B"])

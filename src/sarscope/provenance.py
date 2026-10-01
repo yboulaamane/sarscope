@@ -23,6 +23,9 @@ TRACKED_PACKAGES: tuple[str, ...] = (
     "scikit-learn",
     "joblib",
     "scikit-fingerprints",
+    "molfeat",
+    "shap",
+    "umap-learn",
 )
 
 

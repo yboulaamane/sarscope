@@ -36,9 +36,11 @@ from numpy.typing import NDArray
 from rdkit import Chem, DataStructs
 from rdkit.Chem import MACCSkeys
 from sklearn.base import BaseEstimator, TransformerMixin
+from sklearn.impute import SimpleImputer
+from sklearn.preprocessing import StandardScaler
 from sorbent.chem.fingerprints import compute_fingerprint
 
-from sarscope.params import FingerprintName
+from sarscope.params import FeatureParams, FingerprintName
 
 PUBCHEM_BITS = 881
 
@@ -127,13 +129,23 @@ class VarianceCorrelationFilter(BaseEstimator, TransformerMixin):
     """
 
     def __init__(
-        self, variance_threshold: float = 0.1, correlation_threshold: float = 0.95
+        self,
+        variance_threshold: float = 0.1,
+        correlation_threshold: float = 0.95,
+        continuous: bool = False,
     ) -> None:
         self.variance_threshold = variance_threshold
         self.correlation_threshold = correlation_threshold
+        self.continuous = continuous
 
     def fit(self, X: NDArray[Any], y: Any = None) -> VarianceCorrelationFilter:
         X = np.asarray(X, dtype=float)
+        if self.continuous:
+            X = np.where(np.isfinite(X), X, np.nan)
+            self.imputer_ = SimpleImputer(strategy="median", keep_empty_features=True).fit(X)
+            X = self.imputer_.transform(X)
+            self.scaler_ = StandardScaler().fit(X)
+            X = self.scaler_.transform(X)
         variance_ok = X.var(axis=0) > self.variance_threshold
         survivors = np.flatnonzero(variance_ok)
 
@@ -156,4 +168,17 @@ class VarianceCorrelationFilter(BaseEstimator, TransformerMixin):
         X = np.asarray(X)
         if X.shape[1] != self.n_features_in_:
             raise ValueError(f"fitted on {self.n_features_in_} features, got {X.shape[1]}")
+        # getattr keeps previously saved fingerprint filters compatible.
+        if getattr(self, "continuous", False):
+            X = np.where(np.isfinite(X), X, np.nan)
+            X = self.scaler_.transform(self.imputer_.transform(X))
         return X[:, self.support_]
+
+
+def feature_filter(features: FeatureParams) -> VarianceCorrelationFilter:
+    continuous = getattr(features, "representation", "fingerprint") != "fingerprint"
+    return VarianceCorrelationFilter(
+        0.0 if continuous else features.variance_threshold,
+        features.correlation_threshold,
+        continuous=continuous,
+    )

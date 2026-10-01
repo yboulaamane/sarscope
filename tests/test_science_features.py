@@ -86,4 +86,8 @@ def test_filter_is_a_proper_sklearn_estimator():
     from sklearn.base import clone
 
     f = clone(VarianceCorrelationFilter(0.2, 0.9))
-    assert f.get_params() == {"variance_threshold": 0.2, "correlation_threshold": 0.9}
+    assert f.get_params() == {
+        "variance_threshold": 0.2,
+        "correlation_threshold": 0.9,
+        "continuous": False,
+    }

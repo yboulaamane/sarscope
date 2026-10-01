@@ -64,6 +64,20 @@ only from their corresponding button. This is intentional: a collapsed
 Streamlit expander still executes its body, so expensive work must be gated by
 buttons rather than merely hidden in an expander.
 
+The deployment requirements include `shap` and `umap-learn`. Streamlit supports
+both: TreeSHAP is opt-in for the descriptor Random Forest (100 held-out
+compounds maximum), and ECFP4/Jaccard UMAP is a separate button with a 2,000
+compound sample cap. Neither package is imported on the landing page. The
+first UMAP run after a restart may take longer due to Numba kernel compilation.
+Dependency-file changes trigger a cloud rebuild; these optional analyses do
+not eliminate Community Cloud's cold-start delays.
+
+Native descriptor selection, fingerprint–descriptor hybrids and regression
+diagnostics add no deployment dependencies. Molfeat stays an optional extra
+because its core requires PyTorch; it is not in requirements.txt. Browser
+explanations cap descriptors at 50. Metric bootstraps are an explicit,
+prediction-only 500-repeat step, not repeated model training.
+
 For a large target, the app shows download-page and curation progress plus
 separate phase timings. This is mostly a data-processing cost, not a Streamlit
 rendering limit. The release-keyed raw download cache lives on local storage;

@@ -38,15 +38,21 @@ from sklearn.metrics import precision_recall_curve, roc_curve  # noqa: E402
 
 from sarscope import __version__, provenance  # noqa: E402
 from sarscope.__main__ import FETCH_SUMMARY_FIELDS, default_cache_dir  # noqa: E402
+from sarscope.analysis.chemical_space import StructuralSpace, ecfp4_umap  # noqa: E402
 from sarscope.analysis.descriptors import add_descriptors  # noqa: E402
+from sarscope.analysis.diagnostics import (  # noqa: E402
+    bootstrap_regression,
+    novelty_summary,
+    regression_summary,
+)
 from sarscope.analysis.domain import DomainResult, pca_bounding_box  # noqa: E402
 from sarscope.analysis.explain import (  # noqa: E402
     DescriptorExplanation,
     explain_descriptor_model,
 )
 from sarscope.analysis.features import (  # noqa: E402
-    VarianceCorrelationFilter,
     bit_vectors,
+    feature_filter,
     fingerprint_matrix,
 )
 from sarscope.analysis.landscape import (  # noqa: E402
@@ -67,6 +73,13 @@ from sarscope.analysis.regression import (  # noqa: E402
     RegressionResult,
     evaluate_regression,
     fit_deployment_model,
+)
+from sarscope.analysis.representations import (  # noqa: E402
+    ALL_2D,
+    DESCRIPTOR_PRESETS,
+    model_feature_names,
+    model_matrix,
+    resolved_features,
 )
 from sarscope.analysis.rgroups import ScaffoldSar, decompose_top_scaffolds  # noqa: E402
 from sarscope.analysis.scaffolds import (  # noqa: E402
@@ -125,6 +138,7 @@ from sarscope.sources.pubchem import PubChemClient, PubChemError  # noqa: E402
 #: hues everywhere in the app, so colour follows the entity, never the rank.
 TEAL, PURPLE, ORANGE, RED = "#52dfb6", "#c59bff", "#ffca76", "#ff8194"
 GROUP_COLORS = [TEAL, ORANGE]
+GROUP_LABELS = {1: "Potent + active", 2: "Intermediate + inactive"}
 CLASS_COLORS = {
     "potent": TEAL,
     "active": PURPLE,
@@ -153,8 +167,9 @@ FIELD_NOTES: dict[str, tuple[str, str]] = {
     ),
     "assay_variant_mutation": (
         "Protein variant",
-        "(none) is wild-type. Mutant assays measure a different protein; "
-        "wild-type only by default.",
+        "(none) means no mutation annotation, not confirmed wild-type protein. "
+        "Only unannotated records are kept by default; annotated variants can be selected "
+        "using their exact annotation in the sidebar.",
     ),
     "potential_duplicate": (
         "ChEMBL duplicate flag",
@@ -245,12 +260,21 @@ def lookup(target_id: str, types: tuple[str, ...]) -> tuple[dict[str, Any], str,
 
 
 @st.cache_data(ttl=86_400, show_spinner=False)
+def _fetch_cached(target_id: str, types: tuple[str, ...]) -> list[dict[str, Any]]:
+    with client() as c:
+        return c.activities(target_id, types)
+
+
 def fetch(
     target_id: str,
     types: tuple[str, ...],
     _progress: Callable[[int, int], None] | None = None,
 ) -> list[dict[str, Any]]:
-    # The underscore excludes this transient UI callback from Streamlit's cache key.
+    if _progress is None:
+        return _fetch_cached(target_id, types)
+    # Progress updates refer to UI blocks outside this function. Streamlit
+    # must not record/replay them from a cached call; ChEMBL's release-keyed
+    # disk cache still avoids downloading records again during recuration.
     with client() as c:
         return c.activities(target_id, types, progress=_progress)
 
@@ -495,9 +519,7 @@ def run_curation_stage(
     curation = curate_chembl(records, params, progress=on_standardize_progress)
     curation_seconds = perf_counter() - curation_started
     if on_status is not None:
-        on_status(
-            f"Curated {len(curation.table):,} compounds in {curation_seconds:.1f}s."
-        )
+        on_status(f"Curated {len(curation.table):,} compounds in {curation_seconds:.1f}s.")
     target = {
         "target_chembl_id": target_id,
         "pref_name": target_name,
@@ -527,6 +549,30 @@ def run_property_stage(curation: CurationResult) -> PropertyStage:
     else:
         skipped["profile"] = "Only one activity group is present, so no group comparison ran."
     return PropertyStage(table, profile, property_pca(table), skipped)
+
+
+@st.cache_data(max_entries=4, show_spinner=False)
+def run_structural_space(table: pd.DataFrame, n_neighbors: int, min_dist: float) -> StructuralSpace:
+    return ecfp4_umap(table, n_neighbors=n_neighbors, min_dist=min_dist)
+
+
+def descriptor_controls(prefix: str) -> tuple[str, ...]:
+    preset = st.selectbox(
+        "Descriptor preset", list(DESCRIPTOR_PRESETS), index=1, key=f"{prefix}_preset"
+    )
+    chosen = st.multiselect(
+        "Descriptors to include",
+        list(ALL_2D),
+        default=list(DESCRIPTOR_PRESETS[preset]),
+        key=f"{prefix}_descriptors_{preset}",
+        help="Choose named 2D descriptors. No 3D conformers are generated.",
+    )
+    st.caption(
+        f"{len(chosen)} selected / {len(ALL_2D)} available. Missing values are median-imputed "
+        "using training rows only. Constants and correlated columns are filtered inside ML folds. "
+        "Selecting descriptors after inspecting test performance would bias that test."
+    )
+    return tuple(chosen)
 
 
 def run_scaffold_stage(curation: CurationResult) -> ScaffoldStage:
@@ -596,7 +642,8 @@ def run_ml_stage(
             drop_intermediate=drop_intermediate,
         )
     features = params.model.features
-    X = fingerprint_matrix(
+    X = model_matrix(table["smiles"].tolist(), features)
+    domain_X = fingerprint_matrix(
         table["smiles"].tolist(), features.fingerprint, ecfp_bits=features.ecfp_bits
     )
     years = table["document_year"].tolist()
@@ -628,9 +675,7 @@ def run_ml_stage(
     )
     selected = regression_result or models
     assert selected is not None
-    filt = VarianceCorrelationFilter(
-        features.variance_threshold, features.correlation_threshold
-    ).fit(X[selected.train_index])
+    filt = feature_filter(features).fit(X[selected.train_index])
     domain = pca_bounding_box(
         filt.transform(X[selected.train_index]), filt.transform(X[selected.test_index])
     )
@@ -638,11 +683,11 @@ def run_ml_stage(
     test_predictions = pd.DataFrame()
     cliff_performance = pd.DataFrame()
     regression_test_predictions = (
-        regression_error_profile(table, X, regression_result)
+        regression_error_profile(table, domain_X, regression_result)
         if regression_result is not None
         else pd.DataFrame()
     )
-    if models is not None and regression_result is not None and landscape is not None:
+    if regression_result is not None and landscape is not None:
         test_predictions, cliff_performance = _cliff_model_errors(
             table, landscape.landscapes, models, regression_result
         )
@@ -654,16 +699,17 @@ def run_ml_stage(
         )
         bundle = PredictionBundle(
             algorithm=regression_result.best_algorithm,
-            features=features,
+            features=resolved_features(features),
             feature_filter=deploy_filter,
             estimator=deploy_model,
-            train_fingerprints=X,
-            similarity_threshold=similarity_domain_threshold(X),
+            train_fingerprints=domain_X,
+            similarity_threshold=similarity_domain_threshold(domain_X),
             train_ids=table["molecule_id"].astype(str).tolist(),
             train_smiles=table["smiles"].astype(str).tolist(),
             train_pactivity=table["pactivity"].astype(float).tolist(),
             canonical_tautomer=params.curation.canonical_tautomer,
             empirical_half_width=regression_result.empirical_half_width,
+            feature_names=model_feature_names(features),
         )
     return MlStage(
         params,
@@ -680,7 +726,15 @@ def run_ml_stage(
 
 
 def build_params(settings: dict[str, Any]) -> RunParams:
-    variant = None if settings["variant"] == "Wild-type only" else settings["variant"]
+    variant = settings["variant"]
+    if variant in ("No mutation annotation", "Wild-type only"):
+        variant = None
+    elif variant == "Specific mutation":
+        variant = settings.get("mutation", "").strip()
+        if not variant:
+            raise ValueError(
+                "Enter a mutation annotation or choose another protein-variant filter."
+            )
     if variant == "All (pooled)":
         variant = "any"
     return RunParams(
@@ -693,7 +747,13 @@ def build_params(settings: dict[str, Any]) -> RunParams:
             assay_ids=(settings["assay_id"],) if settings["assay_id"] else None,
             min_confidence_score=settings["min_confidence"] or None,
         ),
-        classes=ClassScheme(),
+        classes=ClassScheme(
+            bounds=(
+                ("potent", settings.get("potent_cutoff", 8.0)),
+                ("active", settings.get("active_cutoff", 7.0)),
+                ("intermediate", settings.get("intermediate_cutoff", 6.0)),
+            )
+        ),
     )
 
 
@@ -756,7 +816,7 @@ def histogram(table: pd.DataFrame, column: str) -> alt.Chart:
             color=alt.Color(
                 "group_label:N",
                 title="Group",
-                scale=alt.Scale(range=GROUP_COLORS),
+                scale=alt.Scale(domain=list(GROUP_LABELS.values()), range=GROUP_COLORS),
                 legend=alt.Legend(orient="top"),
             ),
             tooltip=[alt.Tooltip("count()", title="Molecules"), "group_label:N"],
@@ -767,7 +827,7 @@ def histogram(table: pd.DataFrame, column: str) -> alt.Chart:
 
 def pca_chart(results: RunResults | PropertyStage) -> alt.Chart:
     frame = results.pca.scores.copy()
-    frame["Group"] = ["Group 1" if g == 1 else "Group 2" for g in results.table["group"]]
+    frame["Activity class"] = results.table["activity_class"].to_numpy()
     frame["molecule"] = results.table["molecule_id"].to_numpy()
     frame["pactivity"] = results.table["pactivity"].to_numpy()
     var = results.pca.explained
@@ -778,14 +838,14 @@ def pca_chart(results: RunResults | PropertyStage) -> alt.Chart:
             x=alt.X("PC1:Q", title=f"PC1 ({var.iloc[0]:.1%} of variance)"),
             y=alt.Y("PC2:Q", title=f"PC2 ({var.iloc[1]:.1%} of variance)"),
             color=alt.Color(
-                "Group:N",
-                scale=alt.Scale(domain=["Group 1", "Group 2"], range=GROUP_COLORS),
+                "Activity class:N",
+                scale=alt.Scale(domain=list(CLASS_COLORS), range=list(CLASS_COLORS.values())),
                 legend=alt.Legend(orient="top"),
             ),
             tooltip=[
                 alt.Tooltip("molecule:N", title="Molecule"),
                 alt.Tooltip("pactivity:Q", title="Potency", format=".2f"),
-                "Group:N",
+                "Activity class:N",
             ],
         )
         .properties(height=420)
@@ -862,7 +922,10 @@ def show_overview(results: RunResults) -> None:
         )
         structure_grid(
             [
-                (r.scaffold, f"{r.n} molecules · {r.frac_group1:.0%} Group 1 · EF {r.ef:.2f}")
+                (
+                    r.scaffold,
+                    f"{r.n} molecules · {r.frac_group1:.0%} potent + active · EF {r.ef:.2f}",
+                )
                 for r in ranked.head(4).itertuples()
             ]
         )
@@ -882,10 +945,26 @@ def show_curation(results: RunResults | CurationStage) -> None:
     table = results.table
     cols = st.columns(4)
     cols[0].metric("Molecules", f"{len(table):,}")
-    cols[1].metric("Group 1 (potent + active)", f"{int((table['group'] == 1).sum()):,}")
-    cols[2].metric("Group 2", f"{int((table['group'] == 2).sum()):,}")
+    cols[1].metric("Retained measurements", f"{len(results.curation.evidence):,}")
+    cols[2].metric("Activity classes present", str(table["activity_class"].nunique()))
     cols[3].metric("Rejected structures", f"{len(results.curation.rejected):,}")
-
+    scheme = results.params.classes
+    bounds = dict(scheme.bounds)
+    variant = results.params.curation.variant
+    variant_label = (
+        "All mutation annotations pooled"
+        if variant == "any"
+        else f"Exact mutation annotation: {variant}"
+        if variant is not None
+        else "No mutation annotation (not confirmation of wild-type protein)"
+    )
+    st.caption(f"Applied protein-variant filter: {variant_label}.")
+    ranges = {
+        "potent": f"pActivity ≥ {bounds['potent']:g}",
+        "active": f"{bounds['active']:g} ≤ pActivity < {bounds['potent']:g}",
+        "intermediate": f"{bounds['intermediate']:g} ≤ pActivity < {bounds['active']:g}",
+        "inactive": f"pActivity < {bounds['intermediate']:g}",
+    }
     counts = (
         table["activity_class"]
         .value_counts()
@@ -893,22 +972,50 @@ def show_curation(results: RunResults | CurationStage) -> None:
         .rename_axis("activity_class")
         .reset_index(name="molecules")
     )
+    st.markdown("**Activity classes in this curated subset**")
+    for col, row in zip(st.columns(4), counts.itertuples(index=False), strict=True):
+        col.metric(row.activity_class.title(), f"{row.molecules:,}")
+        col.caption(ranges[row.activity_class])
+    st.caption(
+        "pActivity = −log10(molar concentration); higher means more potent. "
+        "These are user-defined potency bins, not confirmed biological activity calls. "
+        "Change Activity class cutoffs in the sidebar and rerun curation. "
+        "Classes with zero compounds are shown too."
+    )
+    counts["range"] = counts["activity_class"].map(ranges)
     st.altair_chart(
         alt.Chart(counts)
         .mark_bar(cornerRadiusEnd=6)
         .encode(
-            x=alt.X("activity_class:N", title="Curated activity class", sort=list(CLASS_COLORS)),
-            y=alt.Y("molecules:Q", title="Compounds"),
+            x=alt.X("molecules:Q", title="Compounds"),
+            y=alt.Y(
+                "activity_class:N",
+                title=None,
+                sort=list(CLASS_COLORS),
+                axis=alt.Axis(labelAngle=0),
+            ),
             color=alt.Color(
                 "activity_class:N",
                 scale=alt.Scale(domain=list(CLASS_COLORS), range=list(CLASS_COLORS.values())),
                 legend=None,
             ),
-            tooltip=["activity_class:N", "molecules:Q"],
+            tooltip=["activity_class:N", "molecules:Q", "range:N"],
         )
-        .properties(height=150),
+        .properties(height=190),
         width="stretch",
     )
+    with st.expander("What do enrichment groups 1 and 2 mean?"):
+        st.caption(
+            "Group 1 = potent + active; Group 2 = intermediate + inactive, not inactive alone. "
+            "These pooled groups are used for enrichment comparisons; classification ML "
+            "uses the individual activity classes and regression uses continuous pActivity."
+        )
+        group_cols = st.columns(2)
+        for col, group in zip(group_cols, (1, 2), strict=True):
+            col.metric(
+                f"Group {group} · {GROUP_LABELS[group]}",
+                f"{int((table['group'] == group).sum()):,}",
+            )
 
     st.caption(
         "Every record that left the dataset, and the step that removed it. These choices "
@@ -984,7 +1091,7 @@ def show_properties(results: RunResults | PropertyStage) -> None:
     from sarscope.analysis.descriptors import CORE_DESCRIPTORS
 
     table = results.table.copy()
-    table["group_label"] = ["Group 1" if g == 1 else "Group 2" for g in table["group"]]
+    table["group_label"] = table["group"].map(GROUP_LABELS)
     st.caption(
         "Distributions by activity group, then the same six properties reduced to two "
         "components. Hover any point for the molecule behind it."
@@ -999,7 +1106,9 @@ def show_properties(results: RunResults | PropertyStage) -> None:
     else:
         with st.expander("Descriptor statistics and Mann-Whitney p-values"):
             st.caption("Kurtosis is Fisher excess kurtosis, so a normal distribution scores 0.")
-            st.dataframe(results.profile.stats.reset_index(), hide_index=True, width="stretch")
+            stats = results.profile.stats.reset_index()
+            stats["group"] = stats["group"].map(GROUP_LABELS)
+            st.dataframe(stats, hide_index=True, width="stretch")
             st.dataframe(
                 results.profile.p_values.rename("p_value").rename_axis("property").reset_index(),
                 hide_index=True,
@@ -1027,6 +1136,63 @@ def show_properties(results: RunResults | PropertyStage) -> None:
         )
 
 
+def show_structural_space(space: StructuralSpace, neighbors: int, min_dist: float) -> None:
+    settings = space.settings
+    st.caption(
+        f"Displayed run: {settings['plotted_molecules']:,} / {settings['total_molecules']:,} "
+        f"compounds plotted (sampled {settings['sampled_molecules']:,}) · "
+        f"neighbors {settings['n_neighbors']} · minimum distance "
+        f"{settings['min_dist']} · seed {settings['seed']}."
+    )
+    expected_neighbors = min(neighbors, len(space.points) - 1)
+    missing = int(settings["unembedded_molecules"])
+    if missing:
+        st.warning(
+            f"{missing:,} sampled compounds have no finite UMAP position (for example, "
+            "disconnected fingerprint neighborhoods). They are omitted from the plot, "
+            "not placed at an arbitrary location; the coordinates CSV flags them as unembedded."
+        )
+    if settings["n_neighbors"] != expected_neighbors or settings["min_dist"] != min_dist:
+        st.info("UMAP controls have changed. Rerun UMAP to update the displayed projection.")
+    color_by = st.radio(
+        "Color structural space by", ["Activity class", "Continuous potency"], horizontal=True
+    )
+    color = (
+        alt.Color(
+            "activity_class:N",
+            title="Activity class",
+            scale=alt.Scale(domain=list(CLASS_COLORS), range=list(CLASS_COLORS.values())),
+        )
+        if color_by == "Activity class"
+        else alt.Color("pactivity:Q", title="pActivity", scale=alt.Scale(scheme="viridis"))
+    )
+    chart = (
+        alt.Chart(space.points.loc[space.points["embedded"]])
+        .mark_circle(size=35, opacity=0.7)
+        .encode(
+            x=alt.X("UMAP1:Q", title="UMAP 1 (arbitrary units)"),
+            y=alt.Y("UMAP2:Q", title="UMAP 2 (arbitrary units)"),
+            color=color,
+            tooltip=["molecule_id:N", "activity_class:N", alt.Tooltip("pactivity:Q", format=".2f")],
+        )
+        .properties(height=440)
+        .interactive()
+    )
+    st.altair_chart(chart, width="stretch")
+    st.download_button(
+        "Download UMAP coordinates",
+        space.points.to_csv(index=False),
+        file_name="ecfp4_umap.csv",
+        mime="text/csv",
+    )
+    st.download_button(
+        "Download UMAP settings",
+        json.dumps(settings, indent=2),
+        file_name="ecfp4_umap_settings.json",
+        mime="application/json",
+    )
+
+
 def show_scaffolds(results: RunResults | ScaffoldStage) -> None:
     st.caption(
         "Ns scaffolds, Nss of them carrying a single molecule, Ncsk cyclic skeletons. "
@@ -1037,7 +1203,7 @@ def show_scaffolds(results: RunResults | ScaffoldStage) -> None:
 
     st.markdown("**Scaffold enrichment**")
     st.caption(
-        "EF is the Group 1 fraction within a scaffold over the Group 1 fraction of the whole "
+        "EF is the potent + active fraction within a scaffold divided by that of the whole "
         "dataset. A single active molecule scores the maximum EF, so the table is sorted by "
         "ef_lower — the Wilson lower bound, which requires evidence."
     )
@@ -1049,7 +1215,7 @@ def show_scaffolds(results: RunResults | ScaffoldStage) -> None:
         [
             (
                 row.scaffold,
-                f"{row.n} molecules · {row.frac_group1:.0%} Group 1 · EF {row.ef:.2f}",
+                f"{row.n} molecules · {row.frac_group1:.0%} potent + active · EF {row.ef:.2f}",
             )
             for row in ranked.head(8).itertuples()
         ]
@@ -1061,7 +1227,9 @@ def show_scaffolds(results: RunResults | ScaffoldStage) -> None:
             width="stretch",
             column_config={
                 "scaffold": st.column_config.TextColumn("Scaffold (SMILES)", width="large"),
-                "frac_group1": st.column_config.NumberColumn("Group 1 fraction", format="percent"),
+                "frac_group1": st.column_config.NumberColumn(
+                    "Potent + active fraction", format="percent"
+                ),
                 "ef": st.column_config.NumberColumn("EF", format="%.3f"),
                 "ef_lower": st.column_config.NumberColumn("EF lower bound", format="%.3f"),
             },
@@ -1137,8 +1305,15 @@ def show_rgroups(results: RunResults | ScaffoldStage) -> None:
 def show_landscape(results: RunResults | LandscapeStage) -> None:
     st.caption(
         "Every pair of molecules, placed by structural similarity and potency difference. "
-        "Cliffs are similar pairs with very different potency: the pairs a model gets wrong "
-        "and a chemist learns from."
+        "Cliffs are similar pairs with very different potency: they can challenge models "
+        "and reveal sensitive SAR. Inspect assay context before interpreting a cliff."
+    )
+    params = results.params.landscape
+    st.caption(
+        f"Applied thresholds: Tanimoto > {params.similarity_threshold:g} and "
+        f"|ΔpActivity| > {params.activity_threshold:g} "
+        f"(>{10**params.activity_threshold:g}-fold potency difference). "
+        "These are the settings used for this result; slider changes require rerunning analysis."
     )
     tabs = st.tabs(list(results.landscapes))
     for tab, sas in zip(tabs, results.landscapes.values(), strict=True):
@@ -1158,7 +1333,51 @@ def show_landscape(results: RunResults | LandscapeStage) -> None:
                 "The two molecules below are structurally similar but differ sharply in "
                 "potency. What changed between them is the SAR."
             )
-            top = sas.cliffs.head(30)
+            query = st.text_input(
+                "Filter pairs by molecule ID", key=f"cliff_search_{sas.fingerprint}"
+            ).strip()
+            sort_order = st.selectbox(
+                "Sort cliff pairs",
+                ["Largest potency difference", "Highest similarity"],
+                key=f"cliff_sort_{sas.fingerprint}",
+            )
+            filtered = sas.cliffs
+            if query:
+                matches = filtered["id_a"].astype(str).str.contains(
+                    query, case=False, regex=False
+                ) | filtered["id_b"].astype(str).str.contains(query, case=False, regex=False)
+                filtered = filtered.loc[matches]
+            filtered = filtered.sort_values(
+                "delta" if sort_order == "Largest potency difference" else "similarity",
+                ascending=False,
+                kind="stable",
+            )
+            if filtered.empty:
+                st.info("No cliff pairs match that molecule ID. Clear the filter to see all pairs.")
+                continue
+            pages = (len(filtered) + 24) // 25
+            page_key = f"cliff_page_{sas.fingerprint}"
+            filter_key = f"cliff_filter_{sas.fingerprint}"
+            if st.session_state.get(filter_key) != (query, sort_order, len(filtered)):
+                st.session_state[page_key] = 1
+                st.session_state[filter_key] = (query, sort_order, len(filtered))
+            page = int(
+                st.number_input(
+                    "Cliff-pair page",
+                    min_value=1,
+                    max_value=pages,
+                    value=1,
+                    step=1,
+                    key=page_key,
+                )
+            )
+            start = (page - 1) * 25
+            top = filtered.iloc[start : start + 25]
+            st.caption(
+                f"Showing pairs {start + 1}–{start + len(top)} of {len(filtered):,} matches "
+                f"({len(sas.cliffs):,} total cliffs). Every pair is accessible; "
+                "choose a page, then a pair to draw its two structures."
+            )
             options = [
                 f"{r.id_a} / {r.id_b} — similarity {r.similarity:.2f}, "
                 f"delta {r.delta:.2f} log units"
@@ -1166,6 +1385,7 @@ def show_landscape(results: RunResults | LandscapeStage) -> None:
             ]
             picked = st.selectbox("Cliff pair", options, key=f"cliff_{sas.fingerprint}")
             pair = top.iloc[options.index(picked)]
+            st.dataframe(top, hide_index=True, width="stretch")
             smiles = results.table.set_index("molecule_id")["smiles"]
             potency = results.table.set_index("molecule_id")["pactivity"]
             left, right = st.columns(2)
@@ -1347,6 +1567,10 @@ def show_models(results: RunResults | MlStage) -> None:
             "boundaries. The winner is selected by cross-validated RMSE."
         )
         st.dataframe(results.regression.scores, hide_index=True, width="stretch")
+        st.caption(
+            "The mean_baseline row predicts the training-fold mean and is a reference, not "
+            "an additional tuned model. Requested regressors are selected by training CV only."
+        )
         st.markdown(
             f"Best regressor by cross-validated RMSE: **{results.regression.best_algorithm}**"
         )
@@ -1364,6 +1588,7 @@ def show_models(results: RunResults | MlStage) -> None:
             )
         if not results.regression_test_predictions.empty:
             profile = results.regression_test_predictions
+            show_regression_diagnostics(results.regression, profile)
             st.markdown("**Error versus nearest training analogue**")
             chart = (
                 alt.Chart(profile)
@@ -1375,8 +1600,15 @@ def show_models(results: RunResults | MlStage) -> None:
                 )
             )
             st.altair_chart(chart, width="stretch")
+            st.dataframe(novelty_summary(profile), hide_index=True, width="stretch")
             with st.expander("Held-out predictions and novelty"):
                 st.dataframe(profile, hide_index=True, width="stretch")
+            st.download_button(
+                "Download held-out regression predictions",
+                profile.to_csv(index=False),
+                file_name="regression_test_predictions.csv",
+                mime="text/csv",
+            )
     if not results.cliff_model_performance.empty:
         st.markdown("**Held-out error on cliff compounds versus the rest**")
         st.dataframe(results.cliff_model_performance, hide_index=True, width="stretch")
@@ -1407,9 +1639,11 @@ def report_zip(results: RunResults) -> bytes:
 WORKFLOW_KEYS = (
     "curation_stage",
     "property_stage",
+    "structural_space",
     "scaffold_stage",
     "landscape_stage",
     "ml_stage",
+    "regression_bootstrap",
     "explanation_stage",
     "report_zip",
     "comparison_stage",
@@ -1423,6 +1657,132 @@ def clear_workflow(*, keep_curation: bool = False) -> None:
         if keep_curation and key == "curation_stage":
             continue
         st.session_state.pop(key, None)
+
+
+def show_regression_diagnostics(result: RegressionResult, profile: pd.DataFrame) -> None:
+    summary = regression_summary(result)
+    values = summary.set_index("metric")["value"]
+    metrics = st.columns(4)
+    metrics[0].metric("Held-out MAE", f"{values['Test MAE']:.2f} log units")
+    metrics[1].metric("Within 3-fold", f"{values['Within 3-fold']:.1%}")
+    metrics[2].metric("Within 10-fold", f"{values['Within 10-fold']:.1%}")
+    metrics[3].metric("Typical fold error", f"{values['Typical fold error']:.1f}×")
+    if values["RMSE gain versus baseline"] <= 0:
+        st.warning(
+            "This model did not improve held-out RMSE over predicting the training mean. "
+            "Treat its predictions as exploratory; do not use test results to retune and "
+            "then claim the same test as independent validation."
+        )
+    plotted = profile
+    if len(profile) > 5000:
+        plotted = profile.sample(5000, random_state=42)
+        st.caption(
+            "Plots sample 5,000 test compounds; metrics and downloads use the full test set."
+        )
+    low = float(min(profile["pactivity"].min(), profile["predicted_pactivity"].min())) - 0.2
+    high = float(max(profile["pactivity"].max(), profile["predicted_pactivity"].max())) + 0.2
+    points = (
+        alt.Chart(plotted)
+        .mark_circle(size=40, opacity=0.65)
+        .encode(
+            x=alt.X("pactivity:Q", title="Measured pActivity", scale=alt.Scale(domain=[low, high])),
+            y=alt.Y(
+                "predicted_pactivity:Q",
+                title="Predicted pActivity",
+                scale=alt.Scale(domain=[low, high]),
+            ),
+            color=alt.Color(
+                "activity_class:N",
+                scale=alt.Scale(domain=list(CLASS_COLORS), range=list(CLASS_COLORS.values())),
+            ),
+            tooltip=["molecule_id:N", "pactivity:Q", "predicted_pactivity:Q", "absolute_error:Q"],
+        )
+    )
+    guides = [
+        alt.Chart(pd.DataFrame({"x": [low, high], "y": [low + offset, high + offset]}))
+        .mark_line(color=color, strokeDash=dashes)
+        .encode(x="x:Q", y="y:Q")
+        for offset, color, dashes in [
+            (0, TEAL, [1, 0]),
+            (np.log10(3), ORANGE, [5, 4]),
+            (-np.log10(3), ORANGE, [5, 4]),
+        ]
+    ]
+    st.markdown("**Measured versus predicted · held-out compounds**")
+    st.caption(
+        "Mint is perfect prediction; dashed amber lines mark ±3-fold error, not confidence bands."
+    )
+    st.altair_chart(alt.layer(*guides, points).properties(height=420), width="stretch")
+    left, right = st.columns(2)
+    residual = (
+        alt.Chart(plotted)
+        .mark_circle(size=30, opacity=0.6, color=PURPLE)
+        .encode(
+            x=alt.X("predicted_pactivity:Q", title="Predicted pActivity"),
+            y=alt.Y("residual:Q", title="Measured − predicted (log units)"),
+            tooltip=["molecule_id:N", "residual:Q"],
+        )
+    )
+    zero = alt.Chart(pd.DataFrame({"residual": [0.0]})).mark_rule(color=TEAL).encode(y="residual:Q")
+    left.altair_chart((residual + zero).properties(height=260), width="stretch")
+    right.altair_chart(
+        alt.Chart(plotted)
+        .mark_bar(color=ORANGE)
+        .encode(
+            x=alt.X("residual:Q", bin=alt.Bin(maxbins=35), title="Measured − predicted"),
+            y=alt.Y("count()", title="Test compounds"),
+        )
+        .properties(height=260),
+        width="stretch",
+    )
+    with st.expander("Regression metrics and interpretation"):
+        st.dataframe(summary, hide_index=True, width="stretch")
+        st.download_button(
+            "Download regression diagnostic metrics",
+            summary.to_csv(index=False),
+            file_name="regression_diagnostics.csv",
+            mime="text/csv",
+        )
+    st.markdown("**Optional uncertainty on held-out metrics**")
+    st.caption(
+        "Scaffold-block bootstrap resamples whole held-out chemical series and compares "
+        "model and baseline on the same draws. These approximate 95% intervals describe "
+        "this fitted model/test population; they are not prediction intervals or protection "
+        "against distribution shift. Few scaffold blocks make them unstable."
+    )
+    bootstrap_key = hashlib.sha256(
+        result.test_predictions.tobytes()
+        + result.test_truth.tobytes()
+        + (
+            result.baseline_test_predictions.tobytes()
+            if result.baseline_test_predictions is not None
+            else b""
+        )
+        + profile["murcko"].fillna("").astype(str).str.cat(sep="|").encode()
+    ).hexdigest()
+    if st.button("Estimate metric confidence intervals", key="run_regression_bootstrap"):
+        try:
+            with st.spinner("Resampling held-out scaffold blocks (500 repeats)…"):
+                st.session_state["regression_bootstrap"] = (
+                    bootstrap_key,
+                    bootstrap_regression(result, profile["murcko"].tolist()),
+                )
+        except ValueError as exc:
+            st.info(str(exc))
+    cached = st.session_state.get("regression_bootstrap")
+    if cached is not None and cached[0] == bootstrap_key:
+        intervals = cached[1]
+        if int(intervals.iloc[0]["scaffold_blocks"]) < 10:
+            st.warning(
+                "Fewer than 10 held-out scaffold blocks: these intervals can be very unstable."
+            )
+        st.dataframe(intervals, hide_index=True, width="stretch")
+        st.download_button(
+            "Download metric confidence intervals",
+            intervals.to_csv(index=False),
+            file_name="regression_bootstrap.csv",
+            mime="text/csv",
+        )
 
 
 def importance_chart(frame: pd.DataFrame, title: str) -> alt.Chart:
@@ -1550,7 +1910,20 @@ def sidebar() -> dict[str, Any]:
         with st.expander("Curation", expanded=True):
             types = st.multiselect("Activity types", ACTIVITY_TYPES, default=["IC50"])
             variant = st.selectbox(
-                "Protein variant", ["Wild-type only", "V600E", "All (pooled)"], index=0
+                "Protein variant",
+                ["No mutation annotation", "Specific mutation", "All (pooled)"],
+                index=0,
+            )
+            mutation = ""
+            if variant == "Specific mutation":
+                mutation = st.text_input(
+                    "Exact mutation annotation",
+                    help="Matches ChEMBL assay_variant_mutation exactly for any target. "
+                    "Inspect raw fields to see the available annotations.",
+                ).strip()
+            st.caption(
+                "No mutation annotation means ChEMBL has not annotated a mutation; "
+                "it does not establish wild-type protein. Pooling annotations can mix variants."
             )
             censored = st.checkbox("Keep censored values (>, <)", value=False)
             max_year = st.number_input(
@@ -1585,16 +1958,46 @@ def sidebar() -> dict[str, Any]:
                 "measurements again from those databases.",
             )
 
+        with st.expander("Activity class cutoffs"):
+            st.caption(
+                "User-defined bins on the pActivity = −log10(M) scale; higher is more potent. "
+                "Defaults 8 / 7 / 6 correspond to 10 / 100 / 1000 nM. "
+                "These are conventions, not target-specific biological activity criteria."
+            )
+            potent_cutoff = st.number_input(
+                "Potent minimum pActivity", min_value=0.0, max_value=15.0, value=8.0, step=0.1
+            )
+            active_cutoff = st.number_input(
+                "Active minimum pActivity", min_value=0.0, max_value=15.0, value=7.0, step=0.1
+            )
+            intermediate_cutoff = st.number_input(
+                "Intermediate minimum pActivity",
+                min_value=0.0,
+                max_value=15.0,
+                value=6.0,
+                step=0.1,
+            )
+            st.caption(
+                "Below the intermediate minimum = inactive. "
+                "Enrichment Group 1 = potent + active; Group 2 = intermediate + inactive. "
+                "ML uses the four class labels, not these two enrichment groups. "
+                "Rerun curation after changing cutoffs; regression still uses continuous values."
+            )
+
         st.caption(f"SARscope {__version__} · [source](https://github.com/yboulaamane/sarscope)")
 
     return {
         "types": types,
         "variant": variant,
+        "mutation": mutation,
         "censored": censored,
         "max_year": None if max_year >= 2030 else int(max_year),
         "assay_id": assay_id,
         "min_confidence": min_confidence,
         "source_ids": tuple(origin_labels[name] for name in chosen_origins) or None,
+        "potent_cutoff": float(potent_cutoff),
+        "active_cutoff": float(active_cutoff),
+        "intermediate_cutoff": float(intermediate_cutoff),
     }
 
 
@@ -1765,6 +2168,14 @@ def main() -> None:
         show_pubchem_screen()
         return
     settings = sidebar()
+    if settings["variant"] == "Specific mutation" and not settings["mutation"]:
+        st.info("Enter an exact mutation annotation in the sidebar, or choose another filter.")
+        return
+    if not settings["potent_cutoff"] > settings["active_cutoff"] > settings["intermediate_cutoff"]:
+        st.error(
+            "Class cutoffs must be ordered: potent > active > intermediate. Adjust the sidebar."
+        )
+        return
 
     st.title("SARscope")
     st.markdown(
@@ -1841,6 +2252,7 @@ def main() -> None:
         target_id,
         tuple(settings["types"]),
         repr(base_params.curation),
+        repr(base_params.classes),
         release,
         repr(discovery),
     )
@@ -1953,7 +2365,8 @@ def main() -> None:
     with tabs[1]:
         st.caption(
             "Compute named RDKit physicochemical descriptors, compare activity groups and "
-            "project the compounds into standardized descriptor PCA space."
+            "project the compounds into standardized descriptor PCA space. "
+            "For structural neighborhoods, run ECFP4/Jaccard UMAP separately below."
         )
         if st.button("Run chemical-space analysis", key="run_properties"):
             with st.spinner("Calculating descriptors and PCA…"):
@@ -1964,6 +2377,37 @@ def main() -> None:
             st.info("This step has not run.")
         else:
             show_properties(properties)
+        st.markdown("**Structural chemical space · ECFP4 UMAP**")
+        st.caption(
+            "Binary Morgan radius-2 fingerprints (2048 bits), Jaccard distance = 1 − Tanimoto. "
+            "No activity labels enter the embedding. Up to 2,000 compounds are uniformly "
+            "sampled with seed 42; larger curated datasets remain intact for other analyses. "
+            "UMAP is exploratory: 2D gaps and clusters are not potency or applicability evidence. "
+            "The first run may take longer while numerical kernels compile."
+        )
+        controls = st.columns(2)
+        neighbors = controls[0].slider("UMAP neighbors", 2, 50, 15)
+        min_dist = controls[1].slider("UMAP minimum distance", 0.0, 1.0, 0.1, 0.05)
+        umap_available = find_spec("umap") is not None
+        if not umap_available:
+            st.info(
+                "UMAP needs umap-learn installed on the host. Descriptor PCA remains available."
+            )
+        if st.button(
+            "Run ECFP4 UMAP",
+            key="run_umap",
+            disabled=not umap_available or len(curation.table) < 3,
+        ):
+            try:
+                with st.spinner("Embedding ECFP4 fingerprints with Jaccard distance…"):
+                    st.session_state["structural_space"] = run_structural_space(
+                        curation.table, neighbors, min_dist
+                    )
+            except (ImportError, ValueError) as exc:
+                st.error(f"UMAP stopped: {exc}")
+        space: StructuralSpace | None = st.session_state.get("structural_space")
+        if space is not None:
+            show_structural_space(space, neighbors, min_dist)
 
     with tabs[2]:
         st.caption(
@@ -2102,7 +2546,52 @@ def main() -> None:
                     "Potent, active and inactive remain distinct classes; continuous regression "
                     "also uses this reduced set if selected."
                 )
-            algorithms = st.multiselect("Algorithms", FAST_ALGORITHMS, default=["random_forest"])
+            algorithms = (
+                st.multiselect(
+                    "Classification algorithms", FAST_ALGORITHMS, default=["random_forest"]
+                )
+                if "Activity-class classification" in tasks
+                else []
+            )
+            regression_algorithms = (
+                st.multiselect(
+                    "Regression algorithms",
+                    [
+                        "random_forest",
+                        "extra_trees",
+                        "gradient_boosting",
+                        "nearest_neighbors",
+                        "svr",
+                        "ridge",
+                        "neural_net",
+                    ],
+                    default=["random_forest", "ridge"],
+                )
+                if "Continuous pActivity regression" in tasks
+                else []
+            )
+            representations = {
+                "Fingerprints": "fingerprint",
+                "RDKit 2D descriptors": "rdkit2d",
+                "Fingerprints + RDKit 2D": "hybrid",
+                "Molfeat RDKit 2D (optional)": "molfeat2d",
+            }
+            representation_label = st.selectbox("Molecular representation", list(representations))
+            representation = representations[representation_label]
+            descriptor_names = descriptor_controls("ml") if representation != "fingerprint" else ()
+            molfeat_missing = representation == "molfeat2d" and find_spec("molfeat") is None
+            if molfeat_missing:
+                st.info(
+                    "Molfeat is an optional local/server extra: pip install 'sarscope[molfeat]'. "
+                    "It requires PyTorch, so it is not installed by default on Community Cloud. "
+                    "Native RDKit 2D gives you named descriptors without that dependency."
+                )
+            if representation != "fingerprint":
+                st.caption(
+                    "Descriptor/hybrid ML uses training-fold median imputation, standardization, "
+                    "constant removal and correlation filtering. Structural similarity and "
+                    "analogue-domain flags still use binary fingerprints, not descriptor Tanimoto."
+                )
             ml_cols = st.columns(3)
             model_fp = ml_cols[0].selectbox("Fingerprint", ["ecfp4", "maccs"])
             split = ml_cols[1].selectbox(
@@ -2156,14 +2645,24 @@ def main() -> None:
                 help="The audit uses a random split, so its score gap is not comparable "
                 "with a time- or origin-based holdout.",
             )
-            if st.button("Run selected ML", key="run_ml", type="primary"):
-                if not tasks or not algorithms or (split == "source" and source_test_id is None):
+            if st.button("Run selected ML", key="run_ml", type="primary", disabled=molfeat_missing):
+                if (
+                    not tasks
+                    or ("Activity-class classification" in tasks and not algorithms)
+                    or ("Continuous pActivity regression" in tasks and not regression_algorithms)
+                    or (split == "source" and source_test_id is None)
+                    or (representation != "fingerprint" and not descriptor_names)
+                ):
                     st.error("Choose at least one task and one algorithm.")
                 else:
                     model_params = ModelParams(
-                        features=FeatureParams(fingerprint=cast(FingerprintName, model_fp)),
+                        features=FeatureParams(
+                            fingerprint=cast(FingerprintName, model_fp),
+                            representation=cast(Any, representation),
+                            descriptor_names=descriptor_names,
+                        ),
                         algorithms=tuple(algorithms),
-                        regression_algorithms=tuple(algorithms),
+                        regression_algorithms=tuple(regression_algorithms),
                         split=cast(SplitStrategy, split),
                         time_cutoff=int(time_cutoff),
                         source_test_id=source_test_id,
@@ -2179,16 +2678,20 @@ def main() -> None:
                         landscape=landscape_for_params,
                         model=model_params,
                     )
-                    with st.spinner("Running only the selected models and validation…"):
-                        st.session_state["ml_stage"] = run_ml_stage(
-                            scaffolds,
-                            curation.curation,
-                            run_params,
-                            classification="Activity-class classification" in tasks,
-                            regression="Continuous pActivity regression" in tasks,
-                            landscape=landscape,
-                            drop_intermediate=drop_intermediate,
-                        )
+                    try:
+                        with st.spinner("Running only the selected models and validation…"):
+                            st.session_state["ml_stage"] = run_ml_stage(
+                                scaffolds,
+                                curation.curation,
+                                run_params,
+                                classification="Activity-class classification" in tasks,
+                                regression="Continuous pActivity regression" in tasks,
+                                landscape=landscape,
+                                drop_intermediate=drop_intermediate,
+                            )
+                    except (ValueError, ImportError) as exc:
+                        st.session_state.pop("ml_stage", None)
+                        st.error(f"ML stopped: {exc}")
                     st.session_state.pop("explanation_stage", None)
                     st.session_state.pop("report_zip", None)
                     st.session_state.pop("uploaded_predictions", None)
@@ -2197,6 +2700,17 @@ def main() -> None:
             if ml is None:
                 st.info("No ML run yet.")
             else:
+                if (
+                    ml.params.model.features.representation != representation
+                    or ml.params.model.features.descriptor_names != descriptor_names
+                    or (
+                        "Continuous pActivity regression" in tasks
+                        and ml.params.model.regression_algorithms != tuple(regression_algorithms)
+                    )
+                ):
+                    st.warning(
+                        "ML feature/model choices changed. Rerun ML to update these results."
+                    )
                 if ml.drop_intermediate != drop_intermediate:
                     st.warning(
                         "ML selection changed. Press Run selected ML to update these results."
@@ -2221,6 +2735,11 @@ def main() -> None:
         if ml is None or (ml.regression is None and ml.models is None):
             st.info("Run ML first to establish the untouched train/test partition.")
         else:
+            explanation_names = descriptor_controls("explain")
+            if len(explanation_names) > 50:
+                st.info(
+                    "Browser explanations are limited to 50 selected descriptors; choose a subset."
+                )
             explain_model = st.radio(
                 "Descriptor explanation model",
                 ["random_forest", "mlp"],
@@ -2236,10 +2755,22 @@ def main() -> None:
             )
             if not shap_available:
                 st.caption(
-                    "Optional SHAP is not installed on this host; permutation importance "
-                    "remains available."
+                    "SHAP works in Streamlit, but the shap Python package is missing on this "
+                    "deployment. Install requirements.txt and redeploy to enable TreeSHAP. "
+                    "Permutation importance remains available."
                 )
-            if st.button("Run descriptor explanation", key="run_explanation"):
+            else:
+                st.caption(
+                    "TreeSHAP attributes the descriptor Random Forest's predictions to individual "
+                    "properties. It runs only when selected, on at most 100 held-out compounds; "
+                    "it explains model behavior, not biological causation. MLP uses permutation "
+                    "importance instead."
+                )
+            if st.button(
+                "Run descriptor explanation",
+                key="run_explanation",
+                disabled=not explanation_names or len(explanation_names) > 50,
+            ):
                 selected = ml.regression or ml.models
                 assert selected is not None
                 with st.spinner("Fitting and explaining the descriptor model…"):
@@ -2250,6 +2781,7 @@ def main() -> None:
                         algorithm=explain_model,
                         permutation_repeats=repeats,
                         compute_shap=use_shap,
+                        descriptor_names=explanation_names,
                     )
             explanation: DescriptorExplanation | None = st.session_state.get("explanation_stage")
             if explanation is None:

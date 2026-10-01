@@ -7,7 +7,7 @@ import pytest
 
 from sarscope.analysis.descriptors import CORE_DESCRIPTORS
 from sarscope.curate import CURATED_COLUMNS, CurationResult, CurationStep, curate_chembl
-from sarscope.params import LandscapeParams, ModelParams, RunParams
+from sarscope.params import FeatureParams, LandscapeParams, ModelParams, RunParams
 from sarscope.pipeline import _modelling_blocked, analyse
 from sarscope.report import write_report
 
@@ -97,6 +97,9 @@ def test_report_folder(curation, tmp_path):
         "tables/model_class_metrics.csv",
         "tables/model_confusion_matrix.csv",
         "tables/regression_scores.csv",
+        "tables/regression_diagnostics.csv",
+        "tables/regression_novelty_summary.csv",
+        "tables/model_feature_schema.csv",
         "tables/model_test_predictions.csv",
         "tables/model_split_manifest.csv",
         "tables/regression_test_predictions.csv",
@@ -105,6 +108,8 @@ def test_report_folder(curation, tmp_path):
         "model.joblib",
         "figures/chemical_space.png",
         "figures/cliffs_maccs.png",
+        "figures/regression_parity.png",
+        "figures/regression_residuals.png",
     ]:
         assert (out / name).is_file(), name
     text = html.read_text()
@@ -194,3 +199,37 @@ def test_single_class_is_reported_with_a_remedy(curation):
     results = analyse(CurationResult(table=one, steps=curation.steps), params())
     assert results.models is None
     assert "one activity class" in results.skipped["model"]
+
+
+def test_descriptor_pipeline_exports_reproducible_schema_and_predictions(curation, tmp_path):
+    from sarscope.predict import load_bundle, predict_smiles
+
+    chosen = ("MolWt", "MolLogP", "TPSA", "NumHDonors")
+    run_params = params(
+        features=FeatureParams(representation="rdkit2d", descriptor_names=chosen),
+        regression_algorithms=("ridge",),
+        split="random",
+    )
+    results = analyse(curation, run_params)
+    assert results.models is not None and results.regression is not None
+    assert results.prediction_bundle.feature_names == chosen
+    assert results.prediction_bundle.train_fingerprints.shape[1] == 2048
+    out = tmp_path / "descriptor_report"
+    write_report(results, out)
+    schema = pd.read_csv(out / "tables/model_feature_schema.csv")
+    assert schema["feature"].tolist() == list(chosen)
+    bundle = load_bundle(out)
+    predicted = predict_smiles(bundle, ["known"], results.model_table["smiles"].tolist()[:1])
+    assert predicted.iloc[0]["max_training_similarity"] == pytest.approx(1)
+    assert "Held-out diagnostic metrics" in (out / "report.html").read_text()
+
+
+def test_one_descriptor_can_be_used_and_reported(curation, tmp_path):
+    run_params = params(
+        features=FeatureParams(representation="rdkit2d", descriptor_names=("MolWt",)),
+        regression_algorithms=("ridge",),
+        split="random",
+    )
+    results = analyse(curation, run_params)
+    assert results.domain.train_scores.shape[1] == 1
+    write_report(results, tmp_path / "one_descriptor")

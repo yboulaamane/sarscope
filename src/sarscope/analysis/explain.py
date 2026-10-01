@@ -20,12 +20,14 @@ from numpy.typing import NDArray
 from rdkit import Chem
 from rdkit.Chem import Crippen, Descriptors, Lipinski, rdMolDescriptors
 from sklearn.ensemble import RandomForestRegressor
+from sklearn.impute import SimpleImputer
 from sklearn.inspection import permutation_importance
 from sklearn.neural_network import MLPRegressor
 from sklearn.pipeline import make_pipeline
 from sklearn.preprocessing import StandardScaler
 
 from sarscope.analysis.regression import regression_metrics
+from sarscope.analysis.representations import descriptor_matrix
 
 EXPLANATION_DESCRIPTORS: tuple[str, ...] = (
     "MW",
@@ -103,14 +105,23 @@ def explain_descriptor_model(
     seed: int = 42,
     compute_shap: bool = False,
     shap_max_samples: int = 100,
+    descriptor_names: tuple[str, ...] | None = None,
+    backend: str = "rdkit",
 ) -> DescriptorExplanation:
     """Fit on ``train_index`` and explain performance on ``test_index`` only."""
     if algorithm not in {"random_forest", "mlp"}:
         raise ValueError("descriptor explanation algorithm must be random_forest or mlp")
-    described = add_explanation_descriptors(table)
-    X = described[list(EXPLANATION_DESCRIPTORS)].to_numpy(dtype=float)
+    names = descriptor_names if descriptor_names is not None else EXPLANATION_DESCRIPTORS
+    described = table if descriptor_names is not None else add_explanation_descriptors(table)
+    X = (
+        descriptor_matrix(table["smiles"].astype(str).tolist(), names, backend=backend)
+        if descriptor_names is not None
+        else described[list(names)].to_numpy(dtype=float)
+    )
     y = described["pactivity"].to_numpy(dtype=float)
     X_train, X_test = X[train_index], X[test_index]
+    imputer = SimpleImputer(strategy="median", keep_empty_features=True).fit(X_train)
+    X_train, X_test = imputer.transform(X_train), imputer.transform(X_test)
     y_train, y_test = y[train_index], y[test_index]
 
     if algorithm == "random_forest":
@@ -158,13 +169,11 @@ def explain_descriptor_model(
         scoring="neg_root_mean_squared_error",
         n_jobs=-1,
     )
-    permutation = _importance_frame(
-        EXPLANATION_DESCRIPTORS, perm.importances_mean, perm.importances_std
-    )
+    permutation = _importance_frame(names, perm.importances_mean, perm.importances_std)
 
     intrinsic = pd.DataFrame(columns=["descriptor", "importance"])
     if algorithm == "random_forest":
-        intrinsic = _importance_frame(EXPLANATION_DESCRIPTORS, estimator.feature_importances_)
+        intrinsic = _importance_frame(names, estimator.feature_importances_)
 
     shap_global = pd.DataFrame(columns=["descriptor", "importance"])
     shap_local = pd.DataFrame()
@@ -183,10 +192,8 @@ def explain_descriptor_model(
             explainer = shap.TreeExplainer(estimator)
             explanation = explainer(sample)
             values = np.asarray(explanation.values, dtype=float)
-            shap_global = _importance_frame(
-                EXPLANATION_DESCRIPTORS, np.mean(np.abs(values), axis=0)
-            )
-            shap_local = pd.DataFrame(values, columns=list(EXPLANATION_DESCRIPTORS))
+            shap_global = _importance_frame(names, np.mean(np.abs(values), axis=0))
+            shap_local = pd.DataFrame(values, columns=list(names))
             shap_local.insert(
                 0,
                 "molecule_id",

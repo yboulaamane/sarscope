@@ -12,6 +12,7 @@ import pandas as pd
 from numpy.typing import NDArray
 
 from sarscope.analysis.features import VarianceCorrelationFilter, fingerprint_matrix
+from sarscope.analysis.representations import model_feature_names, model_matrix
 from sarscope.params import FeatureParams
 
 MODEL_FILENAME = "model.joblib"
@@ -34,6 +35,7 @@ class PredictionBundle:
     canonical_tautomer: bool = True
     empirical_half_width: float | None = None
     interval_level: float = 0.9
+    feature_names: tuple[str, ...] = ()
 
 
 def _row_max_tanimoto(
@@ -108,11 +110,21 @@ def predict_smiles(
     if len(molecule_ids) != len(smiles):
         raise ValueError("molecule ID and SMILES counts differ")
     features = bundle.features
-    X = fingerprint_matrix(smiles, features.fingerprint, ecfp_bits=features.ecfp_bits)
+    saved_names = getattr(bundle, "feature_names", ())
+    if saved_names and model_feature_names(features) != tuple(saved_names):
+        raise ValueError(
+            "Current featurizer schema differs from the saved model's ordered feature names."
+        )
+    X = model_matrix(smiles, features)
     predictions = np.asarray(
         bundle.estimator.predict(bundle.feature_filter.transform(X)), dtype=float
     )
-    similarity, nearest = _row_nearest_tanimoto(X, bundle.train_fingerprints)
+    domain_X = (
+        X
+        if getattr(features, "representation", "fingerprint") == "fingerprint"
+        else fingerprint_matrix(smiles, features.fingerprint, ecfp_bits=features.ecfp_bits)
+    )
+    similarity, nearest = _row_nearest_tanimoto(domain_X, bundle.train_fingerprints)
     result = pd.DataFrame(
         {
             "molecule_id": molecule_ids,
