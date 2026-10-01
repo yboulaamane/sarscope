@@ -169,7 +169,8 @@ def test_ambiguous_or_unsupported_ligand_preparation(smiles):
         _prepare_ligand(smiles, 42)
 
 
-def test_pair_docking_real_engine_smoke_and_artifact():
+@pytest.mark.parametrize("exploratory", [False, True])
+def test_pair_docking_real_engine_smoke_and_artifact(exploratory):
     if docking.docking_unavailable_reason():
         pytest.skip(
             "Install the optional docking extra and the Vina executable for this smoke test"
@@ -191,13 +192,16 @@ def test_pair_docking_real_engine_smoke_and_artifact():
     receptor, flexible = PDBQTWriterLegacy.write_from_polymer(polymer)
     assert not flexible
     phases = []
+    values = ligands()
+    if exploratory:
+        values[0] |= {"smiles": "C[C@H](O)C(=O)O", "source_smiles": "CC(O)C(=O)O"}
     provenance = {
         "site": {"kind": "bound_ligand", "id": "synthetic reference"},
         "reference_pdb": "REMARK synthetic reference for artifact test only\nEND\n",
         "excluded_essential_components": [],
     }
     result = docking.run_pair_docking(
-        ligands(),
+        values,
         polymer.to_pdb(),
         receptor,
         DockingSettings((0, 0, 0), (12, 12, 12), exhaustiveness=1, n_poses=1, timeout_seconds=60),
@@ -210,6 +214,10 @@ def test_pair_docking_real_engine_smoke_and_artifact():
     assert result["manifest"]["analysed_pose_rank"] == 1
     assert result["manifest"]["receptor_preparation"] == provenance
     assert len(result["ligands"]) == 2
+    if exploratory:
+        assert result["ligands"][0]["stereochemistry"]["status"] == "exploratory_selection"
+        assert result["manifest"]["ligands"][0]["source_smiles"] == "CC(O)C(=O)O"
+        assert any("exploratory stereoisomer" in w for w in result["manifest"]["warnings"])
     for pose in result["ligands"]:
         assert math.isfinite(pose["score_kcal_mol"])
         restored = Chem.MolFromMolBlock(pose["sdf"])

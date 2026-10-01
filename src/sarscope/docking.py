@@ -245,6 +245,8 @@ def run_pair_docking(
     """One isolated job. Uploaded structures are never submitted to a remote service."""
     if len(ligands) != 2:
         raise DockingError("Select exactly two different molecules from the cliff pair.")
+    from sarscope.ligand_states import validate_ligand_state
+
     clean_ligands = []
     for ligand in ligands:
         if not all(
@@ -254,7 +256,13 @@ def run_pair_docking(
         activity = ligand.get("pactivity")
         if not isinstance(activity, (int, float)) or not math.isfinite(activity):
             raise DockingError("Each ligand needs a finite experimental pActivity.")
-        clean_ligands.append({k: ligand[k] for k in ("molecule_id", "smiles", "pactivity")})
+        state = validate_ligand_state(
+            ligand.get("source_smiles", ligand["smiles"]), ligand["smiles"]
+        )
+        clean_ligands.append(
+            {k: ligand[k] for k in ("molecule_id", "smiles", "pactivity")}
+            | {"source_smiles": state["source_smiles"], "stereochemistry": state}
+        )
     if clean_ligands[0]["molecule_id"] == clean_ligands[1]["molecule_id"]:
         raise DockingError("Select exactly two different molecules from the cliff pair.")
     if not isinstance(receptor_label, str) or not receptor_label.strip():

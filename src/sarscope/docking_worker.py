@@ -15,6 +15,7 @@ from pathlib import Path
 from typing import Any
 
 from sarscope.docking import DockingError, DockingSettings, validate_receptor_pair
+from sarscope.ligand_states import validate_ligand_state
 
 
 def _phase(directory: Path, message: str) -> None:
@@ -24,32 +25,10 @@ def _phase(directory: Path, message: str) -> None:
 def _prepare_ligand(smiles: str, seed: int) -> tuple[Any, str]:
     from meeko import MoleculePreparation, PDBQTWriterLegacy
     from rdkit import Chem
-    from rdkit.Chem import AllChem, Lipinski
+    from rdkit.Chem import AllChem
 
     molecule = Chem.MolFromSmiles(smiles)
-    if molecule is None or len(Chem.GetMolFrags(molecule)) != 1:
-        raise DockingError("Ligands must be valid, single-component curated structures.")
-    if not 2 <= molecule.GetNumHeavyAtoms() <= 80 or Lipinski.NumRotatableBonds(molecule) > 15:
-        raise DockingError(
-            "Browser docking supports 2–80 heavy atoms and at most 15 rotatable bonds."
-        )
-    if any(
-        atom.GetAtomicNum() not in {6, 7, 8, 9, 15, 16, 17, 35, 53} for atom in molecule.GetAtoms()
-    ):
-        raise DockingError(
-            "This first docking workflow supports organic C/N/O/F/P/S/Cl/Br/I ligands only."
-        )
-    if any(len(ring) >= 9 for ring in molecule.GetRingInfo().AtomRings()):
-        raise DockingError(
-            "Macrocycles need a validated preparation protocol and are not supported here."
-        )
-    if any(
-        stereo.specified == Chem.StereoSpecified.Unspecified
-        for stereo in Chem.FindPotentialStereo(molecule)
-    ):
-        raise DockingError(
-            "Resolve unspecified ligand stereochemistry (including E/Z) before docking."
-        )
+    validate_ligand_state(smiles, smiles)
     molecule = Chem.AddHs(molecule)
     embedding = AllChem.ETKDGv3()
     embedding.randomSeed = seed
@@ -217,6 +196,12 @@ def execute(directory: Path) -> dict[str, Any]:
         poses.append(pose)
     _phase(directory, "Analysing both top-ranked poses with ProLIF…")
     messages = _interactions(directory, poses)
+    for slot, ligand in zip(("A", "B"), request["ligands"], strict=True):
+        if ligand.get("stereochemistry", {}).get("status") == "exploratory_selection":
+            messages.append(
+                f"Ligand {slot} is an exploratory stereoisomer. Source experimental activity "
+                "is not established for this selected docking state."
+            )
     manifest = {
         "schema": "sarscope-pair-docking-v1",
         "receptor_label": request["receptor_label"],
@@ -232,7 +217,8 @@ def execute(directory: Path) -> dict[str, Any]:
         "ligands": request["ligands"],
         "analysed_pose_rank": 1,
         "ligand_preparation": (
-            "ETKDGv3 + UFF; input SMILES charges/tautomer retained; no pKa enumeration"
+            "ETKDGv3 + UFF; selected SMILES charges/tautomer retained; no pKa enumeration; "
+            "explicit docking-only stereo choices recorded separately from source SMILES"
         ),
         "interaction_method": (
             "ProLIF default geometric definitions; template-based implicit hydrogens"

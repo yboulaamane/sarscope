@@ -60,19 +60,45 @@ def _html(html: str, *, height: int) -> None:
 
 def show_docking_result(result: dict[str, Any], *, key: str) -> None:
     a, b = result["ligands"]
+    exploratory = any(
+        ligand.get("stereochemistry", {}).get("status") == "exploratory_selection"
+        for ligand in (a, b)
+    )
     delta_activity = b["pactivity"] - a["pactivity"]
     delta_score = b["score_kcal_mol"] - a["score_kcal_mol"]
     columns = st.columns(4)
     columns[0].metric("A · Vina score", f"{a['score_kcal_mol']:.2f} kcal/mol")
     columns[1].metric("B · Vina score", f"{b['score_kcal_mol']:.2f} kcal/mol")
-    columns[2].metric("ΔpActivity · B − A", f"{delta_activity:+.2f}")
+    columns[2].metric(
+        "Source ΔpActivity · B − A" if exploratory else "ΔpActivity · B − A",
+        f"{delta_activity:+.2f}",
+    )
     columns[3].metric("ΔVina score · B − A", f"{delta_score:+.2f} kcal/mol")
     st.caption(
         f"A = {a['molecule_id']}; B = {b['molecule_id']}. Positive ΔpActivity favours B; "
         "negative ΔVina score favours B. These quantities have different units and are "
         "not interchangeable. All diagrams analyse each ligand's top-ranked pose only."
     )
-    if abs(delta_score) < 0.05:
+    if exploratory:
+        st.warning(
+            "Exploratory stereoisomer comparison: experimental activities belong to the "
+            "original source records, not verified assignments to these selected states. "
+            "Docking-versus-potency rank agreement is therefore not assessed."
+        )
+        st.dataframe(
+            [
+                {
+                    "ligand": slot,
+                    "molecule_id": ligand["molecule_id"],
+                    "source_smiles": ligand.get("source_smiles", ligand["smiles"]),
+                    "docked_smiles": ligand["smiles"],
+                }
+                for slot, ligand in zip(("A", "B"), (a, b), strict=True)
+            ],
+            hide_index=True,
+            width="stretch",
+        )
+    elif abs(delta_score) < 0.05:
         st.info(
             "The docking scores are nearly tied (<0.05 kcal/mol); "
             "do not infer meaningful separation."
@@ -218,6 +244,14 @@ def show_cliff_docking(
             "variant, chemical states and pocket before docking. No pH-state enumeration "
             "or redocking validation is performed automatically."
         )
+        from sarscope.ligand_states_ui import review_ligand_states
+
+        docking_ligands = review_ligand_states(ligands, key=key)
+        if docking_ligands is None:
+            st.info(
+                "Resolve and confirm the ligand-state choices above before docking. "
+                "You can still review and prepare the receptor below."
+            )
         st.markdown(
             "Need receptor files? See the [preparation and interpretation guide]"
             "(https://github.com/yboulaamane/sarscope/blob/main/docs/cliff-docking.md)."
@@ -276,7 +310,11 @@ def show_cliff_docking(
         )
         request: dict[str, Any] | None = None
         settings = None
-        if prepared is not None and all(c is not None for c in centers):
+        if (
+            docking_ligands is not None
+            and prepared is not None
+            and all(c is not None for c in centers)
+        ):
             try:
                 assert all(c is not None for c in centers)
                 center_values = [c for c in centers if c is not None]
@@ -288,7 +326,7 @@ def show_cliff_docking(
                     timeout_seconds=timeout,
                 )
                 request = {
-                    "ligands": ligands,
+                    "ligands": docking_ligands,
                     "protein_pdb": prepared["protein_pdb"],
                     "receptor_pdbqt": prepared["receptor_pdbqt"],
                     "settings": asdict(settings),
@@ -311,8 +349,9 @@ def show_cliff_docking(
                 with st.status("Starting bounded pair docking…", expanded=True) as status:
                     try:
                         assert request is not None and settings is not None
+                        assert docking_ligands is not None
                         result = run_pair_docking(
-                            ligands,
+                            docking_ligands,
                             request["protein_pdb"],
                             request["receptor_pdbqt"],
                             settings,

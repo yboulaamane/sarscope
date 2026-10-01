@@ -9,22 +9,27 @@ There is no hardcoded receptor, BRAF variant or binding pocket.
 
 1. Curate activity data, run the activity-cliff analysis, and select a pair.
 2. Open **Dock this cliff pair · optional Vina + ProLIF** and enable its controls.
-3. Keep **Fetch & prepare PDB** selected. Click **Find PDB structures** to find
+3. If a ligand has undefined stereochemistry, complete the ligand-state review
+   first: generate alternatives, select one, and explicitly accept it as exploratory.
+   The default never chooses a stereoisomer. Fully specified source ligands need
+   no extra selection. Receptor controls remain available while reviewing states;
+   docking stays disabled until the choices are resolved and accepted.
+4. Keep **Fetch & prepare PDB** selected. Click **Find PDB structures** to find
    up to 20 experimental entries mapped to the selected target UniProt accession,
    sorted by resolution. Select one, or enter a known four-character PDB ID;
    click **Fetch selected structure**. No structure or pocket is hardcoded.
-4. Review the title and chain mutation annotations, then select protein chains.
+5. Review the title and chain mutation annotations, then select protein chains.
    A matching UniProt chain is required when target mapping is available, but
    UniProt identity does **not** confirm the assayed mutation, construct or state.
    Missing mutation annotations do not mean confirmed wild-type.
-5. Choose a bound-reference ligand, or click **Predict candidate pockets · fpocket**
+6. Choose a bound-reference ligand, or click **Predict candidate pockets · fpocket**
    when none is suitable. One qualifying reference is selected automatically;
    multiple references and predicted pockets require your selection. Preview the
    site and orange grid box; a manual box is also available.
-6. Confirm that you reviewed the construct, chains and site, then click
+7. Confirm that you reviewed the construct, chains and site, then click
    **Prepare receptor · Meeko**. Ligands are prepared from the cliff pair's SMILES:
    neither receptor nor ligand uploads are needed in this mode.
-7. Review the editable grid and docking settings, confirm the docking checkbox,
+8. Review the editable grid and docking settings, confirm the docking checkbox,
    then click **Dock this pair**. Changing settings alone never starts a job.
 
 If no suitable experimental structure exists, use a known PDB entry or externally
@@ -95,10 +100,23 @@ the binding mode, this version is unsuitable; use a validated external workflow.
 
 ## What happens
 
-- Ligands retain the supplied curated SMILES state, formal charges and specified
-  stereochemistry. RDKit ETKDGv3 generates a conformer and UFF minimises it;
+- Ligands retain the supplied curated connectivity, isotopes, formal charges and
+  already-specified stereochemistry. Undefined R/S or E/Z features are flagged
+  before any ligand preparation job. **Generate alternatives** uses RDKit's `onlyUnassigned`
+  enumeration with at most eight candidates, without embedding or random sampling.
+  Choose a candidate, or supply a fully specified SMILES for larger cases; the
+  same-structure check rejects changes to connectivity, charge, isotopes or
+  existing R/S/E/Z assignments. Source and selected structures have 2D previews.
+  Enhanced/relative stereo groups require external review.
+- Resolving undefined stereo is **docking-only and exploratory**. It does not
+  establish whether the source compound was a mixture or which isomer was assayed.
+  The curated dataset, QSAR inputs and experimental activity are never rewritten.
+  Source SMILES, selected docking SMILES, undefined features and exploratory status
+  are preserved in the result/manifest. Changing the selected state requires a
+  new explicit acceptance and invalidates the displayed result.
+- RDKit ETKDGv3 generates a conformer for the selected state and UFF minimises it;
   Meeko prepares the ligand PDBQT. There is no pH-dependent protomer/tautomer
-  enumeration. Undefined stereochemistry, including E/Z, is rejected.
+  enumeration. Still-unresolved stereochemistry is rejected by the backend too.
 - Vina docks both ligands sequentially against the same receptor, box, seed and
   settings. Up to three raw poses per molecule are retained. Meeko reconstructs
   the top-ranked pose with its original bond orders; chemistry is checked again.
@@ -123,6 +141,11 @@ favourable. Their units and meanings differ: **do not convert docking scores to
 pIC50 or treat the difference as a predicted experimental potency difference**.
 The <0.05 kcal/mol near-tie label is only a display heuristic, not an uncertainty
 estimate; even larger score differences may not be meaningful.
+
+When a docking-only stereoisomer was chosen, the activity display is labelled
+**Source ΔpActivity**. The panel explicitly avoids assessing docking–potency rank
+agreement: the source assay measurements are not verified measurements for the
+newly resolved stereoisomers. This limitation remains in the downloadable output.
 
 Score-rank agreement for one pair is not general validation. Disagreement is
 reported explicitly. Gained/lost contacts are pose-dependent hypotheses, not
@@ -180,7 +203,7 @@ and manual boxes remain available. The cache can disappear when a cloud host
 restarts. This is local geometric pocket detection, not a remote prediction service.
 
 ```bash
-pytest -q tests/test_docking.py tests/test_receptor.py tests/test_app_docking.py tests/test_app_receptor.py
+pytest -q tests/test_docking.py tests/test_receptor.py tests/test_app_docking.py tests/test_app_receptor.py tests/test_ligand_states.py tests/test_app_ligand_states.py
 ```
 
 The real-engine smoke test uses a generated AA dipeptide and two small ligands:
@@ -192,4 +215,5 @@ independent target benchmark or scientific docking validation is run automatical
 
 References: [Vina preparation/scoring caveats](https://autodock-vina.readthedocs.io/en/latest/faq.html),
 [ProLIF docking conversion](https://prolif.readthedocs.io/en/latest/notebooks/docking.html),
-[ProLIF PDB and implicit-hydrogen workflow](https://prolif.readthedocs.io/en/latest/notebooks/pdb.html).
+[ProLIF PDB and implicit-hydrogen workflow](https://prolif.readthedocs.io/en/latest/notebooks/pdb.html),
+[RDKit stereo enumeration](https://www.rdkit.org/docs/source/rdkit.Chem.EnumerateStereoisomers.html).
