@@ -130,7 +130,9 @@ construct/chains, and prepare the receptor with Meeko without uploading files.
 A selected bound ligand defines the box automatically; when none is suitable,
 an explicit fpocket step predicts candidate sites for review. Prepared receptor
 uploads and manual boxes remain available. Dock just the two molecules;
-outputs include Vina scores and their difference,
+undefined ligand stereochemistry is reviewed first, with explicit docking-only
+stereoisomer choices, 2D previews and unchanged source activities.
+Outputs include Vina scores and their difference,
 experimental ΔpActivity, a 3D pose overlay, free local ProLIF 2D interaction
 diagrams, and retained/lost/gained residue contacts. A separate ZIP records
 poses, contacts, inputs, versions and protocol. No receptor or target is hardcoded.
