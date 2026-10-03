@@ -95,7 +95,11 @@ def test_every_step_is_logged_in_order_and_counts_chain(make_record):
 def test_variant_selection(make_record):
     records = [
         make_record(activity_id=1),
-        make_record(activity_id=2, assay_variant_mutation="V600E"),
+        make_record(
+            activity_id=2,
+            assay_variant_mutation="p.Val600Glu",
+            assay_variant_accession="P15056",
+        ),
         make_record(activity_id=3, assay_variant_mutation="V600K"),
         make_record(activity_id=4, assay_variant_mutation="T790M"),
     ]
@@ -107,6 +111,24 @@ def test_variant_selection(make_record):
     ]:
         frame, _ = filter_chembl_records(records, CurationParams(variant=variant))
         assert ids(frame) == expected, variant
+
+
+def test_variant_evidence_preserves_raw_and_normalized_fields(make_record):
+    result = curate_chembl(
+        [
+            make_record(
+                assay_variant_mutation="p.Val600Glu",
+                assay_variant_accession="P15056",
+            )
+        ],
+        RunParams(curation=CurationParams(variant="V600E")),
+    )
+    row = result.evidence.iloc[0]
+    assert row["variant_raw_annotation"] == "p.Val600Glu"
+    assert row["variant_normalized_mutations"] == "V600E"
+    assert row["variant_display_hgvs"] == "p.Val600Glu"
+    assert row["variant_accession"] == "P15056"
+    assert row["variant_sequence_validation"] == "not_checked"
 
 
 def test_integrated_origins_can_be_filtered_without_new_downloads(make_record):

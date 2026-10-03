@@ -171,8 +171,9 @@ def test_variant_filter_is_generic_and_does_not_force_braf_mutation(app_api):
     assert "V600E" not in selector.options
     selector.set_value("Specific mutation").run()
     assert not app.exception
-    assert any("Enter an exact mutation annotation" in item.value for item in app.info)
-    widget(app, "text_input", "Exact mutation annotation").set_value("T790M").run()
+    assert any("Enter a mutation annotation" in item.value for item in app.info)
+    widget(app, "text_input", "Mutation or protein-HGVS annotation").set_value("p.Thr790Met").run()
+    assert any("T790M" in item.value for item in app.caption)
     assert not app.exception
     widget(app, "button", "Check target").click().run()
     widget(app, "button", "1 · Curate CHEMBL5145").click().run()

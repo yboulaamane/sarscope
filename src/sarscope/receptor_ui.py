@@ -16,6 +16,7 @@ from sarscope.receptor import (
     prepare_receptor,
 )
 from sarscope.sources.pdb import PdbClient, normalise_pdb_id
+from sarscope.variants import variant_matches
 
 
 @st.cache_data(ttl=86400, max_entries=32, show_spinner=False)
@@ -179,7 +180,8 @@ def show_auto_receptor(target: dict[str, Any] | None, *, key: str) -> dict[str, 
         expected
         and expected != "any"
         and not any(
-            str(expected).upper() in entry["chain_mutations"].get(c, "").upper() for c in chains
+            variant_matches(str(expected), entry["chain_mutations"].get(c), source="pdb_text")
+            for c in chains
         )
     ):
         st.warning(

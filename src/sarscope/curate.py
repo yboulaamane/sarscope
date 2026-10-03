@@ -38,6 +38,7 @@ from sorbent.chem.parse import parse_smiles, standardize, to_inchikey
 from sarscope.params import ClassScheme, CurationParams, RunParams
 from sarscope.sources.origins import source_id, source_name
 from sarscope.units import MOLAR_OFFSETS, to_pactivity
+from sarscope.variants import normalize_variant, variant_matches
 
 #: One row per measurement. The contract between a source and curation.
 #: ``record_id`` traces a row back to its origin (ChEMBL activity_id, or
@@ -120,7 +121,7 @@ def filter_chembl_records(
       units              ``standard_units`` in params.units
       assay_type         ``assay_type`` in params.assay_types
       variant            params.variant: None -> ``assay_variant_mutation`` is
-                         None; "any" -> no filter; otherwise equality
+                         None; "any" -> no filter; otherwise normalized match
       potential_duplicate  drop ``potential_duplicate == 1`` if enabled
       validity           drop non-null ``data_validity_comment`` if enabled
       bao_format         ``bao_label`` in params.bao_formats, if set
@@ -140,9 +141,7 @@ def filter_chembl_records(
         raise ValueError("min_confidence_score must be between 0 and 9")
 
     def variant_ok(r: dict[str, Any]) -> bool:
-        if params.variant == "any":
-            return True
-        return r.get("assay_variant_mutation") == params.variant
+        return variant_matches(params.variant, r.get("assay_variant_mutation"))
 
     def year_ok(r: dict[str, Any]) -> bool:
         year = r.get("document_year")
@@ -241,17 +240,34 @@ def filter_chembl_records(
         "assay_type",
         "bao_label",
         "assay_variant_mutation",
+        "assay_variant_accession",
         "confidence_score",
         "document_year",
         "src_id",
     )
-    frame.attrs["context_by_record"] = {
-        str(r.get("activity_id")): {
-            **{field: r.get(field) for field in evidence_fields},
-            "source_origin": source_name(r.get("src_id")),
+    context_by_record = {}
+    for record in kept:
+        variant = normalize_variant(
+            record.get("assay_variant_mutation"),
+            source="chembl_structured",
+            accession=record.get("assay_variant_accession"),
+            reference_sequence=record.get("variant_sequence") or record.get("reference_sequence"),
+        )
+        context_by_record[str(record.get("activity_id"))] = {
+            **{field: record.get(field) for field in evidence_fields},
+            "variant_raw_annotation": variant.raw_annotation,
+            "variant_status": variant.status,
+            "variant_class": variant.variant_class,
+            "variant_normalized_mutations": ";".join(variant.normalized_mutations),
+            "variant_display_hgvs": ";".join(variant.display_hgvs),
+            "variant_evidence_source": variant.evidence_source,
+            "variant_confidence": variant.confidence,
+            "variant_accession": variant.accession,
+            "variant_sequence_validation": variant.sequence_validation,
+            "variant_warnings": "; ".join(variant.warnings),
+            "source_origin": source_name(record.get("src_id")),
         }
-        for r in kept
-    }
+    frame.attrs["context_by_record"] = context_by_record
     return frame, steps
 
 

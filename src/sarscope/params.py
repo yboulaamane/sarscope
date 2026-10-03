@@ -41,12 +41,14 @@ class CurationParams:
     assay_types: tuple[str, ...] = ("B",)
     #: Which ``assay_variant_mutation`` annotation to keep. None keeps records
     #: without a mutation annotation, not confirmed wild-type protein; a string
-    #: keeps that exact annotation for any target; "any" pools all annotations.
+    #: keeps the same normalized substitution set for any target (for example,
+    #: V600E matches p.Val600Glu); unparsed text falls back to exact matching;
+    #: "any" pools all annotations.
     variant: str | None = None
     #: Drop records ChEMBL flags as likely re-reports of an earlier measurement,
     #: so one value cited twice does not count twice in the median. Removes 22%
     #: of BRAF records. On the unfiltered set no molecule loses all its data;
-    #: after the default filters 35 do, because their only wild-type binding
+    #: after the default filters 35 do, because their only unannotated binding
     #: record is the flagged re-report.
     drop_potential_duplicates: bool = True
     #: Drop records carrying a ``data_validity_comment`` ("Outside typical

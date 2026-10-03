@@ -117,10 +117,10 @@ Class cutoffs are editable in the sidebar, defaulting to pActivity 8 / 7 / 6
 intermediate + inactive. ML classification uses the four labels, while
 regression uses continuous potency. Changed cutoffs require rerunning curation.
 The curation view shows all four class counts and their ranges, including zero
-counts, with horizontal chart labels. Protein-variant filtering accepts an exact
-ChEMBL mutation annotation for any target; it is not restricted to BRAF V600E.
-The default keeps records without a mutation annotation, which does **not**
-confirm that the assayed protein is wild-type.
+counts, with horizontal chart labels. Protein-variant filtering preserves raw
+ChEMBL evidence while normalizing confidently parsed substitutions, so `V600E`,
+`p.Val600Glu`, and `BRAF (V600E)` match the same selection. Missing annotation
+remains distinct from an explicit wild-type statement.
 The cliff viewer supports molecule-ID filtering, sorting and pagination across
 all discovered pairs; applied cliff thresholds are shown beside the results.
 
