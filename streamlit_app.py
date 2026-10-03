@@ -133,6 +133,7 @@ from sarscope.sources.origins import (  # noqa: E402
     source_summary,
 )
 from sarscope.sources.pubchem import PubChemClient, PubChemError  # noqa: E402
+from sarscope.variants import normalize_variant  # noqa: E402
 
 #: Categorical slots of the reference palette. Group 1 / Group 2 keep these
 #: hues everywhere in the app, so colour follows the entity, never the rank.
@@ -168,8 +169,8 @@ FIELD_NOTES: dict[str, tuple[str, str]] = {
     "assay_variant_mutation": (
         "Protein variant",
         "(none) means no mutation annotation, not confirmed wild-type protein. "
-        "Only unannotated records are kept by default; annotated variants can be selected "
-        "using their exact annotation in the sidebar.",
+        "Only unannotated records are kept by default; substitutions can be selected "
+        "using one-letter or protein-HGVS notation in the sidebar.",
     ),
     "potential_duplicate": (
         "ChEMBL duplicate flag",
@@ -954,11 +955,30 @@ def show_curation(results: RunResults | CurationStage) -> None:
     variant_label = (
         "All mutation annotations pooled"
         if variant == "any"
-        else f"Exact mutation annotation: {variant}"
+        else f"Normalized mutation match: {variant}"
         if variant is not None
         else "No mutation annotation (not confirmation of wild-type protein)"
     )
     st.caption(f"Applied protein-variant filter: {variant_label}.")
+    evidence = results.curation.evidence
+    if not evidence.empty and "variant_status" in evidence:
+        variant_rows = evidence[
+            [
+                "variant_status",
+                "variant_normalized_mutations",
+                "variant_raw_annotation",
+                "variant_accession",
+                "variant_confidence",
+            ]
+        ].copy()
+        variant_rows = variant_rows.fillna("").drop_duplicates()
+        with st.expander("Protein-variant evidence and normalization"):
+            st.caption(
+                "Raw ChEMBL annotations are preserved. Equivalent substitutions are shown "
+                "canonically (for example V600E = p.Val600Glu). Missing annotation is not "
+                "called wild type; accession alone does not validate residue numbering."
+            )
+            st.dataframe(variant_rows, hide_index=True, width="stretch")
     ranges = {
         "potent": f"pActivity ≥ {bounds['potent']:g}",
         "active": f"{bounds['active']:g} ≤ pActivity < {bounds['potent']:g}",
@@ -1035,7 +1055,6 @@ def show_curation(results: RunResults | CurationStage) -> None:
         ]
     )
     st.dataframe(log, hide_index=True, width="stretch")
-    evidence = results.curation.evidence
     if not evidence.empty:
         origins = source_summary(evidence)
         if not origins.empty:
@@ -2175,10 +2194,23 @@ def sidebar() -> dict[str, Any]:
             mutation = ""
             if variant == "Specific mutation":
                 mutation = st.text_input(
-                    "Exact mutation annotation",
-                    help="Matches ChEMBL assay_variant_mutation exactly for any target. "
-                    "Inspect raw fields to see the available annotations.",
+                    "Mutation or protein-HGVS annotation",
+                    help="Normalized substitutions match equivalent forms such as V600E and "
+                    "p.Val600Glu. Multi-substitution records require the same complete set; "
+                    "unparsed construct text falls back to exact matching.",
                 ).strip()
+                if mutation:
+                    parsed = normalize_variant(mutation, source="user_query")
+                    if parsed.normalized_mutations:
+                        st.caption(
+                            "Will match canonical substitution set: "
+                            + ", ".join(parsed.normalized_mutations)
+                        )
+                    else:
+                        st.warning(
+                            "This text could not be normalized as an amino-acid substitution; "
+                            "it will use a case-insensitive exact-text match."
+                        )
             st.caption(
                 "No mutation annotation means ChEMBL has not annotated a mutation; "
                 "it does not establish wild-type protein. Pooling annotations can mix variants."
@@ -2427,7 +2459,7 @@ def main() -> None:
         return
     settings = sidebar()
     if settings["variant"] == "Specific mutation" and not settings["mutation"]:
-        st.info("Enter an exact mutation annotation in the sidebar, or choose another filter.")
+        st.info("Enter a mutation annotation in the sidebar, or choose another filter.")
         return
     if not settings["potent_cutoff"] > settings["active_cutoff"] > settings["intermediate_cutoff"]:
         st.error(

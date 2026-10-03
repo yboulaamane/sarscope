@@ -35,11 +35,18 @@ def test_build_params_maps_flags(tmp_path):
     assert params.model.leakage_audit is False
 
 
-def test_build_params_defaults_are_wild_type_and_exact_values(tmp_path):
+def test_build_params_defaults_are_unannotated_and_exact_values(tmp_path):
     args = cli.parser().parse_args(["run", "CHEMBL5145", "--out", str(tmp_path)])
     params = cli.build_params(args)
     assert params.curation.variant is None
     assert params.curation.relations == ("=",)
+
+
+def test_cli_does_not_conflate_explicit_wild_type_with_missing_annotation(tmp_path):
+    args = cli.parser().parse_args(
+        ["run", "CHEMBL5145", "--out", str(tmp_path), "--variant", "wild-type"]
+    )
+    assert cli.build_params(args).curation.variant == "wild-type"
 
 
 def test_source_holdout_cli_flags(tmp_path):

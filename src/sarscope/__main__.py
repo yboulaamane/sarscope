@@ -85,7 +85,7 @@ def cmd_fetch(args: argparse.Namespace) -> int:
 
 
 def build_params(args: argparse.Namespace) -> RunParams:
-    variant = None if args.variant in (None, "none", "wild-type") else args.variant
+    variant = None if args.variant in (None, "none") else args.variant
     curation = CurationParams(
         standard_types=_types(args),
         source_ids=tuple(args.source_ids) if args.source_ids else None,
@@ -172,7 +172,7 @@ def cmd_predict(args: argparse.Namespace) -> int:
 def cmd_compare(args: argparse.Namespace) -> int:
     from sarscope.compare import run_compare, write_comparison
 
-    variant = None if args.variant in (None, "none", "wild-type") else args.variant
+    variant = None if args.variant in (None, "none") else args.variant
     params = RunParams(
         curation=CurationParams(
             standard_types=_types(args),
@@ -275,7 +275,10 @@ def parser() -> argparse.ArgumentParser:
     r.add_argument("--out", type=Path, required=True)
     r.add_argument(
         "--variant",
-        help='exact mutation annotation to keep; "any" pools all (default: no mutation annotation)',
+        help=(
+            'mutation to keep (V600E and p.Val600Glu are equivalent); "any" pools all '
+            "(default: no mutation annotation)"
+        ),
     )
     r.add_argument("--keep-censored", action="store_true", help="keep >, < relations")
     r.add_argument("--assay-types", nargs="+", default=["B"])
@@ -327,7 +330,10 @@ def parser() -> argparse.ArgumentParser:
     c.add_argument("target_a")
     c.add_argument("target_b")
     c.add_argument("--out", type=Path, help="output folder (a target-based name by default)")
-    c.add_argument("--variant", help='mutant to keep; "any" pools variants')
+    c.add_argument(
+        "--variant",
+        help='mutation to keep with normalized substitution matching; "any" pools variants',
+    )
     c.add_argument("--keep-censored", action="store_true")
     c.add_argument("--assay-types", nargs="+", default=["B"])
     c.add_argument("--max-year", type=int)
