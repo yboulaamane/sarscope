@@ -1,0 +1,22 @@
+<!doctype html>
+<html lang="en">
+<head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
+<style>body{margin:0}svg{display:block;width:100%;height:auto}g[role=button]:focus{outline:none}g[role=button]:focus rect{stroke-width:4}g[role=button]:hover rect{fill:#f0f5ff}</style>
+</head><body><div id="map"></div>
+<script>
+const send=(type,payload={})=>window.parent.postMessage({isStreamlitMessage:true,type,...payload},"*");
+const resize=()=>send("streamlit:setFrameHeight",{height:document.getElementById("map").getBoundingClientRect().height+4});
+window.addEventListener("message",event=>{
+ if(event.source!==window.parent || event.data.type!=="streamlit:render")return;
+ const root=document.getElementById("map");
+ root.innerHTML=event.data.args.svg||"";
+ root.querySelectorAll("[data-position]").forEach(node=>{
+  const choose=()=>send("streamlit:setComponentValue",{value:{position:node.dataset.position,event:Date.now()},dataType:"json"});
+  node.addEventListener("click",choose);
+  node.addEventListener("keydown",e=>{if(e.key==="Enter"||e.key===" "){e.preventDefault();choose();}});
+ });
+ resize();
+});
+window.addEventListener("resize",resize);
+send("streamlit:componentReady",{apiVersion:1});
+</script></body></html>

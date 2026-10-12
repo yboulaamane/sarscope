@@ -116,6 +116,7 @@ from sarscope.pipeline import (  # noqa: E402
 from sarscope.predict import PredictionBundle, similarity_domain_threshold  # noqa: E402
 from sarscope.prioritise import diverse_shortlist, predict_candidates  # noqa: E402
 from sarscope.report import write_report  # noqa: E402
+from sarscope.sar_ui import show_matched_pair_explorer, show_sar_map  # noqa: E402
 from sarscope.screen import run_screen_snapshot  # noqa: E402
 from sarscope.sources.chembl import (  # noqa: E402
     ChemblClient,
@@ -584,6 +585,38 @@ def run_scaffold_stage(curation: CurationResult) -> ScaffoldStage:
     except ValueError:
         enrichment = pd.DataFrame(columns=list(ENRICHMENT_COLUMNS))
     return ScaffoldStage(table, diversity, enrichment)
+
+
+def run_sar_series_stage(
+    curation: CurationResult,
+    scaffold: ScaffoldStage | None = None,
+    *,
+    min_members: int = 8,
+    max_series: int = 10,
+) -> ScaffoldStage:
+    """Prepare structural series even when no compounds meet an enrichment bin."""
+    scaffold = scaffold or run_scaffold_stage(curation)
+    ranking = scaffold.enrichment
+    if ranking.empty:
+        ranking = (
+            scaffold.table["murcko"]
+            .dropna()
+            .value_counts()
+            .rename_axis("scaffold")
+            .reset_index(name="n")
+            .assign(ef_lower=0.0)
+        )
+    scaffold.rgroups = decompose_top_scaffolds(
+        scaffold.table,
+        ranking,
+        min_members=min_members,
+        max_scaffolds=max_series,
+    )
+    return scaffold
+
+
+def open_analysis_tab(label: str) -> None:
+    st.session_state["analysis_tab"] = label
 
 
 def run_landscape_stage(curation: CurationResult, params: RunParams) -> LandscapeStage:
@@ -1904,6 +1937,7 @@ WORKFLOW_KEYS = (
     "property_stage",
     "structural_space",
     "scaffold_stage",
+    "sar_map_result",
     "landscape_stage",
     "ml_stage",
     "regression_bootstrap",
@@ -2469,12 +2503,13 @@ def main() -> None:
 
     st.title("SARscope")
     st.markdown(
-        "Start from a target ID, gene, protein, or disease and build an auditable "
-        "medicinal-chemistry analysis. Choose the stages you need; nothing runs automatically."
+        "Explore which structural changes increase or reduce measured potency. "
+        "Start with a target ID, gene, protein, or disease, curate its activity data, "
+        "then open Explore SAR for annotated chemical series and compound comparisons."
     )
     st.image(
         str(Path(__file__).parent / "assets" / "sarscope-hero.svg"),
-        use_container_width=True,
+        width="stretch",
     )
     st.caption(
         "Find target → Curate evidence → Explore SAR → Validate QSAR. "
@@ -2634,18 +2669,46 @@ def main() -> None:
             + " · Later filter changes reuse standardized structures while this app process lives."
         )
 
+    st.markdown("**Choose your next step**")
+    navigation = st.columns(3)
+    navigation[0].button(
+        "Explore SAR",
+        type="primary",
+        width="stretch",
+        key="open_sar",
+        on_click=open_analysis_tab,
+        args=("3 · SAR map",),
+        help="Open the annotated scaffold map and compound comparisons.",
+    )
+    navigation[1].button(
+        "Find activity cliffs",
+        width="stretch",
+        key="open_cliffs",
+        on_click=open_analysis_tab,
+        args=("4 · Activity cliffs",),
+    )
+    navigation[2].button(
+        "Model potency",
+        width="stretch",
+        key="open_models",
+        on_click=open_analysis_tab,
+        args=("5 · ML",),
+    )
+
     tabs = st.tabs(
         [
             "1 · Curation",
             "2 · Chemical space",
-            "3 · Scaffolds & SAR",
+            "3 · SAR map",
             "4 · Activity cliffs",
             "5 · ML",
             "6 · Explain",
             "7 · Report",
             "8 · Selectivity",
             "9 · Prioritize",
-        ]
+        ],
+        key="analysis_tab",
+        on_change="rerun",
     )
     with tabs[0]:
         show_curation(curation)
@@ -2700,32 +2763,100 @@ def main() -> None:
             show_structural_space(space, neighbors, min_dist)
 
     with tabs[2]:
-        st.caption(
-            "Murcko diversity and enrichment are the core scaffold step. R-group decomposition "
-            "and matched molecular pairs are separate opt-in calculations."
+        st.markdown("### Explore what changes potency")
+        st.markdown(
+            "**1 · Prepare series → 2 · Choose a series and build its map → "
+            "3 · Click a position to inspect the compounds.**"
         )
-        if st.button("Run scaffold analysis", key="run_scaffolds"):
-            with st.spinner("Calculating Murcko scaffolds and enrichment…"):
+        with st.expander("Series setup options"):
+            setup = st.columns(2)
+            min_members = int(
+                setup[0].number_input(
+                    "Minimum compounds per series",
+                    3,
+                    100,
+                    8,
+                    key="sar_min_members",
+                    help="Smaller series may be worth inspecting, but their evidence is limited.",
+                )
+            )
+            max_series = int(
+                setup[1].number_input(
+                    "Maximum series to prepare",
+                    1,
+                    20,
+                    10,
+                    key="sar_max_series",
+                )
+            )
+        if st.button("Prepare SAR series", type="primary", key="prepare_sar"):
+            with st.status("Preparing your SAR workspace…", expanded=True) as status:
+                existing = st.session_state.get("scaffold_stage")
+                status.write("Finding shared scaffolds and varying substitution positions…")
+                prepared = run_sar_series_stage(
+                    curation.curation,
+                    existing,
+                    min_members=min_members,
+                    max_series=max_series,
+                )
+                st.session_state["scaffold_stage"] = prepared
+                st.session_state.pop("sar_map_result", None)
+                st.session_state.pop("report_zip", None)
+                status.update(
+                    label=f"{len(prepared.rgroups)} chemical series ready to explore",
+                    state="complete",
+                    expanded=False,
+                )
+        with st.expander("Run scaffold and R-group steps separately"):
+            sar_cols = st.columns(2)
+            if sar_cols[0].button("Run scaffold analysis", key="run_scaffolds"):
                 st.session_state["scaffold_stage"] = run_scaffold_stage(curation.curation)
-            for key in ("ml_stage", "explanation_stage", "report_zip"):
-                st.session_state.pop(key, None)
+                for key in ("ml_stage", "explanation_stage", "report_zip", "sar_map_result"):
+                    st.session_state.pop(key, None)
+                st.rerun()
+            existing = st.session_state.get("scaffold_stage")
+            if sar_cols[1].button(
+                "Run R-group decomposition",
+                key="run_rgroups",
+                disabled=existing is None,
+            ):
+                st.session_state["scaffold_stage"] = run_sar_series_stage(
+                    curation.curation,
+                    existing,
+                    min_members=min_members,
+                    max_series=max_series,
+                )
+                st.session_state.pop("report_zip", None)
+                st.session_state.pop("sar_map_result", None)
+                st.rerun()
         scaffolds: ScaffoldStage | None = st.session_state.get("scaffold_stage")
         if scaffolds is None:
-            st.info("Run the scaffold step before series-level SAR or ML.")
+            st.info(
+                "Click Prepare SAR series above. Then choose a series and build its map. "
+                "No ML or docking is needed for this analysis."
+            )
         else:
-            show_scaffolds(scaffolds)
-            sar_cols = st.columns(2)
-            if sar_cols[0].button("Run R-group decomposition", key="run_rgroups"):
-                if scaffolds.enrichment.empty:
-                    st.warning("R-group analysis needs at least one enriched scaffold.")
-                else:
-                    with st.spinner("Decomposing the largest scaffold series…"):
-                        scaffolds.rgroups = decompose_top_scaffolds(
-                            scaffolds.table, scaffolds.enrichment
-                        )
-                        st.session_state["scaffold_stage"] = scaffolds
-                        st.session_state.pop("report_zip", None)
-            if sar_cols[1].button("Run matched molecular pairs", key="run_mmp"):
+            if not scaffolds.rgroups:
+                st.info(
+                    "No prepared series to display yet. Click Prepare SAR series, or lower "
+                    "the minimum series size in Series setup options. For more diverse "
+                    "datasets, try matched molecular pairs below."
+                )
+            if scaffolds.rgroups:
+                show_sar_map(
+                    scaffolds.rgroups,
+                    scaffolds.table,
+                    curation.curation.evidence,
+                    classes=curation.params.classes,
+                    source=curation.provenance.get("source", {}),
+                )
+            with st.expander("Scaffold overview and enrichment"):
+                show_scaffolds(scaffolds)
+            st.markdown("**Explore changes outside one scaffold**")
+            st.caption(
+                "Matched pairs can cover eligible substituent and linker changes across series."
+            )
+            if st.button("Run matched molecular pairs", key="run_mmp"):
                 with st.spinner("Enumerating single-cut transformations…"):
                     scaffolds.matched_pairs = matched_molecular_pairs(scaffolds.table)
                     scaffolds.transformation_summary = summarise_transformations(
@@ -2734,7 +2865,8 @@ def main() -> None:
                     st.session_state["scaffold_stage"] = scaffolds
                     st.session_state.pop("report_zip", None)
             if scaffolds.rgroups:
-                show_rgroups(scaffolds)
+                with st.expander("Original R-group statistics and series members"):
+                    show_rgroups(scaffolds)
             if not scaffolds.matched_pairs.empty:
                 st.markdown("**Transformation evidence**")
                 st.caption(
@@ -2743,6 +2875,9 @@ def main() -> None:
                     "whether both compounds were measured in a shared assay."
                 )
                 st.dataframe(scaffolds.transformation_summary, hide_index=True, width="stretch")
+                show_matched_pair_explorer(
+                    scaffolds.matched_pairs, scaffolds.table, curation.curation.evidence
+                )
                 with st.expander("Individual matched molecular pairs"):
                     st.dataframe(scaffolds.matched_pairs, hide_index=True, width="stretch")
 

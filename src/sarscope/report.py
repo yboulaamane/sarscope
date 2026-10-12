@@ -44,9 +44,11 @@ from sarscope import provenance  # noqa: E402
 from sarscope.analysis.descriptors import CORE_DESCRIPTORS  # noqa: E402
 from sarscope.analysis.diagnostics import novelty_summary, regression_summary  # noqa: E402
 from sarscope.analysis.landscape import cliff_generators  # noqa: E402
+from sarscope.analysis.sar_map import SarMap, build_sar_map  # noqa: E402
 from sarscope.depict import to_data_uri  # noqa: E402
 from sarscope.pipeline import RunResults  # noqa: E402
 from sarscope.predict import MODEL_FILENAME, save_bundle  # noqa: E402
+from sarscope.sar_depict import sar_map_svg  # noqa: E402
 
 #: Categorical slots 1 and 2 of the reference palette, plus a recessive grey.
 GROUP_COLORS = {1: "#2a78d6", 2: "#eb6834"}
@@ -221,6 +223,34 @@ def _write_tables(results: RunResults, out: Path) -> dict[str, pd.DataFrame]:
     for i, sar in enumerate(results.rgroups, start=1):
         written[f"rgroups_{i:02d}_substituents"] = sar.substituents
         written[f"rgroups_{i:02d}_members"] = sar.members
+        evidence = results.curation.evidence
+        if not evidence.empty:
+            evidence = evidence[evidence["molecule_id"].isin(sar.members["molecule_id"])]
+        mapped = build_sar_map(sar, evidence)
+        prefix = f"sar_map_{i:02d}"
+        written[f"{prefix}_pairs"] = mapped.pairs
+        written[f"{prefix}_transformations"] = mapped.transformations
+        written[f"{prefix}_annotations"] = mapped.annotations
+        svg = sar_map_svg(mapped)
+        if svg:
+            (out.parent / "figures" / f"{prefix}.svg").write_text(svg)
+        (out / f"{prefix}_scope.json").write_text(
+            json.dumps(
+                {
+                    "scaffold": sar.scaffold,
+                    "core": sar.core,
+                    "effect_threshold_log_units": mapped.effect_threshold,
+                    "pair_limit_reached": mapped.pair_limit_reached,
+                    "retained_record_ids": mapped.record_ids,
+                    "scope": "All curated measurements for this series; "
+                    "browser map filters are exported separately.",
+                    "method": "Other R-positions held constant; "
+                    "shared assay/endpoint/variant medians; "
+                    "one vote per compound pair; descriptive evidence grades.",
+                },
+                indent=2,
+            )
+        )
     if not results.matched_pairs.empty:
         written["matched_molecular_pairs"] = results.matched_pairs
     if not results.transformation_summary.empty:
@@ -551,7 +581,7 @@ def _render(
     parts.append(_table_html(tables["scaffold_enrichment"], smiles_cols=("scaffold",)))
 
     if results.rgroups:
-        parts.append("<h2>4. R-group SAR</h2>")
+        parts.append("<h2>4. Scaffold SAR maps and evidence</h2>")
         parts.append(
             "<p class='note'>Per-position substituent statistics for the most populated series: "
             "the input to a medicinal-chemistry SAR read, not a substitute for one. "
@@ -565,6 +595,31 @@ def _render(
                 f"{len(sar.positions)} varying positions</h3>"
             )
             parts.append(f"<p class='note'><code>{html.escape(sar.scaffold)}</code></p>")
+            prefix = f"sar_map_{i:02d}"
+            mapped = SarMap(
+                sar,
+                tables[f"{prefix}_pairs"],
+                tables[f"{prefix}_transformations"],
+                tables[f"{prefix}_annotations"],
+                False,
+                0.5,
+                (),
+            )
+            svg = sar_map_svg(mapped)
+            if svg:
+                parts.append(svg)
+            parts.append(
+                "<p class='note'>The map summarizes compounds differing at one labelled position. "
+                "Shared-assay deltas use exact measurements within the same endpoint and variant. "
+                "Pair reuse, conflicting examples and sparse evidence affect the displayed grade; "
+                "invariant core atoms have no experimental substitution evidence here. "
+                "Tables and annotated SVGs are included in the report folder.</p>"
+            )
+            parts.append(
+                _table_html(
+                    mapped.transformations, limit=12, smiles_cols=("fragment_from", "fragment_to")
+                )
+            )
             parts.append(
                 _structures(
                     [(sar.scaffold, "Shared scaffold"), (sar.core, "Labelled core")],
