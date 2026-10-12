@@ -110,12 +110,17 @@ def test_report_folder(curation, tmp_path):
         "figures/cliffs_maccs.png",
         "figures/regression_parity.png",
         "figures/regression_residuals.png",
+        "figures/sar_map_01.svg",
+        "tables/sar_map_01_pairs.csv",
+        "tables/sar_map_01_transformations.csv",
+        "tables/sar_map_01_scope.json",
     ]:
         assert (out / name).is_file(), name
     text = html.read_text()
     assert "data:image/png;base64," in text
     assert 'src="figures/' not in text  # self-contained
     assert "average precision" in text
+    assert "Scaffold SAR maps and evidence" in text
     assert json.loads((out / "provenance.json").read_text())["params"]["model"]["cv_folds"] == 3
     manifest = pd.read_csv(out / "tables/model_split_manifest.csv")
     assert len(manifest) == len(results.model_table)

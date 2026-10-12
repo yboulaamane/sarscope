@@ -124,6 +124,29 @@ remains distinct from an explicit wild-type statement.
 The cliff viewer supports molecule-ID filtering, sorting and pagination across
 all discovered pairs; applied cliff thresholds are shown beside the results.
 
+The **SAR map** tab turns R-group decomposition into a series-level analysis.
+After curation, click **Explore SAR → Prepare SAR series**, select a series,
+and click **Build interactive SAR map**. Click the labelled R-sites (or use the position
+selector) to explore substituent potency distributions, single-position matched
+changes, representative structures, property differences and the original assay
+records. Filter endpoint, assay, data origin, publication year and variant within
+the map; changing the subset requires rebuilding it. Green/red annotations mark
+replicated increases/decreases, amber marks mixed or small changes, and grey
+marks sparse evidence. The effect threshold is user controlled and exported.
+
+Controlled comparisons hold all other labelled R-positions constant. Shared-assay
+deltas are computed from exact measurements within the same assay, endpoint and
+variant; unmatched comparisons use pooled molecule values and retain a limited
+evidence grade. Counts distinguish molecular pairs, pairs sharing no compounds,
+structural contexts and assays. Grades are descriptive heuristics rather than
+statistical significance or causal claims; invariant core atoms cannot be called
+essential from these data. Linker or core changes outside a series can be
+inspected through the paginated matched-pair explorer.
+
+Download the annotated SVG and a ZIP of position evidence, individual pairs,
+series members and filter/record provenance. CLI reports also include scaffold
+SAR maps, transformation tables and scope files for the full curated series.
+
 Selected cliff pairs also have an **opt-in Vina + ProLIF docking panel**. Find
 experimental PDB structures by the target's UniProt accession, review the protein
 construct/chains, and prepare the receptor with Meeko without uploading files.

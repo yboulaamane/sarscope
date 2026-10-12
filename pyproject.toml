@@ -35,7 +35,7 @@ dependencies = [
 # upper bound on rdkit, so installing this extra can downgrade RDKit.
 pubchem = ["scikit-fingerprints>=2.0"]
 # The browser app (streamlit_app.py).
-app = ["streamlit>=1.38"]
+app = ["streamlit>=1.64"]
 explain = ["shap>=0.46"]
 space = ["umap-learn>=0.5.7,<0.6"]
 molfeat = ["molfeat>=1.0,<2"]
@@ -66,6 +66,9 @@ sarscope = "sarscope.__main__:main"
 [tool.setuptools.packages.find]
 where = ["src"]
 include = ["sarscope*"]
+
+[tool.setuptools.package-data]
+sarscope = ["components/sar_map/*.html"]
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]

@@ -341,6 +341,55 @@ def test_pubchem_workflow_is_separate_and_idle_until_requested(app_api):
     assert any(button.label == "Run qualitative screen" for button in app.button)
 
 
+def test_sar_tab_selection_survives_analysis_button_reruns(app_api):
+    app = AppTest.from_file(str(APP), default_timeout=20).run()
+    widget(app, "button", "Check target").click().run()
+    widget(app, "button", "1 · Curate CHEMBL5145").click().run()
+    # AppTest has no tab-selection API yet; send the browser's tab state
+    # alongside each button event instead of losing it in its widget snapshot.
+    for label in (None, "Run scaffold analysis", "Run R-group decomposition"):
+        if label:
+            widget(app, "button", label).click()
+        states = app._tree.get_widget_states()
+        container = next(node for node in app._tree if node.type == "tab_container")
+        states.widgets.add(id=container.proto.tab_container.id, string_value="3 · SAR map")
+        app._run(states)
+        assert not app.exception
+        assert app.session_state["analysis_tab"] == "3 · SAR map"
+
+
+def test_explore_sar_shortcut_opens_the_workspace(app_api):
+    app = AppTest.from_file(str(APP), default_timeout=20).run()
+    widget(app, "button", "Check target").click().run()
+    widget(app, "button", "1 · Curate CHEMBL5145").click().run()
+    widget(app, "button", "Explore SAR").click().run()
+    assert not app.exception
+    assert app.session_state["analysis_tab"] == "3 · SAR map"
+    assert any(button.label == "Prepare SAR series" for button in app.button)
+
+
+def test_series_preparation_does_not_require_active_compounds():
+    from sarscope.curate import CurationResult
+    from streamlit_app import run_sar_series_stage
+
+    table = pd.DataFrame(
+        [
+            {
+                "molecule_id": f"M{i}",
+                "smiles": sub + "c1ccccc1",
+                "pactivity": 5.0 + i / 10,
+                "activity_class": "inactive",
+                "group": 2,
+            }
+            for i, sub in enumerate(["C", "CC", "CCC", "Cl", "F", "OC"])
+        ]
+    )
+    stage = run_sar_series_stage(CurationResult(table), min_members=3)
+    assert stage.enrichment.empty
+    assert len(stage.rgroups) == 1
+    assert stage.rgroups[0].n_molecules == 6
+
+
 def test_gene_search_requires_selection_and_invalidates_old_results(app_api):
     app = AppTest.from_file(str(APP), default_timeout=20).run()
     widget(app, "radio", "Find a target by").set_value("Gene / protein").run()
