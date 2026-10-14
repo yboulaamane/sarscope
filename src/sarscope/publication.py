@@ -35,6 +35,19 @@ from sarscope.sar_depict import sar_map_svg
 DECISIONS = {"increase", "decrease", "mixed", "insufficient"}
 
 
+def _portable_command(command: list[str]) -> list[str]:
+    """A recorded command with this machine's interpreter path removed.
+
+    The commands are executed with ``sys.executable`` because that is the only
+    interpreter guaranteed to have mmpdb installed. Recording that absolute
+    path would publish the author's home directory in the comparison artifacts
+    without making them any more reproducible: every other argument is already
+    repository-relative, and the module, flags and output paths are what the
+    record exists to document.
+    """
+    return ["python" if part == sys.executable else part for part in command]
+
+
 def _write_json(path: Path, value: Any) -> None:
     path.write_text(json.dumps(value, indent=2, sort_keys=True, allow_nan=False) + "\n")
 
@@ -522,7 +535,7 @@ def compare_mmpdb(results: Path, out: Path) -> Path:
                 raise ValueError(f"mmpdb failed in {directory.name}; see execution.log")
         elapsed = time.perf_counter() - start
         (case / "execution.log").write_text("\n".join(logs))
-        _write_json(case / "commands.json", commands)
+        _write_json(case / "commands.json", [_portable_command(c) for c in commands])
         baseline = (
             pd.read_csv(pairs, sep="\t", header=None) if pairs.stat().st_size else pd.DataFrame()
         )

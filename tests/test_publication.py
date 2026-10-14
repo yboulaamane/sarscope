@@ -261,3 +261,36 @@ def test_environment_lock_has_archive_hashes_and_never_copies_private_urls(tmp_p
     report.write_text(json.dumps(payload))
     with pytest.raises(ValueError, match="SHA-256"):
         lock_environment(report, tmp_path / "missing-hash.lock")
+
+
+def test_recorded_commands_carry_no_machine_specific_path():
+    """Published artifacts must not leak the author's filesystem.
+
+    The commands are run with sys.executable, but recording that absolute path
+    would put a home directory into the repository without making the record
+    more reproducible.
+    """
+    import sys
+
+    from sarscope.publication import _portable_command
+
+    command = [sys.executable, "-m", "mmpdblib", "fragment", "paper/x/input.smi"]
+    recorded = _portable_command(command)
+    assert recorded[0] == "python"
+    assert recorded[1:] == command[1:]
+    assert sys.executable not in recorded
+
+
+def test_committed_mmpdb_commands_are_portable():
+    """Guards the checked-in comparison artifacts, not just the generator."""
+    import json
+    from pathlib import Path
+
+    files = sorted(Path("paper/mmpdb-comparison").glob("*/commands.json"))
+    if not files:
+        pytest.skip("comparison artifacts are not present")
+    for path in files:
+        for command in json.loads(path.read_text()):
+            assert command[0] == "python", f"{path} records an interpreter path"
+            for part in command:
+                assert not part.startswith("/"), f"{path} has an absolute path: {part}"
