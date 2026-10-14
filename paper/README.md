@@ -34,29 +34,27 @@ python paper/audit_current_workbench.py --out runs/workbench-check
 
 Inputs, source modules and output CSV hashes are in `workbench-audit/provenance.json`.
 The new journal Word/PDF package has separate layout/citation/hash QA in
-`journal-package-verification.json`. Earlier manuscripts and original exports
-are preserved below; they are not silently replaced by this revision.
+`journal-package-verification.json`. Superseded manuscript generations were
+removed from the working tree on 14 October 2026; they remain in git history
+(see commit c64a113 and earlier) if an earlier wording needs to be recovered.
 
 This is a working software-paper package, **not a submission-ready manuscript**.
 The intended contribution is interactive, assay-aware SAR interpretation with
 traceable source evidence, not another model leaderboard or a docking mechanism.
 
-Start with the revised [scientific manuscript](scientific-manuscript.md),
-[Supplementary Information](supplementary-scientific-methods.md) and
-[author notes](author-notes-scientific.md). The original manuscript and Word
-document are preserved for comparison. The revised DRD2 analysis uses 23
-stereochemically consistent compounds and 36 pairs, superseding the original
-26-compound/46-pair positional results.
+Start with the [journal-tailored manuscript](jcheminformatics-manuscript.md),
+its [supplement](jcheminformatics-supplement.md) and the
+[author notes](author-notes-scientific.md). The manuscript carries positional
+interpretation, a stereochemical-core audit and robustness diagnostics. The
+DRD2 analysis uses 23 stereochemically consistent compounds and 36 pairs; an
+earlier scaffold-only grouping gave 26 compounds and 46 pairs, and the author
+notes explain the change.
 
-The revised [scientific manuscript](scientific-manuscript.md) and
-[Supplementary Information](supplementary-scientific-methods.md) add positional
-interpretation, a stereochemical-core audit and robustness diagnostics.
-[Author notes](author-notes-scientific.md) explain the changed DRD2 counts and
-remaining submission gates. The saved scientific documents describe the original
-evaluation-side stereochemical restriction. A subsequent local implementation
-now retains per-molecule mapped cores, separates core states in the browser and
-scopes CLI maps to the largest state. Existing saved results and Word/PDF files
-have not been regenerated or publicly released with that code change.
+Two staleness warnings still apply. The author notes and the saved `results/`
+exports describe the original evaluation-side stereochemical restriction, while
+the code now retains per-molecule mapped cores, separates core states in the
+browser and scopes CLI maps to the largest state. The saved Word and PDF files
+were built before that code change and have not been regenerated.
 
 To reproduce the new analyses without downloads, docking or model training:
 
