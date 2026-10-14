@@ -1,6 +1,6 @@
 [
   [
-    "/home/yassir/cdd/sarscope/.venv/bin/python",
+    "python",
     "-m",
     "mmpdblib",
     "fragment",
@@ -21,7 +21,7 @@
     "paper/mmpdb-comparison/esr1/fragments.fragdb"
   ],
   [
-    "/home/yassir/cdd/sarscope/.venv/bin/python",
+    "python",
     "-m",
     "mmpdblib",
     "index",
