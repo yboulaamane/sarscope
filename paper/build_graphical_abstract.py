@@ -1,14 +1,14 @@
-"""Build the graphical abstract: one substituent, two positions, opposite effects.
+"""Build the graphical abstract for the positional SAR manuscript.
 
-The figure is a fork. A single hydroxyl addition starts from one shared
-structure and ends in two places: down at the para position of the pendant
-phenyl, up at the meta position. That is the paper's clearest result and it
-needs no caption to read.
+The figure plots the two hydroxyl additions of the BRAF series as a fork from a
+common unsubstituted origin, so that the dependence on attachment position is
+visible before any number is read.
 
-Each arm carries a pale band spanning the range the median moves across when
-individual compounds are omitted. The bands are wide, because with two pairs
-each they genuinely are. Showing them is the point: the direction is a property
-of these measurements, not an established design rule.
+Each arm carries a bar spanning the range its median covers when individual
+compounds are omitted. With two matched pairs per transformation those ranges
+are wide, and reporting them alongside the medians keeps the figure consistent
+with the manuscript: the directions describe these measurements and are not
+established design rules.
 
 Everything numeric is read from the audit output, so the figure cannot drift
 from the analysis. The structure is drawn by RDKit and nested in a
@@ -145,8 +145,9 @@ def build(results: Path, out: Path) -> Path:
      width="{WIDTH}" height="{HEIGHT}" viewBox="0 0 {WIDTH} {HEIGHT}">
   <rect width="{WIDTH}" height="{HEIGHT}" fill="#ffffff"/>
 
-  <text x="34" y="36" font-family="Helvetica, Arial, sans-serif" font-size="19"
-        font-weight="600" fill="{INK}">The same hydroxyl. Opposite directions.</text>
+  <text x="34" y="36" font-family="Helvetica, Arial, sans-serif" font-size="18"
+        font-weight="600" fill="{INK}">Positional dependence of hydroxyl addition in a
+    BRAF series</text>
 
   <g transform="translate(24,52)">{structure_svg()}</g>
   <circle cx="40" cy="372" r="6" fill="{AMBER}"/>
@@ -180,7 +181,7 @@ def build(results: Path, out: Path) -> Path:
         font-size="11.5" fill="{MUTED}">range</text>
   <text x="{FORK_X - 50}" y="403" font-family="Helvetica, Arial, sans-serif"
         font-size="13" fill="{MUTED}">
-    Bars show how far each median moves when single compounds are omitted</text>
+    Bars: range of each median under single-compound omission</text>
 </svg>
 """
     out.mkdir(parents=True, exist_ok=True)

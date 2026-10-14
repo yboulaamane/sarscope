@@ -2,8 +2,9 @@
      width="1120" height="420" viewBox="0 0 1120 420">
   <rect width="1120" height="420" fill="#ffffff"/>
 
-  <text x="34" y="36" font-family="Helvetica, Arial, sans-serif" font-size="19"
-        font-weight="600" fill="#1a1a19">The same hydroxyl. Opposite directions.</text>
+  <text x="34" y="36" font-family="Helvetica, Arial, sans-serif" font-size="18"
+        font-weight="600" fill="#1a1a19">Positional dependence of hydroxyl addition in a
+    BRAF series</text>
 
   <g transform="translate(24,52)">
 <!-- END OF HEADER -->
@@ -580,5 +581,5 @@ L 437.8 119.9
         font-size="11.5" fill="#718096">range</text>
   <text x="536" y="403" font-family="Helvetica, Arial, sans-serif"
         font-size="13" fill="#718096">
-    Bars show how far each median moves when single compounds are omitted</text>
+    Bars: range of each median under single-compound omission</text>
 </svg>

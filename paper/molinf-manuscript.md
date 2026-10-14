@@ -18,11 +18,13 @@ Medicinal chemists interpret structural changes through their measured effects o
 
 Image file: `figures/graphical-abstract.svg` (vector; PDF and 300 dpi PNG alongside).
 
-A single hydroxyl addition to one BRAF series splits in two: adding it at the
-para position of the pendant phenyl costs 1.63 log units of potency, while the
-same addition at the meta position gains 1.57. Bars show how far each median
-moves when individual compounds are omitted. SARscope links such positional
-comparisons back to the measurements that support them.
+In a 16-compound BRAF series measured in a single assay, hydroxyl addition to
+the pendant phenyl altered potency in opposite directions according to
+attachment position: a median change of −1.63 log units at the para position
+and +1.57 at the meta position, each from two matched pairs sharing the same
+mapped isomeric core. Bars give the range of each median under single-compound
+omission. SARscope resolves such comparisons to the measurements that support
+them.
 
 **Keywords:** structure–activity relationships · matched molecular pairs · activity cliffs · chemoinformatics · assay comparability
 
