@@ -1,0 +1,47 @@
+{
+  "schema_version": 1,
+  "selection": "Retrospective literature examples chosen from the frozen ChEMBL 37 panel by assay size and chemical-series relevance, not model performance. Not a preregistration or independent test set.",
+  "series_selection": "Largest populated Murcko scaffold per assay; ties resolved by canonical scaffold SMILES. No potency-based series selection.",
+  "effect_threshold": 0.5,
+  "cases": [
+    {
+      "case_id": "braf",
+      "target_id": "CHEMBL5145",
+      "target_label": "BRAF",
+      "family": "protein_kinase",
+      "assay_id": "CHEMBL5046398",
+      "document_id": "CHEMBL5046217",
+      "doi": "10.1021/acs.jmedchem.1c00230",
+      "title": "Discovery of New Imidazo[2,1-b]thiazole Derivatives as Potent Pan-RAF Inhibitors with Promising In Vitro and In Vivo Anti-melanoma Activity",
+      "year": 2021,
+      "scope_note": "One human wild-type BRAF enzyme inhibition assay. Pan-RAF selectivity and anti-melanoma efficacy are outside this single-target analysis.",
+      "literature_expectations_status": "requires independent full-text/table annotation"
+    },
+    {
+      "case_id": "drd2",
+      "target_id": "CHEMBL217",
+      "target_label": "DRD2",
+      "family": "class_a_gpcr",
+      "assay_id": "CHEMBL671074",
+      "document_id": "CHEMBL1133592",
+      "doi": "10.1021/jm990562x",
+      "title": "trans-1-[(2-Phenylcyclopropyl)methyl]-4-arylpiperazines: mixed dopamine D(2)/D(4) receptor antagonists as potential antipsychotic agents",
+      "year": 2000,
+      "scope_note": "D2 radioligand competition IC50, not Ki. D4 selectivity, functional antagonism and behavioral efficacy are not inferred.",
+      "literature_expectations_status": "requires independent full-text/table annotation"
+    },
+    {
+      "case_id": "esr1",
+      "target_id": "CHEMBL206",
+      "target_label": "Estrogen receptor alpha",
+      "family": "nuclear_receptor",
+      "assay_id": "CHEMBL829540",
+      "document_id": "CHEMBL1138773",
+      "doi": "10.1021/jm049719y",
+      "title": "Design and synthesis of aryl diphenolic azoles as potent and selective estrogen receptor-beta ligands",
+      "year": 2004,
+      "scope_note": "This paper targets ER beta selectivity, but this cohort is the ER alpha counter-assay. Do not label these measurements ESR2 or claim selectivity from them alone.",
+      "literature_expectations_status": "requires independent full-text/table annotation"
+    }
+  ]
+}

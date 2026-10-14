@@ -1,0 +1,16 @@
+test,omitted,pairs,disjoint_pairs,assays,median_delta,direction_agreement,interpretation,retains_direction
+Baseline,None,4,4,1,-0.6769441131116514,1.0,decrease,True
+Leave one compound out,CHEMBL187207,3,3,1,-0.6839279992574046,1.0,decrease,True
+Leave one compound out,CHEMBL187311,3,3,1,-0.6699602269658982,1.0,decrease,True
+Leave one compound out,CHEMBL187915,3,3,1,-0.6699602269658982,1.0,decrease,True
+Leave one compound out,CHEMBL188528,3,3,1,-0.6839279992574046,1.0,decrease,True
+Leave one compound out,CHEMBL188846,3,3,1,-0.6699602269658982,1.0,decrease,True
+Leave one compound out,CHEMBL361063,3,3,1,-0.6699602269658982,1.0,decrease,True
+Leave one compound out,CHEMBL363955,3,3,1,-0.6839279992574046,1.0,decrease,True
+Leave one compound out,CHEMBL450940,3,3,1,-0.6839279992574046,1.0,decrease,True
+Leave one chemical context out,"{""R1"": ""H"", ""R2"": ""H"", ""R4"": ""H"", ""R5"": ""O[*:5]"", ""R6"": ""H"", ""R7"": ""C[*:7]"", ""R8"": ""H"", ""R9"": ""O[*:9]""}",3,3,1,-0.6699602269658982,1.0,decrease,True
+Leave one chemical context out,"{""R1"": ""H"", ""R2"": ""H"", ""R4"": ""H"", ""R5"": ""O[*:5]"", ""R6"": ""H"", ""R7"": ""F[*:7]"", ""R8"": ""H"", ""R9"": ""O[*:9]""}",3,3,1,-0.6699602269658982,1.0,decrease,True
+Leave one chemical context out,"{""R1"": ""H"", ""R2"": ""H"", ""R4"": ""H"", ""R5"": ""O[*:5]"", ""R6"": ""H"", ""R7"": ""H"", ""R8"": ""F[*:8]"", ""R9"": ""O[*:9]""}",3,3,1,-0.6839279992574046,1.0,decrease,True
+Leave one chemical context out,"{""R1"": ""H"", ""R2"": ""H"", ""R4"": ""H"", ""R5"": ""O[*:5]"", ""R6"": ""H"", ""R7"": ""H"", ""R8"": ""H"", ""R9"": ""O[*:9]""}",3,3,1,-0.6839279992574046,1.0,decrease,True
+Leave one assay out,CHEMBL829540,0,0,0,,,insufficient evidence,False
+Leave one publication out,CHEMBL1138773,0,0,0,,,insufficient evidence,False

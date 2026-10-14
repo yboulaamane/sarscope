@@ -1,0 +1,156 @@
+position,fragment_from,fragment_to,evidence_tier,endpoint,variant,supporting_pairs,distinct_contexts,disjoint_pairs,assays,median_delta,q25_delta,q75_delta,positive_pairs,negative_pairs,direction_agreement,evidence_strength,interpretation
+R1,F[*:1],H,shared assay,IC50,Unreported,1,1,1,1,1.2503555079174822,1.2503555079174822,1.2503555079174822,1,0,1.0,limited,increase
+R2,F[*:2],H,shared assay,IC50,Unreported,1,1,1,1,0.040173489902613824,0.040173489902613824,0.040173489902613824,1,0,1.0,mixed,mixed / small change
+R3,Br/C=C\[*:3],BrC[*:3],shared assay,IC50,Unreported,1,1,1,1,0.19415273599184246,0.19415273599184246,0.19415273599184246,1,0,1.0,mixed,mixed / small change
+R3,Br/C=C\[*:3],Br[*:3],shared assay,IC50,Unreported,2,2,2,1,1.0487331106534388,0.8344456620370986,1.263020559269779,2,0,1.0,moderate,increase
+R3,Br/C=C\[*:3],C#C[*:3],shared assay,IC50,Unreported,1,1,1,1,0.9854946296825791,0.9854946296825791,0.9854946296825791,1,0,1.0,limited,increase
+R3,Br/C=C\[*:3],C=C[*:3],shared assay,IC50,Unreported,2,2,2,1,0.4767811985439141,0.20650570635363397,0.7470566907341942,1,1,0.5,mixed,mixed / small change
+R3,Br/C=C\[*:3],CC(C)[*:3],shared assay,IC50,Unreported,1,1,1,1,0.5884584600087859,0.5884584600087859,0.5884584600087859,1,0,1.0,limited,increase
+R3,Br/C=C\[*:3],CC=C[*:3],shared assay,IC50,Unreported,2,2,2,1,0.3615351501452979,0.14619190053107856,0.5768783997595173,1,1,0.5,mixed,mixed / small change
+R3,Br/C=C\[*:3],CCCC[*:3],shared assay,IC50,Unreported,1,1,1,1,0.9704103632966934,0.9704103632966934,0.9704103632966934,1,0,1.0,limited,increase
+R3,Br/C=C\[*:3],CCC[*:3],shared assay,IC50,Unreported,1,1,1,1,1.0765750990299114,1.0765750990299114,1.0765750990299114,1,0,1.0,limited,increase
+R3,Br/C=C\[*:3],CCOC(=O)[*:3],shared assay,IC50,Unreported,1,1,1,1,-0.22595562776347222,-0.22595562776347222,-0.22595562776347222,0,1,1.0,mixed,mixed / small change
+R3,Br/C=C\[*:3],CC[*:3],shared assay,IC50,Unreported,1,1,1,1,0.937665420356856,0.937665420356856,0.937665420356856,1,0,1.0,limited,increase
+R3,Br/C=C\[*:3],CO[*:3],shared assay,IC50,Unreported,1,1,1,1,0.25990897803007584,0.25990897803007584,0.25990897803007584,1,0,1.0,mixed,mixed / small change
+R3,Br/C=C\[*:3],H,shared assay,IC50,Unreported,1,1,1,1,0.5787951433294065,0.5787951433294065,0.5787951433294065,1,0,1.0,limited,increase
+R3,Br/C=C\[*:3],N#C[*:3],shared assay,IC50,Unreported,2,2,2,1,0.6030874345677906,0.377732209761515,0.8284426593740661,2,0,1.0,moderate,increase
+R3,Br/C=C\[*:3],NC(=O)[*:3],shared assay,IC50,Unreported,1,1,1,1,-0.3155353659814022,-0.3155353659814022,-0.3155353659814022,0,1,1.0,mixed,mixed / small change
+R3,Br/C=C\[*:3],O=C[*:3],shared assay,IC50,Unreported,1,1,1,1,0.2463649148460645,0.2463649148460645,0.2463649148460645,1,0,1.0,mixed,mixed / small change
+R3,BrC[*:3],Br[*:3],shared assay,IC50,Unreported,1,1,1,1,1.2831552718942767,1.2831552718942767,1.2831552718942767,1,0,1.0,limited,increase
+R3,BrC[*:3],C#C[*:3],shared assay,IC50,Unreported,1,1,1,1,0.7913418936907366,0.7913418936907366,0.7913418936907366,1,0,1.0,limited,increase
+R3,BrC[*:3],C=C[*:3],shared assay,IC50,Unreported,1,1,1,1,0.8231794469326319,0.8231794469326319,0.8231794469326319,1,0,1.0,limited,increase
+R3,BrC[*:3],CC(C)[*:3],shared assay,IC50,Unreported,1,1,1,1,0.3943057240169434,0.3943057240169434,0.3943057240169434,1,0,1.0,mixed,mixed / small change
+R3,BrC[*:3],CC=C[*:3],shared assay,IC50,Unreported,1,1,1,1,0.5980689133818942,0.5980689133818942,0.5980689133818942,1,0,1.0,limited,increase
+R3,BrC[*:3],CCCC[*:3],shared assay,IC50,Unreported,1,1,1,1,0.7762576273048509,0.7762576273048509,0.7762576273048509,1,0,1.0,limited,increase
+R3,BrC[*:3],CCC[*:3],shared assay,IC50,Unreported,1,1,1,1,0.882422363038069,0.882422363038069,0.882422363038069,1,0,1.0,limited,increase
+R3,BrC[*:3],CCOC(=O)[*:3],shared assay,IC50,Unreported,1,1,1,1,-0.4201083637553147,-0.4201083637553147,-0.4201083637553147,0,1,1.0,mixed,mixed / small change
+R3,BrC[*:3],CC[*:3],shared assay,IC50,Unreported,1,1,1,1,0.7435126843650135,0.7435126843650135,0.7435126843650135,1,0,1.0,limited,increase
+R3,BrC[*:3],CO[*:3],shared assay,IC50,Unreported,1,1,1,1,0.06575624203823338,0.06575624203823338,0.06575624203823338,1,0,1.0,mixed,mixed / small change
+R3,BrC[*:3],H,shared assay,IC50,Unreported,1,1,1,1,0.38464240733756405,0.38464240733756405,0.38464240733756405,1,0,1.0,mixed,mixed / small change
+R3,BrC[*:3],N#C[*:3],shared assay,IC50,Unreported,1,1,1,1,0.8596451481884992,0.8596451481884992,0.8596451481884992,1,0,1.0,limited,increase
+R3,BrC[*:3],NC(=O)[*:3],shared assay,IC50,Unreported,1,1,1,1,-0.5096881019732447,-0.5096881019732447,-0.5096881019732447,0,1,1.0,limited,decrease
+R3,BrC[*:3],O=C[*:3],shared assay,IC50,Unreported,1,1,1,1,0.052212178854222024,0.052212178854222024,0.052212178854222024,1,0,1.0,mixed,mixed / small change
+R3,Br[*:3],C#C[*:3],shared assay,IC50,Unreported,1,1,1,1,-0.4918133782035401,-0.4918133782035401,-0.4918133782035401,0,1,1.0,mixed,mixed / small change
+R3,Br[*:3],C=C[*:3],shared assay,IC50,Unreported,4,4,4,1,-0.6769441131116514,-0.8639988789718964,-0.6174641264648348,0,4,1.0,strong,decrease
+R3,Br[*:3],CC(C)[*:3],shared assay,IC50,Unreported,1,1,1,1,-0.8888495478773333,-0.8888495478773333,-0.8888495478773333,0,1,1.0,limited,decrease
+R3,Br[*:3],CC=C[*:3],shared assay,IC50,Unreported,3,3,3,1,-0.6850863585123825,-0.6871979605081409,-0.6557528478498948,0,3,1.0,strong,decrease
+R3,Br[*:3],CCCC[*:3],shared assay,IC50,Unreported,1,1,1,1,-0.5068976445894258,-0.5068976445894258,-0.5068976445894258,0,1,1.0,limited,decrease
+R3,Br[*:3],CCC[*:3],shared assay,IC50,Unreported,1,1,1,1,-0.4007329088562077,-0.4007329088562077,-0.4007329088562077,0,1,1.0,mixed,mixed / small change
+R3,Br[*:3],CCOC(=O)[*:3],shared assay,IC50,Unreported,1,1,1,1,-1.7032636356495914,-1.7032636356495914,-1.7032636356495914,0,1,1.0,limited,decrease
+R3,Br[*:3],CC[*:3],shared assay,IC50,Unreported,1,1,1,1,-0.5396425875292632,-0.5396425875292632,-0.5396425875292632,0,1,1.0,limited,decrease
+R3,Br[*:3],CO[*:3],shared assay,IC50,Unreported,1,1,1,1,-1.2173990298560433,-1.2173990298560433,-1.2173990298560433,0,1,1.0,limited,decrease
+R3,Br[*:3],F/C=C\[*:3],shared assay,IC50,Unreported,1,1,1,1,-0.16021449695684264,-0.16021449695684264,-0.16021449695684264,0,1,1.0,mixed,mixed / small change
+R3,Br[*:3],H,shared assay,IC50,Unreported,2,2,2,1,-0.8397195844975638,-0.8691162245271382,-0.8103229444679894,0,2,1.0,moderate,decrease
+R3,Br[*:3],N#C[*:3],shared assay,IC50,Unreported,3,3,3,1,-0.46778122846551895,-0.6048298907823559,-0.4456456760856482,0,3,1.0,mixed,mixed / small change
+R3,Br[*:3],NC(=O)[*:3],shared assay,IC50,Unreported,1,1,1,1,-1.7928433738675214,-1.7928433738675214,-1.7928433738675214,0,1,1.0,limited,decrease
+R3,Br[*:3],O=C[*:3],shared assay,IC50,Unreported,1,1,1,1,-1.2309430930400547,-1.2309430930400547,-1.2309430930400547,0,1,1.0,limited,decrease
+R3,C#C[*:3],C=C[*:3],shared assay,IC50,Unreported,1,1,1,1,0.0318375532418953,0.0318375532418953,0.0318375532418953,1,0,1.0,mixed,mixed / small change
+R3,C#C[*:3],CC(C)[*:3],shared assay,IC50,Unreported,1,1,1,1,-0.3970361696737932,-0.3970361696737932,-0.3970361696737932,0,1,1.0,mixed,mixed / small change
+R3,C#C[*:3],CC=C[*:3],shared assay,IC50,Unreported,1,1,1,1,-0.19327298030884243,-0.19327298030884243,-0.19327298030884243,0,1,1.0,mixed,mixed / small change
+R3,C#C[*:3],CCCC[*:3],shared assay,IC50,Unreported,1,1,1,1,-0.01508426638588567,-0.01508426638588567,-0.01508426638588567,0,1,1.0,mixed,mixed / small change
+R3,C#C[*:3],CCC[*:3],shared assay,IC50,Unreported,1,1,1,1,0.09108046934733238,0.09108046934733238,0.09108046934733238,1,0,1.0,mixed,mixed / small change
+R3,C#C[*:3],CCOC(=O)[*:3],shared assay,IC50,Unreported,1,1,1,1,-1.2114502574460513,-1.2114502574460513,-1.2114502574460513,0,1,1.0,limited,decrease
+R3,C#C[*:3],CC[*:3],shared assay,IC50,Unreported,1,1,1,1,-0.0478292093257231,-0.0478292093257231,-0.0478292093257231,0,1,1.0,mixed,mixed / small change
+R3,C#C[*:3],CO[*:3],shared assay,IC50,Unreported,1,1,1,1,-0.7255856516525032,-0.7255856516525032,-0.7255856516525032,0,1,1.0,limited,decrease
+R3,C#C[*:3],H,shared assay,IC50,Unreported,1,1,1,1,-0.40669948635317255,-0.40669948635317255,-0.40669948635317255,0,1,1.0,mixed,mixed / small change
+R3,C#C[*:3],N#C[*:3],shared assay,IC50,Unreported,1,1,1,1,0.06830325449776264,0.06830325449776264,0.06830325449776264,1,0,1.0,mixed,mixed / small change
+R3,C#C[*:3],NC(=O)[*:3],shared assay,IC50,Unreported,1,1,1,1,-1.3010299956639813,-1.3010299956639813,-1.3010299956639813,0,1,1.0,limited,decrease
+R3,C#C[*:3],O=C[*:3],shared assay,IC50,Unreported,1,1,1,1,-0.7391297148365146,-0.7391297148365146,-0.7391297148365146,0,1,1.0,limited,decrease
+R3,C=C[*:3],CC(C)[*:3],shared assay,IC50,Unreported,1,1,1,1,-0.4288737229156885,-0.4288737229156885,-0.4288737229156885,0,1,1.0,mixed,mixed / small change
+R3,C=C[*:3],CC=C[*:3],shared assay,IC50,Unreported,3,3,3,1,-0.005381563246494636,-0.11524604839861619,0.019079663265998192,1,2,0.6666666666666666,mixed,mixed / small change
+R3,C=C[*:3],CCCC[*:3],shared assay,IC50,Unreported,1,1,1,1,-0.04692181962778097,-0.04692181962778097,-0.04692181962778097,0,1,1.0,mixed,mixed / small change
+R3,C=C[*:3],CCC[*:3],shared assay,IC50,Unreported,1,1,1,1,0.05924291610543708,0.05924291610543708,0.05924291610543708,1,0,1.0,mixed,mixed / small change
+R3,C=C[*:3],CCOC(=O)[*:3],shared assay,IC50,Unreported,1,1,1,1,-1.2432878106879466,-1.2432878106879466,-1.2432878106879466,0,1,1.0,limited,decrease
+R3,C=C[*:3],CC[*:3],shared assay,IC50,Unreported,1,1,1,1,-0.0796667625676184,-0.0796667625676184,-0.0796667625676184,0,1,1.0,mixed,mixed / small change
+R3,C=C[*:3],CO[*:3],shared assay,IC50,Unreported,3,3,3,1,-0.4108260698352968,-0.5841246373648477,-0.12676116622151978,1,2,0.6666666666666666,mixed,mixed / small change
+R3,C=C[*:3],F/C=C\[*:3],shared assay,IC50,Unreported,1,1,1,1,0.5097457300090555,0.5097457300090555,0.5097457300090555,1,0,1.0,limited,increase
+R3,C=C[*:3],H,shared assay,IC50,Unreported,2,2,2,1,-0.2747515585337923,-0.35664429906443007,-0.19285881800315452,0,2,1.0,mixed,mixed / small change
+R3,C=C[*:3],N#C[*:3],shared assay,IC50,Unreported,3,3,3,1,0.036465701255867344,-0.0177263124387137,0.12630623602387647,2,1,0.6666666666666666,mixed,mixed / small change
+R3,C=C[*:3],NC(=O)[*:3],shared assay,IC50,Unreported,1,1,1,1,-1.3328675489058766,-1.3328675489058766,-1.3328675489058766,0,1,1.0,limited,decrease
+R3,C=C[*:3],O=C[*:3],shared assay,IC50,Unreported,1,1,1,1,-0.7709672680784099,-0.7709672680784099,-0.7709672680784099,0,1,1.0,limited,decrease
+R3,CC(C)[*:3],CC=C[*:3],shared assay,IC50,Unreported,1,1,1,1,0.20376318936495075,0.20376318936495075,0.20376318936495075,1,0,1.0,mixed,mixed / small change
+R3,CC(C)[*:3],CCCC[*:3],shared assay,IC50,Unreported,1,1,1,1,0.3819519032879075,0.3819519032879075,0.3819519032879075,1,0,1.0,mixed,mixed / small change
+R3,CC(C)[*:3],CCC[*:3],shared assay,IC50,Unreported,1,1,1,1,0.48811663902112556,0.48811663902112556,0.48811663902112556,1,0,1.0,mixed,mixed / small change
+R3,CC(C)[*:3],CCOC(=O)[*:3],shared assay,IC50,Unreported,1,1,1,1,-0.8144140877722581,-0.8144140877722581,-0.8144140877722581,0,1,1.0,limited,decrease
+R3,CC(C)[*:3],CC[*:3],shared assay,IC50,Unreported,1,1,1,1,0.3492069603480701,0.3492069603480701,0.3492069603480701,1,0,1.0,mixed,mixed / small change
+R3,CC(C)[*:3],CO[*:3],shared assay,IC50,Unreported,1,1,1,1,-0.32854948197871003,-0.32854948197871003,-0.32854948197871003,0,1,1.0,mixed,mixed / small change
+R3,CC(C)[*:3],H,shared assay,IC50,Unreported,1,1,1,1,-0.009663316679379363,-0.009663316679379363,-0.009663316679379363,0,1,1.0,mixed,mixed / small change
+R3,CC(C)[*:3],N#C[*:3],shared assay,IC50,Unreported,1,1,1,1,0.4653394241715558,0.4653394241715558,0.4653394241715558,1,0,1.0,mixed,mixed / small change
+R3,CC(C)[*:3],NC(=O)[*:3],shared assay,IC50,Unreported,1,1,1,1,-0.9039938259901881,-0.9039938259901881,-0.9039938259901881,0,1,1.0,limited,decrease
+R3,CC(C)[*:3],O=C[*:3],shared assay,IC50,Unreported,1,1,1,1,-0.3420935451627214,-0.3420935451627214,-0.3420935451627214,0,1,1.0,mixed,mixed / small change
+R3,CC=C[*:3],CCCC[*:3],shared assay,IC50,Unreported,1,1,1,1,0.17818871392295677,0.17818871392295677,0.17818871392295677,1,0,1.0,mixed,mixed / small change
+R3,CC=C[*:3],CCC[*:3],shared assay,IC50,Unreported,1,1,1,1,0.2843534496561748,0.2843534496561748,0.2843534496561748,1,0,1.0,mixed,mixed / small change
+R3,CC=C[*:3],CCOC(=O)[*:3],shared assay,IC50,Unreported,1,1,1,1,-1.0181772771372088,-1.0181772771372088,-1.0181772771372088,0,1,1.0,limited,decrease
+R3,CC=C[*:3],CC[*:3],shared assay,IC50,Unreported,1,1,1,1,0.14544377098311934,0.14544377098311934,0.14544377098311934,1,0,1.0,mixed,mixed / small change
+R3,CC=C[*:3],CO[*:3],shared assay,IC50,Unreported,1,1,1,1,-0.5323126713436608,-0.5323126713436608,-0.5323126713436608,0,1,1.0,limited,decrease
+R3,CC=C[*:3],F/C=C\[*:3],shared assay,IC50,Unreported,1,1,1,1,0.4662048402305645,0.4662048402305645,0.4662048402305645,1,0,1.0,mixed,mixed / small change
+R3,CC=C[*:3],H,shared assay,IC50,Unreported,2,2,2,1,-0.18396673664766894,-0.19869662134599952,-0.16923685194933835,0,2,1.0,mixed,mixed / small change
+R3,CC=C[*:3],N#C[*:3],shared assay,IC50,Unreported,3,3,3,1,0.22152833403838024,0.05303455906329724,0.24155228442249266,2,1,0.6666666666666666,mixed,mixed / small change
+R3,CC=C[*:3],NC(=O)[*:3],shared assay,IC50,Unreported,1,1,1,1,-1.1077570153551388,-1.1077570153551388,-1.1077570153551388,0,1,1.0,limited,decrease
+R3,CC=C[*:3],O=C[*:3],shared assay,IC50,Unreported,1,1,1,1,-0.5458567345276721,-0.5458567345276721,-0.5458567345276721,0,1,1.0,limited,decrease
+R3,CCCC[*:3],CCC[*:3],shared assay,IC50,Unreported,1,1,1,1,0.10616473573321805,0.10616473573321805,0.10616473573321805,1,0,1.0,mixed,mixed / small change
+R3,CCCC[*:3],CCOC(=O)[*:3],shared assay,IC50,Unreported,1,1,1,1,-1.1963659910601656,-1.1963659910601656,-1.1963659910601656,0,1,1.0,limited,decrease
+R3,CCCC[*:3],CC[*:3],shared assay,IC50,Unreported,1,1,1,1,-0.03274494293983743,-0.03274494293983743,-0.03274494293983743,0,1,1.0,mixed,mixed / small change
+R3,CCCC[*:3],CO[*:3],shared assay,IC50,Unreported,1,1,1,1,-0.7105013852666175,-0.7105013852666175,-0.7105013852666175,0,1,1.0,limited,decrease
+R3,CCCC[*:3],H,shared assay,IC50,Unreported,1,1,1,1,-0.3916152199672869,-0.3916152199672869,-0.3916152199672869,0,1,1.0,mixed,mixed / small change
+R3,CCCC[*:3],N#C[*:3],shared assay,IC50,Unreported,1,1,1,1,0.08338752088364831,0.08338752088364831,0.08338752088364831,1,0,1.0,mixed,mixed / small change
+R3,CCCC[*:3],NC(=O)[*:3],shared assay,IC50,Unreported,1,1,1,1,-1.2859457292780956,-1.2859457292780956,-1.2859457292780956,0,1,1.0,limited,decrease
+R3,CCCC[*:3],O=C[*:3],shared assay,IC50,Unreported,1,1,1,1,-0.7240454484506289,-0.7240454484506289,-0.7240454484506289,0,1,1.0,limited,decrease
+R3,CCC[*:3],CCOC(=O)[*:3],shared assay,IC50,Unreported,1,1,1,1,-1.3025307267933837,-1.3025307267933837,-1.3025307267933837,0,1,1.0,limited,decrease
+R3,CCC[*:3],CC[*:3],shared assay,IC50,Unreported,1,1,1,1,-0.13890967867305548,-0.13890967867305548,-0.13890967867305548,0,1,1.0,mixed,mixed / small change
+R3,CCC[*:3],CO[*:3],shared assay,IC50,Unreported,1,1,1,1,-0.8166661209998356,-0.8166661209998356,-0.8166661209998356,0,1,1.0,limited,decrease
+R3,CCC[*:3],H,shared assay,IC50,Unreported,1,1,1,1,-0.49777995570050493,-0.49777995570050493,-0.49777995570050493,0,1,1.0,mixed,mixed / small change
+R3,CCC[*:3],N#C[*:3],shared assay,IC50,Unreported,1,1,1,1,-0.022777214849569738,-0.022777214849569738,-0.022777214849569738,0,1,1.0,mixed,mixed / small change
+R3,CCC[*:3],NC(=O)[*:3],shared assay,IC50,Unreported,1,1,1,1,-1.3921104650113136,-1.3921104650113136,-1.3921104650113136,0,1,1.0,limited,decrease
+R3,CCC[*:3],O=C[*:3],shared assay,IC50,Unreported,1,1,1,1,-0.830210184183847,-0.830210184183847,-0.830210184183847,0,1,1.0,limited,decrease
+R3,CCOC(=O)[*:3],CC[*:3],shared assay,IC50,Unreported,1,1,1,1,1.1636210481203282,1.1636210481203282,1.1636210481203282,1,0,1.0,limited,increase
+R3,CCOC(=O)[*:3],CO[*:3],shared assay,IC50,Unreported,1,1,1,1,0.48586460579354807,0.48586460579354807,0.48586460579354807,1,0,1.0,mixed,mixed / small change
+R3,CCOC(=O)[*:3],H,shared assay,IC50,Unreported,1,1,1,1,0.8047507710928787,0.8047507710928787,0.8047507710928787,1,0,1.0,limited,increase
+R3,CCOC(=O)[*:3],N#C[*:3],shared assay,IC50,Unreported,1,1,1,1,1.279753511943814,1.279753511943814,1.279753511943814,1,0,1.0,limited,increase
+R3,CCOC(=O)[*:3],NC(=O)[*:3],shared assay,IC50,Unreported,1,1,1,1,-0.08957973821792997,-0.08957973821792997,-0.08957973821792997,0,1,1.0,mixed,mixed / small change
+R3,CCOC(=O)[*:3],O=C[*:3],shared assay,IC50,Unreported,1,1,1,1,0.4723205426095367,0.4723205426095367,0.4723205426095367,1,0,1.0,mixed,mixed / small change
+R3,CC[*:3],CO[*:3],shared assay,IC50,Unreported,1,1,1,1,-0.6777564423267801,-0.6777564423267801,-0.6777564423267801,0,1,1.0,limited,decrease
+R3,CC[*:3],H,shared assay,IC50,Unreported,1,1,1,1,-0.35887027702744945,-0.35887027702744945,-0.35887027702744945,0,1,1.0,mixed,mixed / small change
+R3,CC[*:3],N#C[*:3],shared assay,IC50,Unreported,1,1,1,1,0.11613246382348574,0.11613246382348574,0.11613246382348574,1,0,1.0,mixed,mixed / small change
+R3,CC[*:3],NC(=O)[*:3],shared assay,IC50,Unreported,1,1,1,1,-1.2532007863382582,-1.2532007863382582,-1.2532007863382582,0,1,1.0,limited,decrease
+R3,CC[*:3],O=C[*:3],shared assay,IC50,Unreported,1,1,1,1,-0.6913005055107915,-0.6913005055107915,-0.6913005055107915,0,1,1.0,limited,decrease
+R3,CO[*:3],H,shared assay,IC50,Unreported,1,1,1,1,0.31888616529933067,0.31888616529933067,0.31888616529933067,1,0,1.0,mixed,mixed / small change
+R3,CO[*:3],N#C[*:3],shared assay,IC50,Unreported,1,1,1,1,0.7938889061502659,0.7938889061502659,0.7938889061502659,1,0,1.0,limited,increase
+R3,CO[*:3],NC(=O)[*:3],shared assay,IC50,Unreported,1,1,1,1,-0.575444344011478,-0.575444344011478,-0.575444344011478,0,1,1.0,limited,decrease
+R3,CO[*:3],O=C[*:3],shared assay,IC50,Unreported,1,1,1,1,-0.013544063184011357,-0.013544063184011357,-0.013544063184011357,0,1,1.0,mixed,mixed / small change
+R3,F/C=C\[*:3],H,shared assay,IC50,Unreported,1,1,1,1,-0.6207118074815723,-0.6207118074815723,-0.6207118074815723,0,1,1.0,limited,decrease
+R3,F/C=C\[*:3],N#C[*:3],shared assay,IC50,Unreported,1,1,1,1,-0.5816640561423503,-0.5816640561423503,-0.5816640561423503,0,1,1.0,limited,decrease
+R3,H,N#C[*:3],shared assay,IC50,Unreported,2,2,2,1,0.2570252460950786,0.1480364987171503,0.3660139934730069,2,0,1.0,mixed,mixed / small change
+R3,H,NC(=O)[*:3],shared assay,IC50,Unreported,1,1,1,1,-0.8943305093108087,-0.8943305093108087,-0.8943305093108087,0,1,1.0,limited,decrease
+R3,H,O=C[*:3],shared assay,IC50,Unreported,1,1,1,1,-0.332430228483342,-0.332430228483342,-0.332430228483342,0,1,1.0,mixed,mixed / small change
+R3,N#C[*:3],NC(=O)[*:3],shared assay,IC50,Unreported,1,1,1,1,-1.369333250161744,-1.369333250161744,-1.369333250161744,0,1,1.0,limited,decrease
+R3,N#C[*:3],O=C[*:3],shared assay,IC50,Unreported,1,1,1,1,-0.8074329693342772,-0.8074329693342772,-0.8074329693342772,0,1,1.0,limited,decrease
+R3,NC(=O)[*:3],O=C[*:3],shared assay,IC50,Unreported,1,1,1,1,0.5619002808274667,0.5619002808274667,0.5619002808274667,1,0,1.0,limited,increase
+R4,Br[*:4],Cl[*:4],shared assay,IC50,Unreported,1,1,1,1,-0.1756124337790581,-0.1756124337790581,-0.1756124337790581,0,1,1.0,mixed,mixed / small change
+R4,Br[*:4],H,shared assay,IC50,Unreported,3,3,3,1,-0.1131142820927824,-0.39594414972543523,-0.11187924611165823,0,3,1.0,mixed,mixed / small change
+R4,Cl[*:4],H,shared assay,IC50,Unreported,2,2,2,1,-0.17991421524292406,-0.30112039870752394,-0.05870803177832418,1,1,0.5,mixed,mixed / small change
+R5,Cl[*:5],H,shared assay,IC50,Unreported,1,1,1,1,0.4864885980987754,0.4864885980987754,0.4864885980987754,1,0,1.0,mixed,mixed / small change
+R6,Br[*:6],H,shared assay,IC50,Unreported,1,1,1,1,-0.06957381952750197,-0.06957381952750197,-0.06957381952750197,0,1,1.0,mixed,mixed / small change
+R7,C[*:7],F[*:7],shared assay,IC50,Unreported,2,2,2,1,0.33149657797945364,0.15142569826496177,0.5115674576939455,1,1,0.5,mixed,mixed / small change
+R7,C[*:7],H,shared assay,IC50,Unreported,2,2,2,1,-0.07476117510724034,-0.31082009839567215,0.16129774818119147,1,1,0.5,mixed,mixed / small change
+R7,Cl[*:7],H,shared assay,IC50,Unreported,1,1,1,1,-0.9458297624729095,-0.9458297624729095,-0.9458297624729095,0,1,1.0,limited,decrease
+R7,Cl[*:7],O[*:7],shared assay,IC50,Unreported,1,1,1,1,-0.1357388006987339,-0.1357388006987339,-0.1357388006987339,0,1,1.0,mixed,mixed / small change
+R7,F[*:7],H,shared assay,IC50,Unreported,6,6,6,1,-0.4939866858589448,-0.5171780392366947,-0.4253571088156811,0,6,1.0,mixed,mixed / small change
+R7,H,O[*:7],shared assay,IC50,Unreported,2,2,2,1,0.9257418234662005,0.867916392620188,0.9835672543122129,2,0,1.0,moderate,increase
+R8,CC(C)(C)[*:8],CCCCO[*:8],shared assay,IC50,Unreported,1,1,1,1,-0.09621458534640581,-0.09621458534640581,-0.09621458534640581,0,1,1.0,mixed,mixed / small change
+R8,CC(C)(C)[*:8],Cl[*:8],shared assay,IC50,Unreported,1,1,1,1,0.0,0.0,0.0,0,0,0.0,mixed,mixed / small change
+R8,CC(C)(C)[*:8],F[*:8],shared assay,IC50,Unreported,1,1,1,1,-0.22685757028872366,-0.22685757028872366,-0.22685757028872366,0,1,1.0,mixed,mixed / small change
+R8,CC(C)(C)[*:8],H,shared assay,IC50,Unreported,1,1,1,1,0.7437634667940767,0.7437634667940767,0.7437634667940767,1,0,1.0,limited,increase
+R8,CC(C)(C)[*:8],O[*:8],shared assay,IC50,Unreported,1,1,1,1,0.3169529617611504,0.3169529617611504,0.3169529617611504,1,0,1.0,mixed,mixed / small change
+R8,CCCCO[*:8],Cl[*:8],shared assay,IC50,Unreported,1,1,1,1,0.09621458534640581,0.09621458534640581,0.09621458534640581,1,0,1.0,mixed,mixed / small change
+R8,CCCCO[*:8],F[*:8],shared assay,IC50,Unreported,1,1,1,1,-0.13064298494231785,-0.13064298494231785,-0.13064298494231785,0,1,1.0,mixed,mixed / small change
+R8,CCCCO[*:8],H,shared assay,IC50,Unreported,1,1,1,1,0.8399780521404825,0.8399780521404825,0.8399780521404825,1,0,1.0,limited,increase
+R8,CCCCO[*:8],O[*:8],shared assay,IC50,Unreported,1,1,1,1,0.4131675471075562,0.4131675471075562,0.4131675471075562,1,0,1.0,mixed,mixed / small change
+R8,Cl[*:8],F[*:8],shared assay,IC50,Unreported,2,2,2,1,0.14993834991792765,-0.03845961018539801,0.3383363100212533,1,1,0.5,mixed,mixed / small change
+R8,Cl[*:8],H,shared assay,IC50,Unreported,2,2,2,1,0.6887764133004421,0.6612828865536249,0.7162699400472594,2,0,1.0,moderate,increase
+R8,Cl[*:8],O[*:8],shared assay,IC50,Unreported,1,1,1,1,0.3169529617611504,0.3169529617611504,0.3169529617611504,1,0,1.0,mixed,mixed / small change
+R8,FC(F)(F)[*:8],F[*:8],shared assay,IC50,Unreported,1,1,1,1,0.8568682585656813,0.8568682585656813,0.8568682585656813,1,0,1.0,limited,increase
+R8,FC(F)(F)[*:8],H,shared assay,IC50,Unreported,1,1,1,1,1.0815099083662076,1.0815099083662076,1.0815099083662076,1,0,1.0,limited,increase
+R8,F[*:8],H,shared assay,IC50,Unreported,8,8,8,1,0.37718926814287146,0.20997489446928252,0.5552275152806134,8,0,1.0,mixed,mixed / small change
+R8,F[*:8],O[*:8],shared assay,IC50,Unreported,1,1,1,1,0.5438105320498741,0.5438105320498741,0.5438105320498741,1,0,1.0,limited,increase
+R8,H,O[*:8],shared assay,IC50,Unreported,1,1,1,1,-0.4268105050329263,-0.4268105050329263,-0.4268105050329263,0,1,1.0,mixed,mixed / small change

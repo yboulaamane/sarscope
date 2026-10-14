@@ -1,0 +1,4 @@
+case_id,target_id,assay_id,raw_records,retained_measurements,curated_molecules,scaffolds,series_molecules,unmatched,positions,pair_rows,transformations,reference_agreement,pair_limit_reached,elapsed_seconds
+braf,CHEMBL5145,CHEMBL5046398,46,44,44,8,16,0,4,29,15,True,False,2.978234091999184
+drd2,CHEMBL217,CHEMBL671074,34,31,30,5,26,0,5,46,21,True,False,1.9866222310010926
+esr1,CHEMBL206,CHEMBL829540,107,100,98,11,53,0,9,198,155,True,False,2.771458506998897

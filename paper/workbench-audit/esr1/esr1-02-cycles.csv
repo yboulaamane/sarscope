@@ -1,0 +1,2 @@
+other_position,context_from,context_to,assay_id,endpoint,variant,id_a,id_b,id_c,id_d,delta_first,delta_second,interaction_delta
+R7,F[*:7],H,CHEMBL829540,IC50,Unreported,CHEMBL361272,CHEMBL189658,CHEMBL188900,CHEMBL186513,0.15237698495523944,1.0537978841803417,0.9014208992251023

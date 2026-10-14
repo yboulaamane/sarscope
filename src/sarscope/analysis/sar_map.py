@@ -16,7 +16,7 @@ import numpy as np
 import pandas as pd
 from rdkit import Chem
 
-from sarscope.analysis.rgroups import ScaffoldSar, _substituent_stats
+from sarscope.analysis.rgroups import ScaffoldSar, _substituent_stats, select_core_state
 from sarscope.variants import normalize_variant
 
 PAIR_COLUMNS = [
@@ -67,6 +67,7 @@ class SarMap:
     pair_limit_reached: bool
     effect_threshold: float
     record_ids: tuple[str, ...]
+    excluded_core_molecules: int = 0
 
 
 def filter_series(
@@ -144,6 +145,8 @@ def _measurements(evidence: pd.DataFrame) -> dict[str, dict[tuple[str, str, str]
     } <= set(evidence):
         return result
     records = evidence.dropna(subset=["assay_chembl_id", "standard_type", "pactivity"]).copy()
+    records["pactivity"] = pd.to_numeric(records["pactivity"], errors="coerce")
+    records = records[np.isfinite(records["pactivity"])].copy()
     if "standard_relation" in records:
         records = records[records["standard_relation"] == "="]
     records = records.assign(
@@ -159,8 +162,21 @@ def _measurements(evidence: pd.DataFrame) -> dict[str, dict[tuple[str, str, str]
     )
     fields = ["molecule_id", "assay_chembl_id", "standard_type", "_variant"]
     for (identifier, assay, endpoint, variant), block in records.groupby(fields, sort=True):
+        values = block
+        if "record_id" in block:
+            known = block.record_id.notna() & ~block.record_id.astype(str).isin(
+                ["", "None", "nan", "Unreported"]
+            )
+            values = pd.concat(
+                [
+                    block[~known],
+                    block[known].drop_duplicates(["record_id", "pactivity"]),
+                ]
+            )
         result.setdefault(str(identifier), {})[(str(assay), str(endpoint), str(variant))] = {
-            "value": float(block["pactivity"].median()),
+            # Remove copies of the same identified record, not equal rounded
+            # values from distinct records: equal values do not prove duplication.
+            "value": float(values["pactivity"].median()),
             "records": ";".join(
                 sorted(set(block.get("record_id", pd.Series(dtype=str)).astype(str)))
             ),
@@ -203,9 +219,16 @@ def build_sar_map(
     effect_threshold: float = 0.5,
     max_pairs: int = 20_000,
 ) -> SarMap:
-    """Build bounded comparisons and calibrated annotations for an existing core."""
+    """Build bounded comparisons and descriptive evidence grades for a core.
+
+    Grades are transparent support heuristics, not calibrated probabilities.
+    """
     if not np.isfinite(effect_threshold) or effect_threshold <= 0 or max_pairs < 1:
         raise ValueError("Use a positive effect threshold and pair limit")
+    original_count = len(series.members)
+    series = select_core_state(series)
+    if not evidence.empty and "molecule_id" in evidence:
+        evidence = evidence[evidence["molecule_id"].isin(series.members["molecule_id"])].copy()
     measured = _measurements(evidence)
     rows: list[dict[str, Any]] = []
     limited = False
@@ -370,4 +393,5 @@ def build_sar_map(
         limited,
         effect_threshold,
         tuple(sorted(set(evidence.get("record_id", pd.Series(dtype=str)).astype(str)))),
+        original_count - len(series.members),
     )

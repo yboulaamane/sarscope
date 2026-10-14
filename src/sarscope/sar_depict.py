@@ -42,7 +42,7 @@ def sar_map_svg(result: SarMap, *, selected: str | None = None) -> str | None:
         '<text x="26" y="36" font-family="sans-serif" font-size="22" fill="#182235">'
         "Series SAR · click a position to inspect its evidence</text>",
         '<text x="26" y="62" font-family="sans-serif" font-size="13" fill="#526072">'
-        "Green: replicated increase · Red: replicated decrease · Amber: mixed · "
+        "Green: supported increase · Red: supported decrease · Amber: mixed · "
         "Grey: sparse</text>",
         f'<g transform="translate(220,96)">{drawing}</g>',
     ]

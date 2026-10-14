@@ -1,0 +1,13 @@
+test,omitted,pairs,disjoint_pairs,assays,median_delta,direction_agreement,interpretation,retains_direction
+Baseline,None,3,3,1,1.4295215790769813,1.0,increase,True
+Leave one compound out,CHEMBL5077093,2,2,1,1.3088293788813652,1.0,increase,True
+Leave one compound out,CHEMBL5077573,2,2,1,1.7372219587645117,1.0,increase,True
+Leave one compound out,CHEMBL5080054,2,2,1,1.8579141589601278,1.0,increase,True
+Leave one compound out,CHEMBL5083036,2,2,1,1.3088293788813652,1.0,increase,True
+Leave one compound out,CHEMBL5084985,2,2,1,1.8579141589601278,1.0,increase,True
+Leave one compound out,CHEMBL5087580,2,2,1,1.7372219587645117,1.0,increase,True
+Leave one chemical context out,"{""R1"": ""C[*:1]"", ""R2"": ""H"", ""R3"": ""H""}",2,2,1,1.8579141589601278,1.0,increase,True
+Leave one chemical context out,"{""R1"": ""F[*:1]"", ""R2"": ""H"", ""R3"": ""H""}",2,2,1,1.3088293788813652,1.0,increase,True
+Leave one chemical context out,"{""R1"": ""H"", ""R2"": ""H"", ""R3"": ""H""}",2,2,1,1.7372219587645117,1.0,increase,True
+Leave one assay out,CHEMBL5046398,0,0,0,,,insufficient evidence,False
+Leave one publication out,CHEMBL5046217,0,0,0,,,insufficient evidence,False

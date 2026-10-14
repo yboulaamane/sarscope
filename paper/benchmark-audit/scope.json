@@ -1,0 +1,6 @@
+{
+  "bootstrap_repeats": 1000,
+  "predictions_sha256": "41d2149ede451d5b60a2e06a2df3c02e0af4b1c5f934630c92633187214f78f6",
+  "scope": "Conditional held-out sampling uncertainty for one fitted model per target; not repeated training, external validation or prospective uncertainty",
+  "seed": 42
+}

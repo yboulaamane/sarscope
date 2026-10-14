@@ -1,0 +1,3 @@
+assay_id,context,pairs,disjoint_pairs,assays,median_delta,direction_agreement,interpretation
+CHEMBL671074,"{""R1"": ""Cl[*:1]"", ""R3"": ""Cl[*:3]"", ""R4"": ""H"", ""R5"": ""H""}",1,1,1,0.8527848686805477,1.0,increase
+CHEMBL671074,"{""R1"": ""H"", ""R3"": ""H"", ""R4"": ""H"", ""R5"": ""H""}",1,1,1,1.308016116524647,1.0,increase

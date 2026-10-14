@@ -1,0 +1,18 @@
+case,claim_id,position,fragment_from,fragment_to,evidence_tier,endpoint,variant,verdict,baseline_delta,disjoint_pairs,compound_omissions,compound_sign_retained,compound_directional_criterion_retained,all_evaluable_omissions,same_directional_criterion,empty_publication_omissions,empty_assay_omissions,cycles,suggestions,partial
+braf,braf-01,R1,F[*:1],H,shared assay,IC50,Unreported,Conclusion depends on the retained evidence,-0.6843117003081414,2,4,True,False,6,3,1,1,1,1,False
+braf,braf-02,R3,CO[*:3],H,shared assay,IC50,Unreported,Direction retained in the tested subsets,1.4400855248272402,2,4,True,True,6,6,1,1,1,1,False
+braf,braf-03,R3,H,O[*:3],shared assay,IC50,Unreported,Direction retained in the tested subsets,-1.629902937917421,2,4,True,True,6,6,1,1,1,3,False
+braf,braf-04,R4,CO[*:4],O[*:4],shared assay,IC50,Unreported,Direction retained in the tested subsets,1.4295215790769813,3,6,True,True,9,9,1,1,3,2,False
+braf,braf-05,R4,H,O[*:4],shared assay,IC50,Unreported,Direction retained in the tested subsets,1.5654877881220068,2,4,True,True,6,6,1,1,1,4,False
+drd2,drd2-01,R2,CO[*:2],H,shared assay,IC50,Unreported,Direction retained in the tested subsets,1.0804004926025974,2,4,True,True,6,6,1,1,0,0,False
+drd2,drd2-02,R2,Cl[*:2],H,shared assay,IC50,Unreported,Direction retained in the tested subsets,0.6771061500393198,4,8,True,True,12,12,1,1,4,4,False
+drd2,drd2-03,R4,CO[*:4],C[*:4],shared assay,IC50,Unreported,Direction retained in the tested subsets,-0.8546349804879156,2,4,True,True,6,6,1,1,1,1,False
+drd2,drd2-04,R4,CO[*:4],H,shared assay,IC50,Unreported,Direction retained in the tested subsets,-1.0148589527280407,2,4,True,True,6,6,1,1,1,2,False
+drd2,drd2-05,R4,Cl[*:4],H,shared assay,IC50,Unreported,Direction retained in the tested subsets,-0.8692317197309762,3,6,True,True,9,9,1,1,2,3,False
+esr1,esr1-01,R3,Br/C=C\[*:3],Br[*:3],shared assay,IC50,Unreported,Direction retained in the tested subsets,1.0487331106534388,2,4,True,True,6,6,1,1,1,0,False
+esr1,esr1-02,R3,Br/C=C\[*:3],N#C[*:3],shared assay,IC50,Unreported,Conclusion depends on the retained evidence,0.6030874345677906,2,4,True,False,6,3,1,1,1,0,False
+esr1,esr1-03,R3,Br[*:3],C=C[*:3],shared assay,IC50,Unreported,Direction retained in the tested subsets,-0.6769441131116514,4,8,True,True,12,12,1,1,4,1,False
+esr1,esr1-04,R3,Br[*:3],CC=C[*:3],shared assay,IC50,Unreported,Direction retained in the tested subsets,-0.6850863585123825,3,6,True,True,9,9,1,1,2,2,False
+esr1,esr1-05,R3,Br[*:3],H,shared assay,IC50,Unreported,Direction retained in the tested subsets,-0.8397195844975638,2,4,True,True,6,6,1,1,1,3,False
+esr1,esr1-06,R7,H,O[*:7],shared assay,IC50,Unreported,Direction retained in the tested subsets,0.9257418234662005,2,4,True,True,6,6,1,1,0,12,False
+esr1,esr1-07,R8,Cl[*:8],H,shared assay,IC50,Unreported,Direction retained in the tested subsets,0.6887764133004421,2,4,True,True,6,6,1,1,0,0,False

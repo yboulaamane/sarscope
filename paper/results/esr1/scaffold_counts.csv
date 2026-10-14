@@ -1,0 +1,12 @@
+scaffold,n
+c1ccc(-c2nc3ccccc3o2)cc1,53
+c1ccc(-c2noc3ccccc23)cc1,22
+c1ccc2c(-c3nc4ccccc4o3)cccc2c1,8
+c1ccc2cc(-c3noc4ccccc34)ccc2c1,4
+c1ccc2c(-c3noc4ccccc34)cccc2c1,3
+c1ccc(-c2nc3cccc(-c4ccco4)c3o2)cc1,2
+c1ccc2cc(-c3nc4ccccc4o3)ccc2c1,2
+c1ccc(-c2nc3cccc(-c4ccccc4)c3o2)cc1,1
+c1ccc(-c2nc3cccc(-c4cccs4)c3o2)cc1,1
+c1ccc(-c2nc3cccc(-c4nccs4)c3o2)cc1,1
+c1ccc(-c2nc3cccc(C4CCCC4)c3o2)cc1,1

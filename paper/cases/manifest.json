@@ -1,0 +1,105 @@
+{
+  "attribution": "ChEMBL, EMBL-EBI; original publications identified in each case",
+  "cases": [
+    {
+      "assay_id": "CHEMBL5046398",
+      "case_id": "braf",
+      "document_id": "CHEMBL5046217",
+      "doi": "10.1021/acs.jmedchem.1c00230",
+      "family": "protein_kinase",
+      "file": "braf.json",
+      "literature_expectations_status": "requires independent full-text/table annotation",
+      "records": 46,
+      "scope_note": "One human wild-type BRAF enzyme inhibition assay. Pan-RAF selectivity and anti-melanoma efficacy are outside this single-target analysis.",
+      "sha256": "60f844631a1a6b87f62d0674aeb224d15a6c0c4ba3384bf78a628f660e920d6e",
+      "target_id": "CHEMBL5145",
+      "target_label": "BRAF",
+      "title": "Discovery of New Imidazo[2,1-b]thiazole Derivatives as Potent Pan-RAF Inhibitors with Promising In Vitro and In Vivo Anti-melanoma Activity",
+      "year": 2021
+    },
+    {
+      "assay_id": "CHEMBL671074",
+      "case_id": "drd2",
+      "document_id": "CHEMBL1133592",
+      "doi": "10.1021/jm990562x",
+      "family": "class_a_gpcr",
+      "file": "drd2.json",
+      "literature_expectations_status": "requires independent full-text/table annotation",
+      "records": 34,
+      "scope_note": "D2 radioligand competition IC50, not Ki. D4 selectivity, functional antagonism and behavioral efficacy are not inferred.",
+      "sha256": "6c8fdb32f7345c3d0949886ea0dc8e7e10edb8a66f9f6b3b36eaeeac54331f0d",
+      "target_id": "CHEMBL217",
+      "target_label": "DRD2",
+      "title": "trans-1-[(2-Phenylcyclopropyl)methyl]-4-arylpiperazines: mixed dopamine D(2)/D(4) receptor antagonists as potential antipsychotic agents",
+      "year": 2000
+    },
+    {
+      "assay_id": "CHEMBL829540",
+      "case_id": "esr1",
+      "document_id": "CHEMBL1138773",
+      "doi": "10.1021/jm049719y",
+      "family": "nuclear_receptor",
+      "file": "esr1.json",
+      "literature_expectations_status": "requires independent full-text/table annotation",
+      "records": 107,
+      "scope_note": "This paper targets ER beta selectivity, but this cohort is the ER alpha counter-assay. Do not label these measurements ESR2 or claim selectivity from them alone.",
+      "sha256": "7adb2e3e689a10e2c4fd5099be6d2cbff291e38650e4aa1a6048be8bd1201994",
+      "target_id": "CHEMBL206",
+      "target_label": "Estrogen receptor alpha",
+      "title": "Design and synthesis of aryl diphenolic azoles as potent and selective estrogen receptor-beta ligands",
+      "year": 2004
+    }
+  ],
+  "chembl_release": "ChEMBL_37",
+  "license": "CC-BY-SA-3.0",
+  "parent_manifest_sha256": "f48c8aec796c8986de3938febbc95b99149355660e1c31315f98852e3395a493",
+  "protocol": {
+    "cases": [
+      {
+        "assay_id": "CHEMBL5046398",
+        "case_id": "braf",
+        "document_id": "CHEMBL5046217",
+        "doi": "10.1021/acs.jmedchem.1c00230",
+        "family": "protein_kinase",
+        "literature_expectations_status": "requires independent full-text/table annotation",
+        "scope_note": "One human wild-type BRAF enzyme inhibition assay. Pan-RAF selectivity and anti-melanoma efficacy are outside this single-target analysis.",
+        "target_id": "CHEMBL5145",
+        "target_label": "BRAF",
+        "title": "Discovery of New Imidazo[2,1-b]thiazole Derivatives as Potent Pan-RAF Inhibitors with Promising In Vitro and In Vivo Anti-melanoma Activity",
+        "year": 2021
+      },
+      {
+        "assay_id": "CHEMBL671074",
+        "case_id": "drd2",
+        "document_id": "CHEMBL1133592",
+        "doi": "10.1021/jm990562x",
+        "family": "class_a_gpcr",
+        "literature_expectations_status": "requires independent full-text/table annotation",
+        "scope_note": "D2 radioligand competition IC50, not Ki. D4 selectivity, functional antagonism and behavioral efficacy are not inferred.",
+        "target_id": "CHEMBL217",
+        "target_label": "DRD2",
+        "title": "trans-1-[(2-Phenylcyclopropyl)methyl]-4-arylpiperazines: mixed dopamine D(2)/D(4) receptor antagonists as potential antipsychotic agents",
+        "year": 2000
+      },
+      {
+        "assay_id": "CHEMBL829540",
+        "case_id": "esr1",
+        "document_id": "CHEMBL1138773",
+        "doi": "10.1021/jm049719y",
+        "family": "nuclear_receptor",
+        "literature_expectations_status": "requires independent full-text/table annotation",
+        "scope_note": "This paper targets ER beta selectivity, but this cohort is the ER alpha counter-assay. Do not label these measurements ESR2 or claim selectivity from them alone.",
+        "target_id": "CHEMBL206",
+        "target_label": "Estrogen receptor alpha",
+        "title": "Design and synthesis of aryl diphenolic azoles as potent and selective estrogen receptor-beta ligands",
+        "year": 2004
+      }
+    ],
+    "effect_threshold": 0.5,
+    "schema_version": 1,
+    "selection": "Retrospective literature examples chosen from the frozen ChEMBL 37 panel by assay size and chemical-series relevance, not model performance. Not a preregistration or independent test set.",
+    "series_selection": "Largest populated Murcko scaffold per assay; ties resolved by canonical scaffold SMILES. No potency-based series selection."
+  },
+  "protocol_sha256": "93b8957346de40d8842968d18c7ce17d4407e25157787d64a7c5b45d6c389c1d",
+  "schema_version": 1
+}

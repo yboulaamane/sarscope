@@ -1,0 +1,9 @@
+scaffold,n
+O=S(=O)(NCCNc1nccc(-c2c(-c3ccccc3)nc3sccn23)n1)c1ccccc1,16
+O=S(=O)(NCCCNc1nccc(-c2c(-c3ccccc3)nc3sccn23)n1)c1ccccc1,11
+O=S1(=O)NCCCN1CCNc1nccc(-c2c(-c3ccccc3)nc3sccn23)n1,6
+O=S1(=O)NCCN1CCNc1nccc(-c2c(-c3ccccc3)nc3sccn23)n1,6
+O=S1(=O)N(CCNc2nccc(-c3c(-c4ccccc4)nc4sccn34)n2)CCN1Cc1ccccc1,2
+O=S(=O)(NCCCNc1nccc(-c2c(-c3ccccc3)nc3sccn23)n1)c1ccc2ccccc2c1,1
+O=S(=O)(NCCNc1nccc(-c2c(-c3ccccc3)nc3sccn23)n1)c1ccc2ccccc2c1,1
+O=S(=O)(NCCNc1nccc(-c2c(-c3ccccc3)nc3sccn23)n1)c1cccc2ccccc12,1

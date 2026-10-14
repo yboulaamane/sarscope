@@ -1,0 +1,1 @@
+case_id,expectation_id,reviewer_id,source_doi,table_figure_page,author_compound_from,author_compound_to,chembl_id_from,chembl_id_to,assay_id,endpoint,expected_direction,context_limitations,adjudication_status

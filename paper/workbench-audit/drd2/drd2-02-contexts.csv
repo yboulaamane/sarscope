@@ -1,0 +1,5 @@
+assay_id,context,pairs,disjoint_pairs,assays,median_delta,direction_agreement,interpretation
+CHEMBL671074,"{""R1"": ""H"", ""R3"": ""Cl[*:3]"", ""R4"": ""H"", ""R5"": ""H""}",1,1,1,0.1537104791783248,1.0,mixed / small change
+CHEMBL671074,"{""R1"": ""H"", ""R3"": ""H"", ""R4"": ""CO[*:4]"", ""R5"": ""H""}",1,1,1,0.5314789170422554,1.0,increase
+CHEMBL671074,"{""R1"": ""H"", ""R3"": ""H"", ""R4"": ""Cl[*:4]"", ""R5"": ""H""}",1,1,1,1.191728148262376,1.0,increase
+CHEMBL671074,"{""R1"": ""H"", ""R3"": ""H"", ""R4"": ""H"", ""R5"": ""H""}",1,1,1,0.8227333830363843,1.0,increase
