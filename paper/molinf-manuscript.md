@@ -14,6 +14,16 @@ Author declarations require confirmation before submission.
 
 Medicinal chemists interpret structural changes through their measured effects on potency, and those effects depend on attachment position, the remaining structure and experimental context. We present SARscope, an interactive workbench that couples these controls to inspection of the underlying measurements. Three published assay datasets—BRAF, dopamine D2 receptor and estrogen receptor alpha—were reconstructed from frozen ChEMBL release 37 records. Positional comparisons required an identical mapped isomeric core, unchanged substituents elsewhere and a shared assay and endpoint. The selected series contained 16, 23 and 53 compounds, yielding 263 positional comparisons. BRAF hydroxyl addition and DRD2 chlorine removal showed opposite effects at different positions, and a complete four-compound cycle placed both DRD2 positions in one chemical background. All 17 repeated-comparison transformations retained the sign of their median effect after compound omissions, but only 15 retained the configured directional criterion, and none of 191 transformation-level permutation tests met the adjusted 0.05 cutoff. SARscope therefore links positional comparisons to source measurements and exposes their dependence on retained compounds, chemical contexts and practical thresholds, identifying missing-cycle measurements and conflicting pairs for follow-up without predicting potency or assigning calibrated confidence. The cases verify the implementation and illustrate local structure–activity relationships; they do not establish prospective transferability, binding mechanisms or improved chemist performance.
 
+## Graphical Abstract
+
+Image file: `figures/graphical-abstract.svg` (vector; PDF and 300 dpi PNG alongside).
+
+A single hydroxyl addition to one BRAF series splits in two: adding it at the
+para position of the pendant phenyl costs 1.63 log units of potency, while the
+same addition at the meta position gains 1.57. Bars show how far each median
+moves when individual compounds are omitted. SARscope links such positional
+comparisons back to the measurements that support them.
+
 **Keywords:** structure–activity relationships · matched molecular pairs · activity cliffs · chemoinformatics · assay comparability
 
 ## 1. Introduction
