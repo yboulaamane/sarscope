@@ -3,6 +3,7 @@
 import io
 import json
 import zipfile
+from pathlib import Path
 
 import pytest
 
@@ -74,3 +75,70 @@ def test_evidence_archive_contains_scope_measurements_and_structures():
         assert "retained_measurements.csv" in bundle.namelist()
         assert "series_structures.csv" in bundle.namelist()
         assert bundle.read("sar_map.svg") == b"<svg/>"
+
+
+def test_stress_test_is_opt_in_and_changing_thresholds_invalidates_evidence_card():
+    app = AppTest.from_string(SCRIPT, default_timeout=15).run()
+    next(
+        button for button in app.button if button.label == "Build interactive SAR map"
+    ).click().run()
+    assert not app.exception
+    assert any(button.label == "Run SAR stress test" for button in app.button)
+    run_button = next(button for button in app.button if button.label == "Run SAR stress test")
+    result_key = run_button.key.removesuffix("_run") + "_result"
+    assert result_key not in app.session_state
+    next(button for button in app.button if button.label == "Run SAR stress test").click().run()
+    assert not app.exception
+    assert any("Too sparse" in item.value for item in app.markdown)
+    assert len(app.tabs) == 3
+    next(
+        item for item in app.multiselect if item.label.startswith("Effect thresholds to test")
+    ).set_value([1.5]).run()
+    assert not app.exception
+    assert any("Run the stress test for this transformation" in item.value for item in app.info)
+
+
+def test_assigned_and_unassigned_core_states_are_selectable_not_pooled():
+    script = SCRIPT.replace(
+        "show_sar_map([sar],table,evidence,classes=ClassScheme())",
+        """sar.members["core_smiles"] = [sar.core, sar.core, sar.core + ".C"]
+show_sar_map([sar],table,evidence,classes=ClassScheme())""",
+    )
+    app = AppTest.from_string(script, default_timeout=15).run()
+    assert not app.exception
+    assert any(item.label == "Core stereochemical state" for item in app.selectbox)
+    next(
+        button for button in app.button if button.label == "Build interactive SAR map"
+    ).click().run()
+    assert not app.exception
+    assert app.session_state["sar_map_result"][1].series.n_molecules == 2
+
+
+def test_frozen_braf_case_displays_interactive_four_structure_cycles():
+    directory = Path(__file__).resolve().parents[1] / "paper/results/braf"
+    script = f"""
+import json
+from pathlib import Path
+import pandas as pd
+from sarscope.analysis.rgroups import decompose_scaffold
+from sarscope.sar_ui import show_sar_map
+from sarscope.params import ClassScheme
+directory = Path({str(directory)!r})
+table = pd.read_csv(directory / "molecules.csv")
+evidence = pd.read_csv(directory / "measurements.csv")
+scope = json.loads((directory / "scope.json").read_text())
+series = decompose_scaffold(table, scope["scaffold"], min_substituent_count=1)
+show_sar_map([series], table, evidence, classes=ClassScheme())
+"""
+    app = AppTest.from_string(script, default_timeout=20).run()
+    next(
+        button for button in app.button if button.label == "Build interactive SAR map"
+    ).click().run()
+    assert not app.exception
+    next(button for button in app.button if button.label == "Run SAR stress test").click().run()
+    assert not app.exception
+    cycle_selector = next(
+        item for item in app.selectbox if item.label == "Inspect substitution cycle"
+    )
+    assert len(cycle_selector.options) == 3
+    assert any("Difference between the two observed" in caption.value for caption in app.caption)

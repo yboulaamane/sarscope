@@ -17,7 +17,7 @@ import streamlit.components.v1 as components
 from rdkit import Chem
 from rdkit.Chem import Descriptors
 
-from sarscope.analysis.rgroups import ScaffoldSar
+from sarscope.analysis.rgroups import ScaffoldSar, core_states, select_core_state
 from sarscope.analysis.sar_map import (
     SarMap,
     build_sar_map,
@@ -25,6 +25,7 @@ from sarscope.analysis.sar_map import (
     fragment_label,
     rank_transformations,
 )
+from sarscope.analysis.sar_stress import SarStressTest, claim_pairs, stress_test_sar
 from sarscope.curate import assign_classes
 from sarscope.depict import to_svg
 from sarscope.params import ClassScheme
@@ -71,9 +72,12 @@ def sar_map_archive(
                     "labelled_core": result.series.core,
                     "effect_threshold_log_units": result.effect_threshold,
                     "pair_limit_reached": result.pair_limit_reached,
+                    "excluded_core_molecules": result.excluded_core_molecules,
                     "retained_record_ids": result.record_ids,
-                    "method": "Single varying R-group; all other labelled positions held constant. "
-                    "Shared-assay deltas use per-assay/endpoint/variant medians. "
+                    "method": "Single varying R-group; identical mapped isomeric core and all "
+                    "other labelled positions held constant. Shared-assay deltas use exact "
+                    "measurement medians per molecule/assay/endpoint/variant, deduplicating "
+                    "copies of the same record ID/value. "
                     "Summary gives one vote per molecular pair; disjoint pairs share no compounds.",
                 },
                 indent=2,
@@ -158,12 +162,13 @@ def show_sar_map(
             "**Positive ΔpActivity** means the 'to' substituent is more potent in the "
             "observed comparison. +1 is about a tenfold lower measured concentration; "
             "+2 is about a hundredfold lower concentration.\n\n"
-            "**Green / red:** replicated increases / decreases. **Amber:** mixed or small "
+            "**Green / red:** supported increases / decreases. **Amber:** mixed or small "
             "changes. **Grey:** too little matched evidence. Grey does not mean inactive.\n\n"
             "Evidence is strongest when other substitution sites stay the same and both "
             "compounds were measured in the same assay. The map summarizes this dataset; "
             "it cannot establish which unchanged core atoms are essential. "
-            "Grades describe evidence amount and consistency; they are not significance tests."
+            "Grades describe evidence amount and consistency; they are not significance tests "
+            "or calibrated confidence probabilities."
         )
     if not series:
         st.info("Run R-group decomposition to create the series map.")
@@ -177,6 +182,28 @@ def show_sar_map(
         ),
     )
     selected = series[index]
+    states = core_states(selected)
+    series_key = hashlib.sha256(selected.members.to_csv(index=False).encode()).hexdigest()[:12]
+    if len(states) > 1:
+        chosen_core = st.selectbox(
+            "Core stereochemical state",
+            states,
+            format_func=lambda core: (
+                f"State {states.index(core) + 1} · "
+                f"{int((selected.members.core_smiles == core).sum())} compounds"
+            ),
+            key=f"sar_core_{series_key}",
+            help="Mapped isomeric core identities are kept separate. The largest state is "
+            "selected by count, not potency; unassigned stereo is not treated as assigned.",
+        )
+        selected = select_core_state(selected, chosen_core)
+        st.info(
+            f"This scaffold contains {len(states)} mapped core states. Only the selected "
+            f"{selected.n_molecules} compounds are compared; other states are not pooled. "
+            "State numbers identify structures, not activity classes."
+        )
+    else:
+        selected = select_core_state(selected)
     key = "sar_map_" + hashlib.sha256(selected.core.encode()).hexdigest()[:12]
     records = (
         evidence[evidence["molecule_id"].isin(selected.members["molecule_id"])].copy()
@@ -218,7 +245,13 @@ def show_sar_map(
             "does not mean wild type. Shared-assay comparisons always keep endpoint and "
             "variant together. Displayed molecule distributions can still contain pooled endpoints."
         )
-    scope = {"filters": filters, "source": source or {}, "classes": asdict(classes)}
+    scope = {
+        "filters": filters,
+        "source": source or {},
+        "classes": asdict(classes),
+        "core_state": selected.core,
+        "available_core_states": states,
+    }
     # Include data content, not just lengths: values and records can change.
     signature = hashlib.sha256(
         (
@@ -476,6 +509,7 @@ def _show_transformations(
         "interval. Disjoint pairs share no compounds and are counted conservatively. "
         "Repeated measurements of a pair get one vote in the summary."
     )
+    _show_sar_stress(result, summary, evidence, table, key)
     plotted = pairs.head(200).copy()
     plotted["Pair"] = plotted["id_from"] + " → " + plotted["id_to"] + " · " + plotted["assay_id"]
     st.altair_chart(
@@ -519,6 +553,321 @@ def _show_transformations(
             if "record_id" in block:
                 block = block[block["record_id"].astype(str).isin(identifiers)]
         st.dataframe(block, hide_index=True, width="stretch")
+
+
+def sar_stress_archive(
+    stress: SarStressTest,
+    result: SarMap,
+    evidence: pd.DataFrame,
+) -> bytes:
+    """Portable evidence card, including settings and content hashes."""
+    buffer = io.BytesIO()
+    files = {
+        "sensitivity_checks.csv": stress.checks.to_csv(index=False),
+        "context_effects.csv": stress.contexts.to_csv(index=False),
+        "threshold_sensitivity.csv": stress.thresholds.to_csv(index=False),
+        "matched_cycles.csv": stress.cycles.to_csv(index=False),
+        "next_measurements.csv": stress.suggestions.to_csv(index=False),
+        "matched_pairs.csv": claim_pairs(result, stress.claim).to_csv(index=False),
+        "series_members.csv": result.series.members.to_csv(index=False),
+        "retained_measurements.csv": evidence.to_csv(index=False),
+    }
+    from rdkit import rdBase
+
+    metadata = {
+        "claim": stress.claim,
+        "verdict": stress.verdict,
+        "limitations": stress.limitations,
+        "settings": stress.settings,
+        "rdkit_version": rdBase.rdkitVersion,
+        "sha256": {
+            name: hashlib.sha256(content.encode()).hexdigest() for name, content in files.items()
+        },
+    }
+    with zipfile.ZipFile(buffer, "w", zipfile.ZIP_DEFLATED) as archive:
+        for name, content in files.items():
+            archive.writestr(name, content)
+        archive.writestr("evidence_card.json", json.dumps(metadata, indent=2, default=str))
+    return buffer.getvalue()
+
+
+def _show_sar_stress(
+    result: SarMap,
+    claim: pd.Series,
+    evidence: pd.DataFrame,
+    table: pd.DataFrame,
+    key: str,
+) -> None:
+    with st.expander("SAR stress test · can this substitution effect be trusted?", expanded=True):
+        st.caption(
+            "Challenge this observed effect, inspect where it changes, and identify a next "
+            "measurement. This is not a probability of success or a mechanistic explanation."
+        )
+        thresholds = st.multiselect(
+            "Effect thresholds to test (log units)",
+            [0.1, 0.25, 0.5, 0.75, 1.0, 1.5, 2.0],
+            default=[0.25, 0.5, 0.75, 1.0],
+            key=f"{key}_stress_thresholds",
+        )
+        omission_limit = st.select_slider(
+            "Maximum omissions per test",
+            options=[25, 50, 100, 200],
+            value=100,
+            key=f"{key}_stress_limit",
+            help="One test per compound, context, assay or publication. "
+            "Larger studies are bounded and any partial analysis is explicitly reported.",
+        )
+        chosen_thresholds = tuple(sorted(set([result.effect_threshold, *thresholds])))
+        signature = hashlib.sha256(
+            (
+                result.pairs.to_csv(index=False)
+                + result.series.members.to_csv(index=False)
+                + evidence.to_csv(index=False)
+                + claim.to_json()
+                + str((chosen_thresholds, omission_limit, result.effect_threshold))
+            ).encode()
+        ).hexdigest()
+        if st.button("Run SAR stress test", key=f"{key}_stress_run", type="primary"):
+            with st.spinner("Challenging the observed effect and checking matched cycles…"):
+                stress = stress_test_sar(
+                    result,
+                    claim,
+                    evidence,
+                    thresholds=chosen_thresholds,
+                    max_omissions_per_axis=omission_limit,
+                )
+                st.session_state[f"{key}_stress_result"] = (signature, stress)
+        saved = st.session_state.get(f"{key}_stress_result")
+        if saved is None or saved[0] != signature:
+            st.info(
+                "Run the stress test for this transformation. No new data are downloaded, "
+                "no model is trained, and no docking is performed."
+            )
+            return
+        stress = saved[1]
+        st.markdown(f"**{stress.verdict}**")
+        if any(
+            stress.settings[flag]
+            for flag in (
+                "omissions_truncated",
+                "cycle_search_truncated",
+                "pair_limit_reached",
+            )
+        ):
+            st.warning(
+                "This is a partial stress test: a computational limit was reached. "
+                "Narrow the evidence subset or increase the omission limit."
+            )
+        stability, contexts, next_step = st.tabs(
+            ["Does the effect persist?", "Where does it change?", "What to measure next"]
+        )
+        with stability:
+            evaluated = stress.checks[
+                (stress.checks.test != "Baseline") & (stress.checks.pairs > 0)
+            ]
+            cols = st.columns(3)
+            cols[0].metric("Evaluable omissions", str(len(evaluated)))
+            cols[1].metric(
+                "Same directional conclusion", str(int(evaluated.retains_direction.sum()))
+            )
+            cols[2].metric("Omissions leaving no pairs", str(int((stress.checks.pairs == 0).sum())))
+            plotted = stress.checks[stress.checks.pairs > 0].head(200).copy()
+            if not plotted.empty:
+                plotted["Subset"] = plotted.test + " · " + plotted.omitted.str.slice(0, 48)
+                points = (
+                    alt.Chart(plotted)
+                    .mark_circle(size=65)
+                    .encode(
+                        x=alt.X(
+                            "median_delta:Q",
+                            title="Median ΔpActivity after omission",
+                            scale=alt.Scale(zero=False),
+                        ),
+                        y=alt.Y("Subset:N", sort=None, title=None),
+                        color=alt.condition(
+                            alt.datum.retains_direction, alt.value("#10b981"), alt.value("#f59e0b")
+                        ),
+                        tooltip=[
+                            "test:N",
+                            "omitted:N",
+                            "pairs:Q",
+                            "disjoint_pairs:Q",
+                            "median_delta:Q",
+                            "interpretation:N",
+                        ],
+                    )
+                )
+                zero = (
+                    alt.Chart(pd.DataFrame({"zero": [0]}))
+                    .mark_rule(color="#94a3b8")
+                    .encode(x="zero:Q")
+                )
+                st.altair_chart(
+                    (points + zero).properties(height=min(650, max(160, len(plotted) * 20))),
+                    width="stretch",
+                )
+                if len(stress.checks[stress.checks.pairs > 0]) > 200:
+                    st.caption(
+                        "Chart: first 200 evaluable rows. The table/export retain all tested rows."
+                    )
+            st.caption(
+                "Compound omissions remove all comparisons involving that compound. Publication "
+                "and assay omissions recompute measurement medians, without falling back to pooled "
+                "values. Removing the only assay leaves no evidence, not a failed effect. "
+                "These points are subset estimates, not confidence intervals."
+            )
+            st.markdown("**Does changing your effect threshold change the conclusion?**")
+            st.dataframe(
+                stress.thresholds.rename(
+                    columns={
+                        "threshold": "Minimum effect (log units)",
+                        "pairs": "Compound pairs",
+                        "disjoint_pairs": "Non-overlapping pairs",
+                        "assays": "Assays",
+                        "median_delta": "Median ΔpActivity",
+                        "direction_agreement": "Sign agreement",
+                        "interpretation": "Conclusion",
+                    }
+                ),
+                hide_index=True,
+                width="stretch",
+            )
+            with st.expander("All sensitivity checks"):
+                st.dataframe(stress.checks, hide_index=True, width="stretch")
+        with contexts:
+            if stress.contexts.empty:
+                st.info("No shared-assay contexts are available for this transformation.")
+            else:
+                chart = stress.contexts.copy()
+                chart["Context"] = chart.assay_id + " · " + chart.context
+                st.altair_chart(
+                    alt.Chart(chart.head(100))
+                    .mark_bar(color="#a78bfa")
+                    .encode(
+                        x=alt.X(
+                            "median_delta:Q",
+                            title="Median ΔpActivity in each assay / chemical context",
+                        ),
+                        y=alt.Y("Context:N", sort="-x", title=None),
+                        tooltip=[
+                            "assay_id:N",
+                            "context:N",
+                            "pairs:Q",
+                            "median_delta:Q",
+                            "interpretation:N",
+                        ],
+                    )
+                    .properties(height=min(600, max(160, len(chart.head(100)) * 24))),
+                    width="stretch",
+                )
+                st.dataframe(stress.contexts, hide_index=True, width="stretch")
+            if not stress.cycles.empty:
+                st.markdown("**Complete matched four-compound cycles**")
+                st.caption(
+                    "Interaction Δ = substitution effect in the second context minus its effect "
+                    "in the first. All four compounds share an assay, endpoint and "
+                    "variant annotation. "
+                    "A nonzero value alone does not prove nonadditivity beyond assay noise "
+                    "or establish a binding mechanism."
+                )
+                cycle_index = st.selectbox(
+                    "Inspect substitution cycle",
+                    stress.cycles.index.tolist(),
+                    format_func=lambda i: (
+                        f"{stress.cycles.loc[i, 'other_position']} · "
+                        f"{stress.cycles.loc[i, 'assay_id']} · "
+                        f"effect change {stress.cycles.loc[i, 'interaction_delta']:+.2f}"
+                    ),
+                    key=f"{key}_stress_cycle_{signature[:12]}",
+                )
+                cycle = stress.cycles.loc[cycle_index]
+                st.markdown(
+                    f"**{fragment_label(claim['fragment_from'])} → "
+                    f"{fragment_label(claim['fragment_to'])} at {claim['position']}**"
+                )
+                for context_suffix, left_id, right_id, delta_name in (
+                    ("from", "id_a", "id_b", "delta_first"),
+                    ("to", "id_c", "id_d", "delta_second"),
+                ):
+                    st.markdown(
+                        f"{cycle['other_position']} = "
+                        f"**{fragment_label(cycle[f'context_{context_suffix}'])}** · "
+                        f"substitution effect **{cycle[delta_name]:+.2f} pActivity**"
+                    )
+                    for col, id_name in zip(st.columns(2), (left_id, right_id), strict=True):
+                        identifier = cycle[id_name]
+                        block = table[table.molecule_id == identifier]
+                        with col:
+                            if not block.empty:
+                                _structure(
+                                    str(block.iloc[0].smiles), str(identifier), size=(300, 200)
+                                )
+                            else:
+                                st.write(str(identifier))
+                st.caption(
+                    f"Difference between the two observed substitution effects: "
+                    f"{cycle['interaction_delta']:+.2f} log units. Assay {cycle['assay_id']}; "
+                    "no assay-noise significance or interaction mechanism is inferred."
+                )
+                st.dataframe(stress.cycles, hide_index=True, width="stretch")
+            else:
+                st.info(
+                    "No unambiguous complete four-compound cycles were found in the bounded search."
+                )
+        with next_step:
+            st.caption(
+                "Evidence-gap suggestions, not predicted potency rankings. Check the original "
+                "protocol, chemical stability and synthetic feasibility before planning a study."
+            )
+            if stress.suggestions.empty:
+                st.info(
+                    "No specific missing-cycle or conflicting-pair suggestion was identified. "
+                    "This does not mean the evidence is complete."
+                )
+            for number, suggestion in enumerate(stress.suggestions.to_dict("records"), start=1):
+                st.markdown(f"**{number}. {suggestion['action']}** — {suggestion['reason']}")
+                st.caption(
+                    f"Assay {suggestion['assay_id']} · {suggestion['endpoint']} · "
+                    f"variant {suggestion['variant']} · "
+                    f"supporting compounds {suggestion['supporting_ids']}"
+                )
+                if suggestion["existing_ids"]:
+                    st.write("Existing compounds: " + suggestion["existing_ids"])
+                    for identifier in suggestion["existing_ids"].split(";"):
+                        if identifier.startswith("CHEMBL") and identifier[6:].isdigit():
+                            st.markdown(
+                                f"[{identifier} on ChEMBL]"
+                                f"(https://www.ebi.ac.uk/chembl/explore/compound/{identifier})"
+                            )
+                elif suggestion["proposed_smiles"]:
+                    _structure(
+                        suggestion["proposed_smiles"],
+                        "Proposed, unmeasured analogue · no potency predicted",
+                    )
+                    st.code(suggestion["proposed_smiles"], language=None)
+                    st.caption(
+                        "Source stereochemical annotations are retained; "
+                        "unassigned stereochemistry remains unresolved."
+                    )
+                if suggestion["proposed_pattern"]:
+                    st.write(
+                        {
+                            p: fragment_label(f)
+                            for p, f in json.loads(suggestion["proposed_pattern"]).items()
+                        }
+                    )
+            if not stress.suggestions.empty:
+                with st.expander("Suggestion provenance and record identifiers"):
+                    st.dataframe(stress.suggestions, hide_index=True, width="stretch")
+        for limitation in stress.limitations:
+            st.caption(limitation)
+        st.download_button(
+            "Download SAR stress-test evidence card",
+            sar_stress_archive(stress, result, evidence),
+            file_name="sar_stress_test.zip",
+            mime="application/zip",
+            key=f"{key}_stress_download",
+        )
 
 
 def show_matched_pair_explorer(

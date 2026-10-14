@@ -34,6 +34,7 @@ the parent ring.
 
 from __future__ import annotations
 
+import json
 from dataclasses import dataclass
 
 import numpy as np
@@ -131,13 +132,30 @@ def decompose_scaffold(
     frame = pd.DataFrame(
         {
             "molecule_id": [r.molecule_id for r in matched],
+            "molecule_smiles": [Chem.MolToSmiles(Chem.MolFromSmiles(r.smiles)) for r in matched],
+            # Compare the mapped core graph, not CIP labels: changing a
+            # substituent can change an R/S label without inverting geometry.
+            "core_smiles": [row.get("Core", "") for row in rows],
+            "rgroup_fragments": [
+                json.dumps({p: row.get(p, "") for p in positions}, sort_keys=True) for row in rows
+            ],
             "pactivity": [float(r.pactivity) for r in matched],
             "activity_class": [r.activity_class for r in matched],
             **{position: [_label(row.get(position, "")) for row in rows] for position in positions},
         }
     )
     varying = [p for p in positions if frame[p].nunique() > 1]
-    frame = frame[["molecule_id", "pactivity", "activity_class", *varying]]
+    frame = frame[
+        [
+            "molecule_id",
+            "molecule_smiles",
+            "core_smiles",
+            "rgroup_fragments",
+            "pactivity",
+            "activity_class",
+            *varying,
+        ]
+    ]
 
     stats = _substituent_stats(frame, varying, min_substituent_count)
     return ScaffoldSar(
@@ -147,6 +165,37 @@ def decompose_scaffold(
         n_unmatched=len(unmatched_set),
         members=frame.reset_index(drop=True),
         substituents=stats,
+    )
+
+
+def core_states(series: ScaffoldSar) -> list[str]:
+    """Mapped isomeric core states, largest first (never ranked by potency)."""
+    if "core_smiles" not in series.members or series.members.empty:
+        return [series.core]
+    counts = series.members.groupby("core_smiles")["molecule_id"].nunique()
+    return sorted(counts.index, key=lambda core: (-counts[core], core))
+
+
+def select_core_state(series: ScaffoldSar, core: str | None = None) -> ScaffoldSar:
+    """Keep one identical mapped core, separating assigned and unassigned stereo.
+
+    Legacy, manually constructed tables without core metadata retain their
+    declared core. Production decompositions always carry the per-molecule core.
+    """
+    states = core_states(series)
+    chosen = states[0] if core is None else core
+    if chosen not in states:
+        raise ValueError("Core state is not present in this series")
+    members = series.members.copy()
+    if "core_smiles" in members:
+        members = members[members["core_smiles"] == chosen].copy()
+    return ScaffoldSar(
+        series.scaffold,
+        chosen,
+        len(members),
+        series.n_unmatched,
+        members.reset_index(drop=True),
+        _substituent_stats(members, series.positions, 1),
     )
 
 

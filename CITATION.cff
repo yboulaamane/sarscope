@@ -1,0 +1,18 @@
+cff-version: 1.2.0
+message: "If you use SARscope, cite this software. A software manuscript is in preparation; no paper or release DOI is assigned."
+type: software
+title: "SARscope: interactive, assay-aware structure-activity interpretation"
+authors:
+  - family-names: Boulaamane
+    given-names: Yassir
+repository-code: "https://github.com/yboulaamane/sarscope"
+url: "https://sarscope.streamlit.app/"
+version: "0.1.0.dev0"
+license: MIT
+abstract: "A staged browser and command-line workflow for traceable assay-aware SAR analysis, activity-cliff exploration and retrospective QSAR. Evidence grades are descriptive support heuristics, not calibrated probabilities."
+keywords:
+  - cheminformatics
+  - structure-activity relationships
+  - activity cliffs
+  - medicinal chemistry
+  - ChEMBL

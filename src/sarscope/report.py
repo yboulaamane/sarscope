@@ -44,6 +44,7 @@ from sarscope import provenance  # noqa: E402
 from sarscope.analysis.descriptors import CORE_DESCRIPTORS  # noqa: E402
 from sarscope.analysis.diagnostics import novelty_summary, regression_summary  # noqa: E402
 from sarscope.analysis.landscape import cliff_generators  # noqa: E402
+from sarscope.analysis.rgroups import select_core_state  # noqa: E402
 from sarscope.analysis.sar_map import SarMap, build_sar_map  # noqa: E402
 from sarscope.depict import to_data_uri  # noqa: E402
 from sarscope.pipeline import RunResults  # noqa: E402
@@ -228,6 +229,7 @@ def _write_tables(results: RunResults, out: Path) -> dict[str, pd.DataFrame]:
             evidence = evidence[evidence["molecule_id"].isin(sar.members["molecule_id"])]
         mapped = build_sar_map(sar, evidence)
         prefix = f"sar_map_{i:02d}"
+        written[f"{prefix}_members"] = mapped.series.members
         written[f"{prefix}_pairs"] = mapped.pairs
         written[f"{prefix}_transformations"] = mapped.transformations
         written[f"{prefix}_annotations"] = mapped.annotations
@@ -238,14 +240,15 @@ def _write_tables(results: RunResults, out: Path) -> dict[str, pd.DataFrame]:
             json.dumps(
                 {
                     "scaffold": sar.scaffold,
-                    "core": sar.core,
+                    "core": mapped.series.core,
+                    "excluded_core_molecules": mapped.excluded_core_molecules,
                     "effect_threshold_log_units": mapped.effect_threshold,
                     "pair_limit_reached": mapped.pair_limit_reached,
                     "retained_record_ids": mapped.record_ids,
-                    "scope": "All curated measurements for this series; "
+                    "scope": "Largest identical mapped isomeric core state in this series; "
                     "browser map filters are exported separately.",
-                    "method": "Other R-positions held constant; "
-                    "shared assay/endpoint/variant medians; "
+                    "method": "Identical mapped isomeric core and other R-positions held constant; "
+                    "shared assay/endpoint/variant medians with record-copy deduplication; "
                     "one vote per compound pair; descriptive evidence grades.",
                 },
                 indent=2,
@@ -597,7 +600,7 @@ def _render(
             parts.append(f"<p class='note'><code>{html.escape(sar.scaffold)}</code></p>")
             prefix = f"sar_map_{i:02d}"
             mapped = SarMap(
-                sar,
+                select_core_state(sar),
                 tables[f"{prefix}_pairs"],
                 tables[f"{prefix}_transformations"],
                 tables[f"{prefix}_annotations"],
@@ -610,6 +613,8 @@ def _render(
                 parts.append(svg)
             parts.append(
                 "<p class='note'>The map summarizes compounds differing at one labelled position. "
+                "Only the largest identical mapped isomeric core state is used; other "
+                "stereochemical core states are not pooled. See the exported scoped members. "
                 "Shared-assay deltas use exact measurements within the same endpoint and variant. "
                 "Pair reuse, conflicting examples and sparse evidence affect the displayed grade; "
                 "invariant core atoms have no experimental substitution evidence here. "

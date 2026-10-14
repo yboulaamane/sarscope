@@ -2,10 +2,12 @@
 
 **Target ID in, structure–activity report out.**
 
-ChEMBL will give you a target's bioactivity records. It will not curate them,
-tell you which scaffolds are enriched, find the activity cliffs, or build you a
-model that is honestly validated. SARscope does that, from one command, for any
-target.
+ChEMBL supplies curated, assay-linked bioactivity records. SARscope adds an
+interactive interpretation layer: transparent analysis-specific curation,
+chemical series, controlled substitution comparisons, activity cliffs and
+QSAR evaluation. Its SAR stress tests ask whether an observed substitution
+effect persists when evidence is removed, and what measurement could resolve
+an evidence gap. Availability and usefulness depend on the target's data.
 
 ```bash
 sarscope run CHEMBL5145 --out braf_report/
@@ -19,6 +21,14 @@ every structure drawn and every setting recorded.
 
 The analysis is not hard. It is just long, and the parts that are easy to get
 wrong are invisible in the result.
+
+- **An apparent SAR rule may depend on one compound or publication.** The
+  interactive stress-test evidence card removes compounds, chemical contexts,
+  assays and publications, recomputes shared-assay effects, and shows threshold
+  sensitivity. It separates mapped stereochemical core states, inspects complete
+  four-compound cycles, and suggests specific missing-cycle measurements or
+  conflicting pairs to retest. These are descriptive diagnostics and unmeasured
+  hypotheses, not calibrated confidence or predicted synthesis successes.
 
 - **Curation is where the dataset is decided, and it is usually undocumented.**
   Whether you keep censored values, pool mutant with wild-type assays, or trust
@@ -84,6 +94,15 @@ CHEMBL5145  Serine/threonine-protein kinase B-raf  (Homo sapiens, SINGLE PROTEIN
   potential_duplicate      0: 8581, 1: 2436
   bao_label                single protein format: 7437, cell-based format: 2011, ...
 ```
+
+## Publication and reproducibility
+
+The [software-paper package](paper/README.md) includes a manuscript draft,
+three frozen published-data SAR examples, a real mmpdb comparison, benchmark
+uncertainty analysis and an unreviewed expert-evaluation pack. It distinguishes
+completed numerical checks from pending independent SAR validation and usability
+comparisons. See [the submission gates](paper/release-checklist.md); this is not
+yet a published or submission-ready paper. Citation metadata are in `CITATION.cff`.
 
 In the browser:
 

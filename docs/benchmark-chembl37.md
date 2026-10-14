@@ -19,7 +19,8 @@ median pIC50 predicted for every held-out molecule. These are single-split
 point estimates, not uncertainty intervals. No model or target was chosen by
 held-out test performance.
 
-Protocol: exact nM wild-type/unannotated binding IC50, default duplicate and
+Protocol: exact nM binding IC50 without a structured variant annotation
+(not confirmed wild type), default duplicate and
 validity exclusions, median per standardized structure, ECFP4 fingerprint,
 one 200-tree random-forest regressor (maximum depth 15), fold-local feature
 filtering, 3-fold scaffold-group training CV, 20% outer scaffold holdout,
