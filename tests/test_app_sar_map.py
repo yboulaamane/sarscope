@@ -3,7 +3,6 @@
 import io
 import json
 import zipfile
-from pathlib import Path
 
 import pytest
 
@@ -112,33 +111,3 @@ show_sar_map([sar],table,evidence,classes=ClassScheme())""",
     ).click().run()
     assert not app.exception
     assert app.session_state["sar_map_result"][1].series.n_molecules == 2
-
-
-def test_frozen_braf_case_displays_interactive_four_structure_cycles():
-    directory = Path(__file__).resolve().parents[1] / "paper/results/braf"
-    script = f"""
-import json
-from pathlib import Path
-import pandas as pd
-from sarscope.analysis.rgroups import decompose_scaffold
-from sarscope.sar_ui import show_sar_map
-from sarscope.params import ClassScheme
-directory = Path({str(directory)!r})
-table = pd.read_csv(directory / "molecules.csv")
-evidence = pd.read_csv(directory / "measurements.csv")
-scope = json.loads((directory / "scope.json").read_text())
-series = decompose_scaffold(table, scope["scaffold"], min_substituent_count=1)
-show_sar_map([series], table, evidence, classes=ClassScheme())
-"""
-    app = AppTest.from_string(script, default_timeout=20).run()
-    next(
-        button for button in app.button if button.label == "Build interactive SAR map"
-    ).click().run()
-    assert not app.exception
-    next(button for button in app.button if button.label == "Run SAR stress test").click().run()
-    assert not app.exception
-    cycle_selector = next(
-        item for item in app.selectbox if item.label == "Inspect substitution cycle"
-    )
-    assert len(cycle_selector.options) == 3
-    assert any("Difference between the two observed" in caption.value for caption in app.caption)

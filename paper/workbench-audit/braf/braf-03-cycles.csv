@@ -1,2 +1,0 @@
-other_position,context_from,context_to,assay_id,endpoint,variant,id_a,id_b,id_c,id_d,delta_first,delta_second,interaction_delta
-R1,C[*:1],O[*:1],CHEMBL5046398,IC50,Unreported,CHEMBL5072570,CHEMBL5079845,CHEMBL5092007,CHEMBL5076831,-1.259358380193082,-2.00044749564176,-0.7410891154486778

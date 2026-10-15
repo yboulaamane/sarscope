@@ -95,15 +95,6 @@ CHEMBL5145  Serine/threonine-protein kinase B-raf  (Homo sapiens, SINGLE PROTEIN
   bao_label                single protein format: 7437, cell-based format: 2011, ...
 ```
 
-## Publication and reproducibility
-
-The [software-paper package](paper/README.md) includes a manuscript draft,
-three frozen published-data SAR examples, a real mmpdb comparison, benchmark
-uncertainty analysis and an unreviewed expert-evaluation pack. It distinguishes
-completed numerical checks from pending independent SAR validation and usability
-comparisons. See [the submission gates](paper/release-checklist.md); this is not
-yet a published or submission-ready paper. Citation metadata are in `CITATION.cff`.
-
 In the browser:
 
 ```bash

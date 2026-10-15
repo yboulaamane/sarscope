@@ -1,5 +1,0 @@
-threshold,pairs,disjoint_pairs,assays,median_delta,direction_agreement,interpretation
-0.25,2,2,1,-1.629902937917421,1.0,decrease
-0.5,2,2,1,-1.629902937917421,1.0,decrease
-0.75,2,2,1,-1.629902937917421,1.0,decrease
-1.0,2,2,1,-1.629902937917421,1.0,decrease

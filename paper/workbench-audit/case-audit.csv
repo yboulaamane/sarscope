@@ -1,4 +1,0 @@
-case,selected_compounds,excluded_core_compounds,pairs,transformations,supported_transformations,exhaustive_reference_agreement,scientific_manuscript_agreement
-braf,16,0,29,15,5,True,True
-drd2,23,3,36,21,5,True,True
-esr1,53,0,198,155,7,True,True

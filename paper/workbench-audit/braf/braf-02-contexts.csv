@@ -1,3 +1,0 @@
-assay_id,context,pairs,disjoint_pairs,assays,median_delta,direction_agreement,interpretation
-CHEMBL5046398,"{""R1"": ""C[*:1]"", ""R2"": ""H"", ""R4"": ""H""}",1,1,1,1.4899426871853496,1.0,increase
-CHEMBL5046398,"{""R1"": ""F[*:1]"", ""R2"": ""H"", ""R4"": ""H""}",1,1,1,1.3902283624691307,1.0,increase

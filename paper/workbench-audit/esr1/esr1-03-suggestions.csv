@@ -1,2 +1,0 @@
-action,reason,assay_id,endpoint,variant,existing_ids,proposed_smiles,proposed_pattern,supporting_ids,record_ids
-Complete missing analogue,Complete a same-assay cycle at R3 / R8 to test whether the substitution effect changes with its neighbour.,CHEMBL829540,IC50,Unreported,,C=Cc1cc(O)cc2nc(-c3ccc(O)c(C(F)(F)F)c3)oc12,"{""R1"": ""H"", ""R2"": ""H"", ""R3"": ""C=C[*:3]"", ""R4"": ""H"", ""R5"": ""O[*:5]"", ""R6"": ""H"", ""R7"": ""H"", ""R8"": ""FC(F)(F)[*:8]"", ""R9"": ""O[*:9]""}",CHEMBL187207;CHEMBL450940;CHEMBL426626,1468518;1468527;1468954

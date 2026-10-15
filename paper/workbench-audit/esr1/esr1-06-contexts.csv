@@ -1,3 +1,0 @@
-assay_id,context,pairs,disjoint_pairs,assays,median_delta,direction_agreement,interpretation
-CHEMBL829540,"{""R1"": ""H"", ""R2"": ""H"", ""R3"": ""H"", ""R4"": ""H"", ""R5"": ""O[*:5]"", ""R6"": ""H"", ""R8"": ""H"", ""R9"": ""O[*:9]""}",1,1,1,0.8100909617741756,1.0,increase
-CHEMBL829540,"{""R1"": ""H"", ""R2"": ""H"", ""R3"": ""H"", ""R4"": ""O[*:4]"", ""R5"": ""H"", ""R6"": ""H"", ""R8"": ""H"", ""R9"": ""O[*:9]""}",1,1,1,1.0413926851582254,1.0,increase

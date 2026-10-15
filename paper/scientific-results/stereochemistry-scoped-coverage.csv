@@ -1,4 +1,0 @@
-case_id,curated_molecules,original_series_molecules,stereo_core_states,selected_series_molecules,excluded_core_state,selected_measurements,position_pair_rows,transformations,selected_core
-braf,44,16,1,16,0,16,29,15,O=S(=O)(NCCNc1nccc(-c2c(-c3ccc([*:3])c([*:4])c3)nc3sccn23)n1)c1ccc([*:1])c([*:2])c1
-drd2,30,26,3,23,3,24,36,21,c1cc([*:5])ccc1[C@H]1C[C@@H]1CN1CCN(c2cc([*:1])c([*:2])c([*:3])c2[*:4])CC1
-esr1,98,53,1,53,0,55,198,155,n1c(-c2c([*:2])c([*:1])c([*:9])c([*:8])c2[*:7])oc2c([*:3])c([*:4])c([*:5])c([*:6])c12
