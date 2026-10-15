@@ -48,9 +48,6 @@ docking = [
     "filelock>=3.15,<5",
     "zstandard>=0.23,<1",
 ]
-# Building and verifying the paper/ documents. Not needed to use SARscope;
-# declared so the manuscript package can be rebuilt from a clean checkout.
-paper = ["python-docx>=1.1", "cairosvg>=2.7", "pymupdf>=1.24"]
 dev = [
     "pytest>=8.0",
     "pytest-cov>=5.0",
