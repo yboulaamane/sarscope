@@ -5,8 +5,10 @@ not an external prospective or cross-target validation. It was run on
 2026-09-30 against frozen [ChEMBL](https://www.ebi.ac.uk/chembl/) release 37
 activity records. The fixed panel covers BRAF (kinase), DRD2 (class A GPCR),
 and ESR1 (nuclear receptor). Full frozen data and molecule-level predictions
-are local ignored artifacts under `runs/benchmark-chembl37/`, not bundled or
-redistributed in this MIT repository.
+ship with the repository as `paper/benchmark-chembl37.tar.gz`, redistributed
+under CC BY-SA 3.0 rather than the MIT code licence; see
+`paper/DATA-LICENSE.md`. Extracting it recreates `runs/benchmark-chembl37/`,
+which stays gitignored.
 
 | Target | Family | Raw IC50 | Curated | Train / test | Test R² | Test RMSE | Test Spearman | Median baseline RMSE |
 |---|---|---:|---:|---:|---:|---:|---:|---:|

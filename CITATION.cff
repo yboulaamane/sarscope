@@ -1,11 +1,10 @@
 cff-version: 1.2.0
-message: "If you use SARscope, cite this software via its archived release. A software manuscript is in preparation and has no DOI yet."
+message: "If you use SARscope, cite this software by its version and repository URL. A Zenodo DOI is reserved but not yet published, and the software manuscript is in preparation."
 type: software
 title: "SARscope: interactive, assay-aware structure-activity interpretation"
 authors:
   - family-names: Boulaamane
     given-names: Yassir
-doi: "10.5281/zenodo.23387852"
 repository-code: "https://github.com/yboulaamane/sarscope"
 url: "https://sarscope.streamlit.app/"
 version: "0.1.0"
