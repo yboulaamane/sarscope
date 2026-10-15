@@ -264,7 +264,7 @@ def build(source: Path, out: Path) -> Path:
     )
     document.core_properties.author = "Yassir Boulaamane"
     out.parent.mkdir(parents=True, exist_ok=True)
-    document.save(out)
+    document.save(str(out))
     return out
 
 
