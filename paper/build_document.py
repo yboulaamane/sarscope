@@ -22,6 +22,12 @@ from docx.oxml import OxmlElement
 from docx.oxml.ns import nsmap, qn
 from docx.shared import Cm, Pt, RGBColor
 
+#: Plain mode: Times New Roman 12 throughout, black, no header, footer, rules,
+#: shading or accent colour. Journals generally want a manuscript that carries no
+#: styling of its own, so their own typesetting is what the reader sees.
+PLAIN = False
+PLAIN_FONT, PLAIN_SIZE = "Times New Roman", Pt(12)
+
 
 def inline(paragraph: Any, text: str) -> None:
     for token in re.split(r"(\*\*[^*]+\*\*|`[^`]+`|https?://\S+|\[\d+(?:[,– -]+\d+)*\])", text):
@@ -31,7 +37,10 @@ def inline(paragraph: Any, text: str) -> None:
             paragraph.add_run(token[2:-2]).bold = True
         elif token.startswith("`") and token.endswith("`"):
             run = paragraph.add_run(token[1:-1])
-            run.font.name, run.font.size = "Consolas", Pt(9)
+            if PLAIN:
+                run.font.name, run.font.size = PLAIN_FONT, PLAIN_SIZE
+            else:
+                run.font.name, run.font.size = "Consolas", Pt(9)
         elif token.startswith(("http://", "https://")):
             url = token.rstrip(".,;")
             link = OxmlElement("w:hyperlink")
@@ -39,7 +48,7 @@ def inline(paragraph: Any, text: str) -> None:
             run = OxmlElement("w:r")
             properties = OxmlElement("w:rPr")
             color = OxmlElement("w:color")
-            color.set(qn("w:val"), "166C62")
+            color.set(qn("w:val"), "000000" if PLAIN else "166C62")
             properties.append(color)
             run.append(properties)
             value = OxmlElement("w:t")
@@ -91,13 +100,17 @@ def add_table(document: Any, lines: list[str]) -> None:
                 WD_ALIGN_PARAGRAPH.LEFT if index == 0 else WD_ALIGN_PARAGRAPH.CENTER
             )
             run = paragraph.add_run(content)
-            run.font.size = Pt(8.5 if count >= 7 else 9)
+            run.font.size = PLAIN_SIZE if PLAIN else Pt(8.5 if count >= 7 else 9)
             if number == 0:
                 run.bold = True
-                run.font.color.rgb = RGBColor.from_string("FFFFFF")
+                if not PLAIN:
+                    run.font.color.rgb = RGBColor.from_string("FFFFFF")
             shading = OxmlElement("w:shd")
             shading.set(
-                qn("w:fill"), "166C62" if number == 0 else ("EDF5F3" if number % 2 else "FFFFFF")
+                qn("w:fill"),
+                "FFFFFF"
+                if PLAIN
+                else ("166C62" if number == 0 else ("EDF5F3" if number % 2 else "FFFFFF")),
             )
             cell._tc.get_or_add_tcPr().append(shading)
     document.add_paragraph().paragraph_format.space_after = Pt(0)
@@ -143,28 +156,53 @@ def build(source: Path, out: Path) -> Path:
     section.left_margin = section.right_margin = Cm(2.2)
     section.header_distance = section.footer_distance = Cm(1)
     normal = document.styles["Normal"]
-    normal.font.name, normal.font.size = "Calibri", Pt(11)
-    normal.paragraph_format.line_spacing = 1.10
-    normal.paragraph_format.space_after = Pt(6)
+    if PLAIN:
+        normal.font.name, normal.font.size = PLAIN_FONT, PLAIN_SIZE
+        normal.font.color.rgb = RGBColor.from_string("000000")
+        normal.paragraph_format.line_spacing = 1.0
+        normal.paragraph_format.space_after = Pt(0)
+        normal.paragraph_format.space_before = Pt(0)
+    else:
+        normal.font.name, normal.font.size = "Calibri", Pt(11)
+        normal.paragraph_format.line_spacing = 1.10
+        normal.paragraph_format.space_after = Pt(6)
     normal.paragraph_format.widow_control = True
+
     for name, size in [("Title", 20), ("Heading 1", 15), ("Heading 2", 12)]:
         style = document.styles[name]
-        style.font.name, style.font.size = "Calibri", Pt(size)
-        style.font.color.rgb = RGBColor.from_string("166C62")
+        if PLAIN:
+            # Headings differ from body text by weight alone, not size or colour.
+            style.font.name, style.font.size = PLAIN_FONT, PLAIN_SIZE
+            style.font.color.rgb = RGBColor.from_string("000000")
+            style.font.bold = True
+            style.paragraph_format.space_before = Pt(12)
+            style.paragraph_format.space_after = Pt(0)
+        else:
+            style.font.name, style.font.size = "Calibri", Pt(size)
+            style.font.color.rgb = RGBColor.from_string("166C62")
+            style.paragraph_format.space_before = Pt(12 if name != "Title" else 0)
+            style.paragraph_format.space_after = Pt(6)
         style.paragraph_format.keep_with_next = True
-        style.paragraph_format.space_before = Pt(12 if name != "Title" else 0)
-        style.paragraph_format.space_after = Pt(6)
-    document.styles["Caption"].font.size = Pt(9)
-    document.styles["Caption"].font.color.rgb = RGBColor.from_string("425564")
-    header = section.header.paragraphs[0]
-    header.text = "SARscope · Manuscript draft"
-    header.runs[0].font.size = Pt(8)
-    header.runs[0].font.color.rgb = RGBColor.from_string("6A7784")
-    footer = section.footer.paragraphs[0]
-    footer.alignment = WD_ALIGN_PARAGRAPH.RIGHT
-    field = OxmlElement("w:fldSimple")
-    field.set(qn("w:instr"), "PAGE")
-    footer._p.append(field)
+
+    caption = document.styles["Caption"]
+    if PLAIN:
+        caption.font.name, caption.font.size = PLAIN_FONT, PLAIN_SIZE
+        caption.font.color.rgb = RGBColor.from_string("000000")
+        caption.font.italic = False
+    else:
+        caption.font.size = Pt(9)
+        caption.font.color.rgb = RGBColor.from_string("425564")
+
+    if not PLAIN:
+        header = section.header.paragraphs[0]
+        header.text = "SARscope · Manuscript draft"
+        header.runs[0].font.size = Pt(8)
+        header.runs[0].font.color.rgb = RGBColor.from_string("6A7784")
+        footer = section.footer.paragraphs[0]
+        footer.alignment = WD_ALIGN_PARAGRAPH.RIGHT
+        field = OxmlElement("w:fldSimple")
+        field.set(qn("w:instr"), "PAGE")
+        footer._p.append(field)
     lines = source.read_text().splitlines()
     index = 0
     while index < len(lines):
@@ -234,5 +272,11 @@ if __name__ == "__main__":
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--source", type=Path, required=True)
     parser.add_argument("--out", type=Path, required=True)
+    parser.add_argument(
+        "--plain",
+        action="store_true",
+        help="Times New Roman 12, all black, no header, footer, shading or accent colour",
+    )
     args = parser.parse_args()
+    globals()["PLAIN"] = args.plain
     print(build(args.source, args.out))
