@@ -594,11 +594,14 @@ SARscope is distributed under the MIT licence and runs on Python-compatible
 platforms; numerical reproduction was checked on Linux x86_64 with Python 3.13,
 and cross-platform numerical equivalence was not evaluated.
 
-Version 0.1.0 of the source code, together with the frozen ChEMBL 37 benchmark
-snapshots and the saved held-out predictions, is archived at
-https://doi.org/10.5281/zenodo.23387852. SHA-256 checksums for both archive files accompany the
-deposit. Redistributed ChEMBL records remain under CC BY-SA 3.0, separate from
-the MIT code licence.
+Version 0.1.0 of the source code is released at
+https://github.com/yboulaamane/sarscope/releases/tag/v0.1.0. The frozen ChEMBL 37
+benchmark snapshots and the saved held-out predictions are included in that
+release as `paper/benchmark-chembl37.tar.gz` (SHA-256
+3c5fe2cd0769c83ee7adf507615cca9174bb9ba270284fa360e80f67f7bbfc96). A Zenodo
+deposit of the same release is prepared but not yet published, so no DOI is
+cited here. Redistributed ChEMBL records remain under CC BY-SA 3.0, separate
+from the MIT code licence.
 
 ## Figure Legends
 
