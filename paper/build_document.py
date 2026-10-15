@@ -95,7 +95,7 @@ def add_table(document: Any, lines: list[str]) -> None:
             paragraph = cell.paragraphs[0]
             paragraph.paragraph_format.space_after = Pt(4)
             paragraph.paragraph_format.space_before = Pt(4)
-            paragraph.paragraph_format.line_spacing = 1.05
+            paragraph.paragraph_format.line_spacing = 1.0 if PLAIN else 1.05
             paragraph.alignment = (
                 WD_ALIGN_PARAGRAPH.LEFT if index == 0 else WD_ALIGN_PARAGRAPH.CENTER
             )
@@ -159,7 +159,8 @@ def build(source: Path, out: Path) -> Path:
     if PLAIN:
         normal.font.name, normal.font.size = PLAIN_FONT, PLAIN_SIZE
         normal.font.color.rgb = RGBColor.from_string("000000")
-        normal.paragraph_format.line_spacing = 1.0
+        # Double spacing, which most journals ask for so reviewers can annotate.
+        normal.paragraph_format.line_spacing = 2.0
         normal.paragraph_format.space_after = Pt(0)
         normal.paragraph_format.space_before = Pt(0)
     else:
@@ -175,6 +176,7 @@ def build(source: Path, out: Path) -> Path:
             style.font.name, style.font.size = PLAIN_FONT, PLAIN_SIZE
             style.font.color.rgb = RGBColor.from_string("000000")
             style.font.bold = True
+            style.paragraph_format.line_spacing = 2.0
             style.paragraph_format.space_before = Pt(12)
             style.paragraph_format.space_after = Pt(0)
         else:
@@ -189,6 +191,7 @@ def build(source: Path, out: Path) -> Path:
         caption.font.name, caption.font.size = PLAIN_FONT, PLAIN_SIZE
         caption.font.color.rgb = RGBColor.from_string("000000")
         caption.font.italic = False
+        caption.paragraph_format.line_spacing = 2.0
     else:
         caption.font.size = Pt(9)
         caption.font.color.rgb = RGBColor.from_string("425564")
