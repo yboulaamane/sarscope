@@ -179,6 +179,20 @@ def build(source: Path, out: Path) -> Path:
             style.paragraph_format.line_spacing = 2.0
             style.paragraph_format.space_before = Pt(12)
             style.paragraph_format.space_after = Pt(0)
+            # Word's default Title style carries a blue bottom border. It lives
+            # in the style definition rather than on the paragraph, so it
+            # survives any inline formatting and has to be removed here.
+            properties = style.element.get_or_add_pPr()
+            for existing in properties.findall(qn("w:pBdr")):
+                properties.remove(existing)
+            borders = OxmlElement("w:pBdr")
+            for edge in ("top", "left", "bottom", "right", "between"):
+                element = OxmlElement(f"w:{edge}")
+                element.set(qn("w:val"), "none")
+                element.set(qn("w:sz"), "0")
+                element.set(qn("w:space"), "0")
+                borders.append(element)
+            properties.append(borders)
         else:
             style.font.name, style.font.size = "Calibri", Pt(size)
             style.font.color.rgb = RGBColor.from_string("166C62")

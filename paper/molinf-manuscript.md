@@ -7,7 +7,7 @@ Abdelmalek Essaadi University, Tetouan 93000, Morocco
 
 Correspondence: yassirxmail@gmail.com
 
-Molecular Informatics · software and methods draft.
+Submitted to Molecular Informatics as a software and methods article.
 Author declarations require confirmation before submission.
 
 ## Abstract
@@ -26,7 +26,7 @@ mapped isomeric core. Bars give the range of each median under single-compound
 omission. SARscope resolves such comparisons to the measurements that support
 them.
 
-**Keywords:** structure–activity relationships · matched molecular pairs · activity cliffs · chemoinformatics · assay comparability
+**Keywords:** structure–activity relationships; matched molecular pairs; activity cliffs; chemoinformatics; assay comparability
 
 ## 1. Introduction
 
