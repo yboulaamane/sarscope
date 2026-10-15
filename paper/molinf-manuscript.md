@@ -594,11 +594,11 @@ SARscope is distributed under the MIT licence and runs on Python-compatible
 platforms; numerical reproduction was checked on Linux x86_64 with Python 3.13,
 and cross-platform numerical equivalence was not evaluated.
 
-A public, versioned archive and DOI for the tested revision are not yet
-assigned. The full benchmark snapshots and saved predictions exist only in a
-prepared local reproducibility archive and must be publicly deposited if the
-supporting modelling results are retained at submission. Redistributed ChEMBL
-records remain under CC BY-SA 3.0, separate from the MIT code licence.
+Version 0.1.0 of the source code, together with the frozen ChEMBL 37 benchmark
+snapshots and the saved held-out predictions, is archived at
+https://doi.org/10.5281/zenodo.23387852. SHA-256 checksums for both archive files accompany the
+deposit. Redistributed ChEMBL records remain under CC BY-SA 3.0, separate from
+the MIT code licence.
 
 ## Figure Legends
 
