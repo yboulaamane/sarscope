@@ -147,6 +147,9 @@ def training_fit(
         "prediction": prediction,
         "components": fitted.selected_components_,
         "retained_columns": int(filt.support_.sum()),
+        # The fitted filter, so callers can report retention per field block
+        # without recomputing the fields.
+        "filter": filt,
         "grid_points": grid.n_points,
         "contributions": contribution_maps(fields, filt, fitted, settings).summary,
         "charges": fields.charges,

@@ -12,6 +12,43 @@ predictions reproduce R² = 0.319 only after a measured-test-mean offset under
 the historical representation. That is an oracle diagnostic, not prospective
 prediction. It is not copied into the native app or its prediction column.
 
+## Field-screen comparison (training-only)
+
+`screen_comparison_probe.py` fits every training cohort twice, once per
+`field_screen`, and reports retention per field block with out-of-fold q2 and
+RMSE:
+
+```bash
+python benchmarks/field_qsar/screen_comparison_probe.py \
+  --protocol benchmarks/field_qsar/public-se-sensitivity-20261016/protocol.json \
+  --out runs/screen-comparison
+```
+
+It fetches only `*_train.sdf`, verifies their SHA-256 and reuses the nested
+regression engine through `training_fit`. No held-out file is read.
+
+Measured on 16 October 2026:
+
+| Cohort | n | Screen | Steric | Electrostatic | OOF q2 | OOF RMSE |
+| --- | ---: | --- | ---: | ---: | ---: | ---: |
+| AChE | 74 | `global_raw` | 2000 | 0 | 0.157 | 1.109 |
+| AChE | 74 | `per_field` | 1000 | 1000 | 0.232 | 1.058 |
+| CCR5 | 63 | `global_raw` | 2000 | 0 | 0.730 | 0.467 |
+| CCR5 | 63 | `per_field` | 1000 | 1000 | 0.739 | 0.459 |
+| THR | 59 | `global_raw` | 2000 | 0 | 0.479 | 0.685 |
+| THR | 59 | `per_field` | 1000 | 1000 | 0.505 | 0.668 |
+
+The electrostatic block was eliminated in every cohort under `global_raw`, so
+every model fitted from this profile was steric-only. `per_field` keeps both
+blocks at the 1000/1000 budget split.
+
+**What this can and cannot settle.** It can show whether per-field screening
+keeps both blocks populated, which is a property of the screen. It cannot show
+that either screen predicts better: the q2 and RMSE are training statistics
+from one fixed configuration, and a screen chosen on them would be tuned on the
+data that reported them. A predictive comparison needs a frozen cohort that no
+screening decision has seen. ATA is consumed and is not eligible.
+
 ## Retained campaign versions
 
 Several campaigns have numbered reruns. Every version still present is kept

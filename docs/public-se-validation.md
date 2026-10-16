@@ -125,12 +125,23 @@ removed, relabelled, repaired or rescored to improve performance.
 
 ## Concrete problems found
 
-1. **Entire fields can disappear during screening — corrected.** The global
-   raw-variance screen removed all electrostatic columns before block scaling,
-   in both the AChE training diagnostic and the final ATA primary fit. Those
-   fitted models are therefore steric-only despite receiving SE inputs, and
-   the absence of charge sensitivity in that situation is not proof of charge
-   robustness.
+1. **Entire fields can disappear during screening — corrected, and it was
+   not confined to one cohort.** The global raw-variance screen removed all
+   electrostatic columns before block scaling. A training-only comparison on
+   16 October 2026 found this in **all three** training cohorts, not only the
+   AChE diagnostic and the final ATA primary fit:
+
+   | Cohort | n | `global_raw` S/E | `per_field` S/E |
+   | --- | ---: | ---: | ---: |
+   | AChE | 74 | 2000 / 0 | 1000 / 1000 |
+   | CCR5 | 63 | 2000 / 0 | 1000 / 1000 |
+   | THR | 59 | 2000 / 0 | 1000 / 1000 |
+
+   Every model fitted from this profile was therefore steric-only despite
+   receiving SE inputs, and the absence of charge sensitivity in that situation
+   is not proof of charge robustness. Any conclusion drawn from an
+   "electrostatic" contour or contribution under that profile should be
+   re-read as steric-only.
 
    The cause is unit incommensurability, not a coding error: ranking all
    columns on one raw standard deviation compares Gaussian steric weights in
@@ -176,11 +187,23 @@ and predictive evidence in the
 [OECD QSAR validation guidance](https://doi.org/10.1787/9789264085442-en);
 it is not an OECD endorsement.
 
-The field-balanced screen described above is now implemented and property
-tested, which closes the numerical half of this step. What remains is the
-empirical half: compare the two screens on the three existing training cohorts
-using training-only statistics, and report the comparison without using it to
-claim predictive benefit. Do not reuse ATA to choose the winner.
+The field-balanced screen is implemented, property tested and compared on the
+three training cohorts (`benchmarks/field_qsar/screen_comparison_probe.py`).
+Both halves of this step are now done, with the limits stated above.
+
+For completeness, the training-only fit statistics moved in the same direction
+in all three cohorts — q² 0.157→0.232 (AChE), 0.730→0.739 (CCR5), 0.479→0.505
+(THR), with RMSE falling correspondingly. **This is not evidence that the
+corrected screen predicts better.** These are training out-of-fold statistics
+from one fixed configuration; `per_field` also selected three PLS components
+where `global_raw` selected two in two of the three cohorts, so part of the
+difference is mechanical; and a screen chosen on these numbers would be tuned
+on the data that produced them. The correction stands on the unit argument,
+which does not depend on any performance number.
+
+The next step is unchanged and still open: a prediction claim needs another
+frozen, adequately annotated cohort that no screening decision has seen, plus
+external scientific review. ATA is consumed and is not eligible.
 Resolve flagged source bond orders against primary records before treating
 those molecules as a clean benchmark. A subsequent prediction claim needs
 another frozen, adequately annotated endpoint/cohort not used for this redesign,
