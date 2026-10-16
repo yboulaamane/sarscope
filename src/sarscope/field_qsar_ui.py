@@ -224,12 +224,26 @@ def show_field_qsar(
         else scaffold_table[scaffold_table["murcko"].fillna("Acyclic") == scaffold]
     )
     available_ids = available["molecule_id"].astype(str).tolist()
+    selection_scope = _signature(
+        {
+            "source": dataset.source,
+            "scaffold": scaffold,
+            "available": available[["molecule_id", "smiles", "pactivity"]].to_csv(index=False),
+        }
+    )
+    if st.session_state.get(f"{key}_selection_scope") != selection_scope:
+        # A keyed multiselect otherwise retains the previous scaffold's IDs
+        # when its options expand. Reset only on an input/filter change, not
+        # ordinary reruns, so manual compound edits are still respected.
+        st.session_state[f"{key}_compounds"] = available_ids if len(available_ids) <= 100 else []
+        st.session_state[f"{key}_selection_scope"] = selection_scope
+        _discard_active(key)
     identifiers = st.multiselect(
         "Compounds in this 3D-QSAR series",
         available_ids,
-        default=available_ids if len(available_ids) <= 100 else [],
         key=f"{key}_compounds",
     )
+    st.caption(f"{len(identifiers)} of {len(available_ids)} available compounds selected.")
     if not identifiers:
         _discard_active(key)
         st.info("Choose a related series of 20–100 compounds. No random sampling is applied.")
