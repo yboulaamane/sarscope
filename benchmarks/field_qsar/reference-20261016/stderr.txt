@@ -1,0 +1,10 @@
+/tmp/sarscope-external-reference-5ngwuqok/pycomsia-0b30179ecc20aac5a003577b4437399a8fb20bca/src/MolecularFieldCalculator.py:19: SyntaxWarning: invalid escape sequence '\*'
+  "[#8&!$(*~N~[OD1]),#7&H0;!$([D4]);!$([D3]-\*=,:[$([#7,#8,#15,#16])])]"
+usage: comsia.py [-h] --train_file TRAIN_FILE [--predict_file PREDICT_FILE]
+                 [--sdf_activity SDF_ACTIVITY]
+                 [--grid_resolution GRID_RESOLUTION]
+                 [--grid_padding GRID_PADDING]
+                 [--fields {all,SE,SED,SEA,SEAD,SEDA,SEH}]
+                 [--num_components NUM_COMPONENTS]
+                 [--column_filter COLUMN_FILTER] [--disable_visualization]
+comsia.py: error: argument --fields: invalid choice: 'steric' (choose from 'all', 'SE', 'SED', 'SEA', 'SEAD', 'SEDA', 'SEH')

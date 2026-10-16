@@ -1,0 +1,11 @@
+{
+  "assessment.json": "2996743bc6cf049becce512c86eb36782a8a00914751cafb69a5002afce99624",
+  "reference.json": "0d25ba41eee9e194d6c7674624005e3f9b13aa673b1bb8dc3bfc495da84a2f6d",
+  "reference.npz": "45f0e169a89d5ced6f4ffe28fdb112e091d8ebbb7beae3811c76bb8e345022ce",
+  "reference.stderr.txt": "a063c037e5bad92eb5e47744f1d6c502f9375a5a86245f45f9b58029236bdfd1",
+  "reference.stdout.txt": "4648aedc14e7a669f8591c34e9c5a2bdc65f1bf98ce2a8c55965ce453b21449f",
+  "sarscope.json": "0d25ba41eee9e194d6c7674624005e3f9b13aa673b1bb8dc3bfc495da84a2f6d",
+  "sarscope.npz": "c6c441ebb1db62006933ce72e08daa9bc3b7f40098d50630728d955df843624a",
+  "sarscope.stderr.txt": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+  "sarscope.stdout.txt": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+}

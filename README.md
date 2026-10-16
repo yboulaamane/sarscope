@@ -1,5 +1,26 @@
 # SARscope
 
+**New, experimental:** optional small-series [field-based 3D QSAR](docs/field-qsar.md).
+Use **10 · 3D QSAR** after ChEMBL curation to select one assay/endpoint and a
+chemical series, or **3D QSAR · own compounds** in the sidebar for SDF/CSV/TSV.
+Review alignment before running CoMFA-/CoMSIA-style fields, nested PLS,
+same-split 2D RF baseline, permutation diagnostics and signed contour maps.
+No docking runs automatically. SARscope's own field-to-model code
+[reproduces SEH steroid training/LOO statistics](benchmarks/field_qsar/INDEPENDENT.md)
+without calling external QSAR software. Historical test-mean adjustment is
+diagnostic only, not app prediction. Native external validation remains
+incomplete; the UI and exports retain the experimental label.
+The [own-method qualification record](docs/3d-qsar-validation.md) now includes
+native three-family evaluation, independent numerical controls and explicit
+release blockers—not just a matching historical training score.
+The new [SYBYL-reference work](docs/sybyl-reference.md) separates public Tripos-5.2
+SE parameters and documented missing-descriptor handling from full vendor
+equivalence. It does not relabel the existing five-field approximation as SYBYL.
+The [latest frozen public-SE validation attempt](docs/public-se-validation.md)
+passes numerical/reproducibility checks but fails the additional held-out
+predictive criteria. Failed outcomes and source-quality flags are retained;
+no full-package validation claim is made.
+
 **Target ID in, structure–activity report out.**
 
 ChEMBL supplies curated, assay-linked bioactivity records. SARscope adds an

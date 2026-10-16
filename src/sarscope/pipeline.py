@@ -23,7 +23,7 @@ from __future__ import annotations
 import math
 from dataclasses import dataclass, field
 from pathlib import Path
-from typing import Any
+from typing import TYPE_CHECKING, Any
 
 import numpy as np
 import pandas as pd
@@ -56,6 +56,10 @@ from sarscope.params import RunParams
 from sarscope.predict import PredictionBundle, _row_max_tanimoto, similarity_domain_threshold
 from sarscope.sources.chembl import ChemblClient
 from sarscope.sources.table import read_activity_table
+
+if TYPE_CHECKING:
+    from sarscope.field_qsar import FieldDataset, FieldQsarResult, PreparedFieldSeries
+    from sarscope.params import FieldQsarParams, ModelParams
 
 
 @dataclass
@@ -90,6 +94,22 @@ class RunResults:
     #: step name -> reason, for anything that could not run.
     skipped: dict[str, str] = field(default_factory=dict)
     provenance: dict[str, Any] = field(default_factory=dict)
+    #: Opt-in only; never auto-computed by target-wide analyse().
+    field_qsar: FieldQsarResult | None = None
+
+
+def prepare_field_qsar_stage(dataset: FieldDataset, params: FieldQsarParams) -> PreparedFieldSeries:
+    """Separate, explicit preparation stage so users inspect geometry before fitting."""
+    from sarscope.field_qsar import prepare_field_series
+
+    return prepare_field_series(dataset, params)
+
+
+def run_field_qsar_stage(prepared: PreparedFieldSeries, model: ModelParams) -> FieldQsarResult:
+    """Run optional field modelling without changing the ordinary 2D workflow."""
+    from sarscope.field_qsar import run_field_qsar
+
+    return run_field_qsar(prepared, model)
 
 
 def analyse(curation: CurationResult, params: RunParams) -> RunResults:

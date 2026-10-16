@@ -1,0 +1,68 @@
+{
+  "probe_sha256": "00cb81a7e06e3e1b0b20a6540268acec5af2ffe8b9c53d02b32f84c7993fa462",
+  "protocol_sha256": "a9c9ecfaf24e0298d30bea5a2f08da2c76d8ff8d70927b29e1f57c93622fe7b6",
+  "field_manifest_sha256": "279e03a088651a8d9dc46d7f5aa81a167e942fae9b3989c628dc91257031737a",
+  "packages": {
+    "sorbent": "0.1.1",
+    "rdkit": "2026.9.1",
+    "numpy": "2.5.4",
+    "pandas": "3.0.6",
+    "scipy": "1.18.1",
+    "scikit-learn": "1.9.1",
+    "joblib": "1.6.0",
+    "scikit-fingerprints": null,
+    "molfeat": null,
+    "shap": null,
+    "umap-learn": null,
+    "gemmi": null,
+    "meeko": null,
+    "threadpoolctl": "3.7.0"
+  },
+  "source_sha256": {
+    "analysis/regression.py": "d1662755ba9f9d14116d3b222a6c30025743838adfd856b07aa4aee47b12990f",
+    "analysis/field_filter.py": "383d8c35be1d899d86dbb7aed4652f454ac51dffb95370c34f33ab4c6846fdda",
+    "params.py": "de074e0c002d4f8f936472a878ee3c210790cff3cb155bdc545c5fc350db87f6"
+  },
+  "comparisons": [
+    {
+      "reference_variant": "reference",
+      "scaling": "block_std",
+      "external_prediction_max_abs_difference": 0.0007229297729161033,
+      "loo_prediction_max_abs_difference": 0.0036103634696704745,
+      "q2_absolute_difference": 0.00038603146028171054,
+      "same_final_feature_count": false,
+      "comparison_passes_declared_tolerances": false
+    },
+    {
+      "reference_variant": "reference_unit_converted",
+      "scaling": "block_std",
+      "external_prediction_max_abs_difference": 1.7763568394002505e-15,
+      "loo_prediction_max_abs_difference": 1.7763568394002505e-15,
+      "q2_absolute_difference": 0.0,
+      "same_final_feature_count": true,
+      "comparison_passes_declared_tolerances": true
+    },
+    {
+      "reference_variant": "reference",
+      "scaling": "raw",
+      "external_prediction_max_abs_difference": 1.179537451478521,
+      "loo_prediction_max_abs_difference": 2.032557405507446,
+      "q2_absolute_difference": 0.1502454387086405,
+      "same_final_feature_count": false,
+      "comparison_passes_declared_tolerances": false
+    },
+    {
+      "reference_variant": "reference_unit_converted",
+      "scaling": "raw",
+      "external_prediction_max_abs_difference": 1.7763568394002505e-15,
+      "loo_prediction_max_abs_difference": 1.7763568394002505e-15,
+      "q2_absolute_difference": 1.1102230246251565e-16,
+      "same_final_feature_count": true,
+      "comparison_passes_declared_tolerances": true
+    }
+  ],
+  "posthoc_diagnostic_note": "The reference_unit_converted cases were added after the initial raw/block comparison exposed unequal variance-mask counts. Their fixed conversion factors come from the preceding geometry-only field comparison, not activity fitting or test-performance selection. They are a unit-convention diagnostic, not a prespecified reproduction success or a change to production methods.",
+  "exact_historical_reproduction": false,
+  "independent_predictive_validation": false,
+  "note": "Controlled matrix-to-model comparison under a shared SARscope protocol, not reproduction of every stage of the external program or paper."
+}

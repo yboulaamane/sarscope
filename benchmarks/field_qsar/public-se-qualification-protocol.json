@@ -1,0 +1,54 @@
+{
+  "schema": 1,
+  "candidate_id": "public-tripos-se-reviewed-sdf-20261016",
+  "frozen_date": "2026-10-16",
+  "purpose": "Predeclared additional historical hold-out evaluation of the documented public SE workflow; not exact SYBYL reproduction or prospective validation",
+  "data_commit": "0b30179ecc20aac5a003577b4437399a8fb20bca",
+  "data_base_url": "https://raw.githubusercontent.com/clhaga/pycomsia/0b30179ecc20aac5a003577b4437399a8fb20bca/sdfs/",
+  "data_license": "Upstream CC BY-SA 4.0; fetched source SDFs not redistributed",
+  "references": ["https://doi.org/10.3390/ph18030440", "https://doi.org/10.1787/9789264085442-en"],
+  "datasets": [
+    {
+      "name": "ATA",
+      "family": "phenotypic anti-tuberculosis assay; not a protein target family",
+      "endpoint": "deposited anti-tuberculosis log activity; assay-homogeneity and a specific molecular target are not asserted",
+      "activity": "Activity",
+      "activity_transform": "identity; no conversion to pIC50",
+      "train": {"sha256": "e4a1a8771f0cbb1a1a0f6f6f9ac007422c3f19650fb3d1bf8b546da319995147", "bytes": 281392, "valid": 72, "invalid": 0},
+      "test": {"sha256": "178c41ff90228f01809fc61fa0a429b4c5f71bc13f716df4cc7f74497eb222e5", "bytes": 82063, "valid": 22, "invalid": 0}
+    }
+  ],
+  "fields": {
+    "method": "comsia", "field_definition": "tripos52_se", "field_subset": ["steric", "electrostatic"],
+    "alignment": "prealigned", "assess_prealigned_core": false, "preserve_input_hydrogens": true,
+    "charge_model": "gasteiger", "allow_charge_fallback": false, "alpha": 0.3,
+    "spacing": 1.0, "margin": 4.0, "grid_phase": [0.0, 0.0, 0.0],
+    "field_scaling": "block_std", "keep_fraction": 0.3, "max_features": 2000,
+    "component_cap": 4, "component_selection": "max_q2", "component_sample_ratio": 5,
+    "max_molecules": 150, "max_grid_points": 80000, "max_memory_mb": 512,
+    "permutations": 99, "permutation_timeout": 600, "seed": 42
+  },
+  "methods": [
+    {"name": "gaussian_se_primary", "method": "comsia", "filter_mode": "percentile"},
+    {"name": "comfa_se_secondary", "method": "comfa", "spacing": 2.0, "filter_mode": "absolute", "minimum_sd": 2.0,
+     "electrostatic_cutoff": 30.0, "missing_field_policy": "training_mean"}
+  ],
+  "model": {"split": "random", "cv_folds": 3, "regression_cv": "default", "seed": 42},
+  "bootstrap_repeats": 1000,
+  "qualification": {
+    "profile": "public_se_gaussian_1A",
+    "training_cohorts": ["AChE", "CCR5", "THR"],
+    "scope": "Pre-aligned, reviewed explicit-H organic SDF; public Tripos-5.2 steric/electrostatic subset; Gaussian primary. No generated-binding-mode or full SYBYL compatibility claim.",
+    "sampling_gate": "All baseline, four half-step lattice-phase, and common-translation checks on all three training-only cohorts must complete and pass before ATA test data are used. Charge and relative-pose failures remain warnings, not tuning signals.",
+    "rationale": "1-A Gaussian sampling and block scaling chosen before this campaign on documented numerical grounds and the earlier native-field sampling analysis, not after optimising this profile against ATA. The 2-A CoMFA profile is secondary characterisation, never a replacement winner if the primary fails.",
+    "model_acceptance": {"nested_q2_greater_than": 0.5, "held_out_r2_greater_than": 0.6, "permutation_pvalue_at_most": 0.05, "rmse_better_than_training_mean": true, "calibration_and_domain": "Report existing per-model checks, domain coverage and outliers without exclusions"},
+    "success_rule": "A numerical pass or completed run is not predictive qualification. All failed criteria and negative R2 are retained; no test-mean correction, outlier removal, test-based field/preset selection or retuning after evaluation. No automatic package certification."
+  },
+  "interpretation": {
+    "data_status": "ATA source metadata and published historical outcomes are known. No SARscope ATA predictions had been evaluated when this protocol was recorded. This is additional public historical evaluation, not independent blinded or prospective evidence.",
+    "primary": "gaussian_se_primary is the only primary model; secondary CoMFA has a different grid/filter/retained-column count and is descriptive, not a controlled superiority comparison.",
+    "charges": "RDKit Gasteiger-Marsili, not SYBYL Gasteiger-Huckel. Public Tripos parameter selection is not complete vendor atom typing.",
+    "limitations": "The public endpoint is insufficiently annotated to demonstrate same-assay reproducibility or mechanism. A single phenotypic test cohort does not add a protein family, establish general prediction superiority, or validate all app settings.",
+    "no_claim": "No exact SYBYL parity, new field algorithm, full-package certification, prospective utility, or independent-laboratory validation. Test data are consumed only after frozen source/settings and sampling gates."
+  }
+}

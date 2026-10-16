@@ -1,0 +1,10 @@
+check,passed,value
+Nested training CV q² > 0.5,True,0.727064464197759
+Held-out predictive R² > 0.6,False,-0.4031237153211005
+Origin calibration (GT-style heuristic),False,0.14785807467611278
+Full-pipeline permutation test,True,0.01
+At least five held-out compounds,True,12
+Alignment thresholds met,False,
+Held-out heavy atoms inside field grid,True,0
+Native end-to-end 3D-QSAR validation,False,SEH steroid benchmark agreement (training/LOO) demonstrated by SARscope's own field-to-model implementation. Historical test-mean shifting is diagnostic only. Native end-to-end validation remains incomplete; this feature is experimental.
+Mean-filled held-out fields within configured reliability limit,False,0.05723905723905724

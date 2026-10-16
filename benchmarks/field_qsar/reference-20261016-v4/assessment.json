@@ -1,0 +1,19 @@
+{
+  "status": "Reference executed; full publication reproduction NOT established",
+  "reference_q2": 0.6078511908373854,
+  "paper_q2": 0.609,
+  "q2_within_predeclared_tolerance": true,
+  "reported_training_r2": 0.8960741935865035,
+  "reported_internal_test_r2": 0.9649908728988168,
+  "reported_training_count": 16,
+  "reported_internal_test_count": 5,
+  "supplied_external_count": 10,
+  "supplied_external_r2_recomputed": -1.0928748356727418,
+  "supplied_external_rmse_recomputed": 0.8911268620697893,
+  "paper_training_r2": 0.917,
+  "training_r2_within_predeclared_tolerance": false,
+  "warning": "The CLI internal split is NOT the supplied external set. Its labelled test R2 must not be reported as external R2.",
+  "sarscope_field_equivalence_established": false,
+  "comfa_reproduction_established": false,
+  "hydrogen_bond_field_reproduction_established": false
+}

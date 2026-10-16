@@ -1,0 +1,2 @@
+/tmp/sarscope-external-reference-o4o726pi/pycomsia-0b30179ecc20aac5a003577b4437399a8fb20bca/src/MolecularFieldCalculator.py:19: SyntaxWarning: invalid escape sequence '\*'
+  "[#8&!$(*~N~[OD1]),#7&H0;!$([D4]);!$([D3]-\*=,:[$([#7,#8,#15,#16])])]"

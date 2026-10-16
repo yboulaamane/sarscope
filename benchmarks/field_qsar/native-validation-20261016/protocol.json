@@ -1,0 +1,122 @@
+{
+  "schema": 1,
+  "purpose": "Prespecified native SARscope evaluation, not historical preprocessing emulation or proprietary field parity",
+  "frozen_date": "2026-10-16",
+  "freeze_statement": "Source metadata, graph uniqueness and stereo completeness inspected before freezing. No SARscope test scores from these datasets inspected before this protocol. All declared cases and failures retained; no test-based configuration selection.",
+  "data_commit": "0b30179ecc20aac5a003577b4437399a8fb20bca",
+  "data_base_url": "https://raw.githubusercontent.com/clhaga/pycomsia/0b30179ecc20aac5a003577b4437399a8fb20bca/sdfs/",
+  "data_license": "Upstream repository CC BY-SA 4.0; source SDFs fetched for local use, not bundled. Derived evidence attributed.",
+  "references": [
+    "https://doi.org/10.3390/ph18030440",
+    "https://doi.org/10.1021/jm0497141",
+    "https://doi.org/10.1007/s00894-007-0173-z"
+  ],
+  "datasets": [
+    {
+      "name": "AChE",
+      "family": "carboxylesterase",
+      "endpoint": "historical acetylcholinesterase pIC50 benchmark; not assumed assay-homogeneous",
+      "activity": "Activity",
+      "activity_transform": "identity; deposited log activity, no new endpoint conversion",
+      "train": {
+        "sha256": "14eff44908ccad1e9dc1a9e77050aa5eb80b5b268ef8bf8e8c698713643cf74e",
+        "bytes": 360861,
+        "valid": 74,
+        "invalid": 0
+      },
+      "test": {
+        "sha256": "6184bef069c37beaaa9a4251c50f4e2153d74bb87a2f0bffacf76ea464ce825c",
+        "bytes": 180989,
+        "valid": 37,
+        "invalid": 0
+      }
+    },
+    {
+      "name": "CCR5",
+      "family": "G-protein-coupled receptor",
+      "endpoint": "historical CCR5 antagonist log activity; source labels retained, not inferred pIC50 conversion",
+      "activity": "Activity",
+      "activity_transform": "identity; deposited log activity, no new endpoint conversion",
+      "train": {
+        "sha256": "afa97e9a19c65c8d19523233016f3f065ab72cd4a51030b6ce79196290d489f5",
+        "bytes": 397370,
+        "valid": 63,
+        "invalid": 0
+      },
+      "test": {
+        "sha256": "ed0d0e29e7d933034f97025780efb2be5e3ac9ef6578f4cd2a18247fe1825ce9",
+        "bytes": 77781,
+        "valid": 12,
+        "invalid": 0
+      }
+    },
+    {
+      "name": "THR",
+      "family": "serine protease",
+      "endpoint": "historical thrombin pKi benchmark; not assumed assay-homogeneous",
+      "activity": "Activity",
+      "activity_transform": "identity; deposited log activity, no new endpoint conversion",
+      "train": {
+        "sha256": "eceefa5dd935bae97d14be521714a2d8641703a768fe21743e02f1071f6a540f",
+        "bytes": 339293,
+        "valid": 59,
+        "invalid": 0
+      },
+      "test": {
+        "sha256": "b649d942f899dd09177516e8fed9f28ae5f0c23ae55fc2020118e1d94e473128",
+        "bytes": 176642,
+        "valid": 29,
+        "invalid": 0
+      }
+    }
+  ],
+  "source_screening_notes": "ACE and THERM have duplicate encoded training graphs and need grouped CV; not silently deduplicated or used as clean random-fold benchmarks. Selection here is based on input quality, not model scores.",
+  "fields": {
+    "alignment": "prealigned",
+    "assess_prealigned_core": false,
+    "preserve_input_hydrogens": true,
+    "charge_model": "gasteiger",
+    "allow_charge_fallback": false,
+    "spacing": 2.0,
+    "margin": 4.0,
+    "field_scaling": "raw",
+    "keep_fraction": 0.3,
+    "max_features": 2000,
+    "component_cap": 4,
+    "component_selection": "max_q2",
+    "component_sample_ratio": 5,
+    "max_molecules": 150,
+    "max_grid_points": 20000,
+    "max_memory_mb": 512,
+    "permutations": 99,
+    "permutation_timeout": 600,
+    "seed": 42
+  },
+  "methods": [
+    {
+      "name": "comsia",
+      "method": "comsia",
+      "filter_mode": "percentile"
+    },
+    {
+      "name": "comfa",
+      "method": "comfa",
+      "filter_mode": "absolute",
+      "minimum_sd": 2.0
+    }
+  ],
+  "model": {
+    "split": "random",
+    "cv_folds": 3,
+    "regression_cv": "kfold",
+    "seed": 42
+  },
+  "bootstrap_repeats": 500,
+  "interpretation": {
+    "unit": "Each method/target is a separate evaluation, not a pooled activity endpoint",
+    "software_verification": "Successful calculation or poor predictive performance is not by itself proof of a correct or incorrect algorithm",
+    "model_qualification": "Use the existing run-level checks; a failed gate remains failed. Skipped alignment-core QC does not pass alignment validation.",
+    "independence": "New-to-SARscope evaluations on public historical test splits, not blinded, prospective or independent-laboratory validation",
+    "no_claim": "This campaign cannot by itself certify the package, establish proprietary CoMFA/CoMSIA parity, validate generated alignment, or establish universal predictive superiority"
+  }
+}

@@ -1,0 +1,47 @@
+Reading SDF file...
+Reading SDF file...
+Warning: All donor positions filtered out for atom 8
+Warning: All donor positions filtered out for atom 53
+
+steric_field:
+Original points: 5152
+Points kept: 5152
+Points filtered: 0
+
+electrostatic_field:
+Original points: 5152
+Points kept: 5152
+Points filtered: 0
+
+hydrophobic_field:
+Original points: 5152
+Points kept: 5152
+Points filtered: 0
+q2 = 0.4703 for component = 1
+q2 = 0.4871 for component = 2
+q2 = 0.6079 for component = 3
+Optimal number of components based on maximum Q2: 3
+R² Training: 0.8961
+R² Test: 0.9650
+SPRESS: 0.7185
+S Training: 0.3503
+S Test: 0.2472
+
+Field Contribution Fractions:
+steric_field: 0.1639
+electrostatic_field: 0.5235
+hydrophobic_field: 0.3126
+Residual files exported to /tmp/sarscope-external-reference-o4o726pi/pycomsia-0b30179ecc20aac5a003577b4437399a8fb20bca/2026-10-16_10-39-55/PLS_Analysis/
+
+Model Statistics:
+Training Set:
+R² Score: 0.8961
+Root Mean Square Error: 0.3503
+Mean Absolute Error: 0.2808
+Std of Residuals: 0.3503
+
+Test Set:
+R² Score: 0.9650
+Root Mean Square Error: 0.2476
+Mean Absolute Error: 0.2272
+Std of Residuals: 0.2472

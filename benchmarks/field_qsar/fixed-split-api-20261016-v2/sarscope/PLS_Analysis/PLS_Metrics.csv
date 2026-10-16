@@ -1,0 +1,2 @@
+r2_train,r2_test,q2,SPRESS,S_train,S_test,Number of Components,Contribution Fraction (steric_field),Contribution Fraction (electrostatic_field),Contribution Fraction (hydrophobic_field)
+0.9174382598759265,0.31900532675951376,0.6078511908373855,0.7185033915528145,0.32968014394368966,0.508323004654186,3,0.14917154746238398,0.5348170890212761,0.3160113635163399

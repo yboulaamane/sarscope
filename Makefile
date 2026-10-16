@@ -1,4 +1,4 @@
-.PHONY: install test test-core test-science lint fmt typecheck check clean
+.PHONY: install test test-core test-science verify-fields lint fmt typecheck check clean
 
 VENV := .venv
 PY   := $(VENV)/bin/python
@@ -18,6 +18,10 @@ test-science:
 
 test:
 	$(PY) -m pytest -q -m "not network"
+
+## Offline implementation checks; passing is not certification of a user's model.
+verify-fields:
+	$(PY) -m pytest -q tests/test_field_numerics.py tests/test_field_campaign.py tests/test_field_qsar.py tests/test_field_reproduction.py tests/test_field_reference.py tests/test_app_field_qsar.py tests/test_field_sensitivity.py tests/test_tripos_reference.py tests/test_field_qualification.py
 
 lint:
 	$(VENV)/bin/ruff check .

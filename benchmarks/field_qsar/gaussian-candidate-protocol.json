@@ -1,0 +1,40 @@
+{
+  "schema": 1,
+  "candidate_id": "reviewed-sdf-gaussian-v1",
+  "purpose": "Additional untouched-by-SARscope historical evaluation after training-only sampling sensitivity gates; not blinded prospective validation",
+  "frozen_date": "2026-10-16",
+  "data_commit": "0b30179ecc20aac5a003577b4437399a8fb20bca",
+  "data_base_url": "https://raw.githubusercontent.com/clhaga/pycomsia/0b30179ecc20aac5a003577b4437399a8fb20bca/sdfs/",
+  "data_license": "Upstream CC BY-SA 4.0; fetched source structures not redistributed",
+  "references": ["https://doi.org/10.3390/ph18030440"],
+  "datasets": [
+    {
+      "name": "ATA",
+      "family": "phenotypic anti-tuberculosis assay; not a defined protein target family",
+      "endpoint": "deposited anti-tuberculosis log activity; no invented pIC50 conversion or assay-homogeneity assertion",
+      "activity": "Activity",
+      "activity_transform": "identity; original log-activity labels",
+      "train": {"sha256": "e4a1a8771f0cbb1a1a0f6f6f9ac007422c3f19650fb3d1bf8b546da319995147", "bytes": 281392, "valid": 72, "invalid": 0},
+      "test": {"sha256": "178c41ff90228f01809fc61fa0a429b4c5f71bc13f716df4cc7f74497eb222e5", "bytes": 82063, "valid": 22, "invalid": 0}
+    }
+  ],
+  "source_notes": "No SARscope ATA model/prediction scores were inspected before freezing. Source file metadata had been audited; published historical outcomes are known, so this is not a blinded challenge. ACE/THERM were not silently deduplicated to manufacture more clean validation cohorts. No fresh data are used to choose a new preset after this run.",
+  "fields": {
+    "method": "comsia", "alignment": "prealigned", "assess_prealigned_core": false,
+    "preserve_input_hydrogens": true, "charge_model": "gasteiger", "allow_charge_fallback": false,
+    "spacing": 1.0, "margin": 4.0, "grid_phase": [0.0, 0.0, 0.0],
+    "field_scaling": "block_std", "keep_fraction": 0.3, "max_features": 2000,
+    "component_cap": 4, "component_selection": "max_q2", "component_sample_ratio": 5,
+    "max_molecules": 150, "max_grid_points": 20000, "max_memory_mb": 512,
+    "permutations": 99, "permutation_timeout": 600, "seed": 42
+  },
+  "methods": [{"name": "comsia", "method": "comsia", "filter_mode": "percentile"}],
+  "model": {"split": "random", "cv_folds": 3, "regression_cv": "default", "seed": 42},
+  "bootstrap_repeats": 500,
+  "interpretation": {
+    "scope": "Reviewed pre-aligned explicit-H SDF, five documented atom-centred Gaussian fields; no claim for generated conformers or CoMFA",
+    "selection": "Candidate was prespecified before sensitivity runs on numerical-method grounds. Sampling-phase gates passed on three training-only cohorts. Pose sensitivity failures remain warnings, not silently removed cases. Candidate is not the highest-q2 winner or the winner on old external R2.",
+    "model_qualification": "Use all existing per-model checks. Numerical sampling stability does not establish a correct binding mode or useful external predictions.",
+    "no_claim": "This one additional phenotypic cohort cannot establish general multi-family predictive superiority or full-package validation. No test-label correction, outlier exclusion or test-driven retuning. CoMFA remains experimental."
+  }
+}

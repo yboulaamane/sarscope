@@ -1,0 +1,47 @@
+{
+  "schema": 1,
+  "purpose": "Controlled SEH model comparison using reference-generated versus SARscope-generated fields, not exact historical protocol emulation",
+  "field_arrays": "field-parity-20261016-v3",
+  "labels_and_identity_audit": "reference-20261016-v4/input_audit.json",
+  "fields": [
+    "steric",
+    "electrostatic",
+    "hydrophobic"
+  ],
+  "partition": {
+    "training_rows": [
+      0,
+      21
+    ],
+    "external_rows": [
+      21,
+      31
+    ]
+  },
+  "settings": {
+    "fixed_components": 3,
+    "component_cap": 4,
+    "cv": "loo",
+    "filter_keep_fraction": 1.0,
+    "max_features": 60000,
+    "scaling_modes": [
+      "block_std",
+      "raw"
+    ],
+    "seed": 42,
+    "preprocessing": "SARscope existing field filter, fitted only to each training fold; no combined train/test scaling"
+  },
+  "comparison_tolerances": {
+    "prediction_max_absolute_difference": 1e-08,
+    "q2_absolute_difference": 1e-08,
+    "same_retained_feature_count_required": true
+  },
+  "expected_scope": [
+    "Block scaling should remove constant relative field scales; a whole-block sign flip should not change PLS predictions",
+    "Raw fields are a negative control because relative weighting differs",
+    "Finite absolute variance floors may retain different columns across raw unit conventions; report rather than hide this",
+    "No fitting setting is selected by external scores or closeness to the paper's q2",
+    "This does not emulate the external CLI's internal 16/5 split or train/test-combined preprocessing",
+    "This does not validate hydrogen-bond fields, CoMFA, geometry preparation, generalisation or a new target family"
+  ]
+}

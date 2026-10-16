@@ -122,6 +122,13 @@ def write_report(results: RunResults, out_dir: Path) -> Path:
 
     written = _write_tables(results, tables)
     images = _write_figures(results, figures)
+    if results.field_qsar is not None:
+        from sarscope.field_qsar_report import field_qsar_files
+
+        for name, content in field_qsar_files(results.field_qsar).items():
+            target = out_dir / "field_qsar" / name
+            target.parent.mkdir(parents=True, exist_ok=True)
+            target.write_bytes(content)
     model_path = out_dir / MODEL_FILENAME
     if results.prediction_bundle is not None:
         save_bundle(results.prediction_bundle, model_path)
@@ -498,6 +505,14 @@ def _render(
         if x
     )
     parts.append(f"<p class='sub'>{html.escape(subtitle)}</p>")
+    if results.field_qsar is not None:
+        parts.append("<h2>Optional experimental 3D QSAR</h2>")
+        parts.append(f"<p class='warn'>{html.escape(results.field_qsar.status)}</p>")
+        parts.append(
+            "<p><a href='field_qsar/report.html'>Open the 3D-QSAR evidence report</a>. "
+            "Aligned structures, signed contour grids and audit tables are in field_qsar/.</p>"
+        )
+        parts.append(_table_html(results.field_qsar.checks))
 
     parts.append("<h2>1. Curation</h2>")
     parts.append(

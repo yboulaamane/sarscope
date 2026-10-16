@@ -1,0 +1,26 @@
+{
+  "schema": 1,
+  "frozen_date": "2026-10-16",
+  "purpose": "Training-only sampling gates for public SE qualification; no held-out SDFs fetched",
+  "data_base_url": "https://raw.githubusercontent.com/clhaga/pycomsia/0b30179ecc20aac5a003577b4437399a8fb20bca/sdfs/",
+  "data_license": "Upstream CC BY-SA 4.0; source SDFs not redistributed",
+  "datasets": [
+    {"name": "AChE", "activity": "Activity", "train": {"sha256": "14eff44908ccad1e9dc1a9e77050aa5eb80b5b268ef8bf8e8c698713643cf74e", "bytes": 360861, "valid": 74, "invalid": 0}},
+    {"name": "CCR5", "activity": "Activity", "train": {"sha256": "afa97e9a19c65c8d19523233016f3f065ab72cd4a51030b6ce79196290d489f5", "bytes": 397370, "valid": 63, "invalid": 0}},
+    {"name": "THR", "activity": "Activity", "train": {"sha256": "eceefa5dd935bae97d14be521714a2d8641703a768fe21743e02f1071f6a540f", "bytes": 339293, "valid": 59, "invalid": 0}}
+  ],
+  "fields": {
+    "method": "comsia", "field_definition": "tripos52_se", "field_subset": ["steric", "electrostatic"],
+    "alignment": "prealigned", "assess_prealigned_core": false, "preserve_input_hydrogens": true,
+    "charge_model": "gasteiger", "allow_charge_fallback": false, "alpha": 0.3,
+    "spacing": 1.0, "margin": 4.0, "grid_phase": [0.0, 0.0, 0.0],
+    "field_scaling": "block_std", "keep_fraction": 0.3, "max_features": 2000,
+    "component_cap": 4, "component_selection": "max_q2", "component_sample_ratio": 5,
+    "max_molecules": 150, "max_grid_points": 80000, "max_memory_mb": 512,
+    "permutations": 0, "permutation_timeout": 600, "seed": 42
+  },
+  "model": {"split": "random", "cv_folds": 3, "regression_cv": "default", "seed": 42},
+  "profiles": [{"name": "public_se_gaussian_1A", "settings": {}}],
+  "engineering_thresholds": {"oof_change_p95": 0.5, "oof_change_max": 1.0, "common_translation_max": 1e-8},
+  "interpretation": "Ten fixed variants per cohort; no preset search. Thresholds are engineering flags, not universal QSAR-validity rules. No held-out labels or coordinates are used. Charge and pose sensitivity is reported; alternate generated conformers/binding modes are not validated."
+}

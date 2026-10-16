@@ -1,0 +1,27 @@
+{
+  "2026-10-16_10-44-57/PLS_Analysis/PLS_Metrics.csv": {
+    "original_sha256": "9f48b58bceda31fc75bd7f713dde5e43437e33a21e0210b0fc265d09a734f453",
+    "retained_sha256": "8ca7c0ed27564bbc5cd1b81d8545ea1b31481382d8567f7929cd74ff1862189a",
+    "note": "Structure strings removed; numeric CSV data retained."
+  },
+  "2026-10-16_10-44-57/PLS_Analysis/Predictions_and_Residuals.csv": {
+    "original_sha256": "ebb094c25791c35e8bbf2954024e46b443224d4863a54a76c3081c16b770da27",
+    "retained_sha256": "12923c99ef74b9fddbb076ba96651342aa8b04a8120d56fe3b10a09787950be6",
+    "note": "Structure strings removed; numeric CSV data retained."
+  },
+  "2026-10-16_10-44-57/PLS_Analysis/Test_Predictions_and_Residuals.csv": {
+    "original_sha256": "098091c030b0d18667324fd9e5cb89db4a4f1b8e05fc0da24b9be3b6ae5176f3",
+    "retained_sha256": "eb0ac7b5a024c26f8b2bcc25fa84fa5fde7b51b6002e82284b4e9ba4a20122ee",
+    "note": "Structure strings removed; numeric CSV data retained."
+  },
+  "2026-10-16_10-44-57/PLS_Analysis/Training_Predictions_and_Residuals.csv": {
+    "original_sha256": "d62e393a1fa17051724670775e1bfbdf4ee8e456e859d7d475fbfd34ca13704d",
+    "retained_sha256": "2ff15b888ddbc91508f1285c8d22e15e9fddf028adcacb318e8e2324e172e085",
+    "note": "Structure strings removed; numeric CSV data retained."
+  },
+  "predictions.csv": {
+    "original_sha256": "b0f739232833aaaff394cdf65d3946c320597cb4a420d66604d8aea97f9508fe",
+    "retained_sha256": "cfb4db1ec115517332289ed6aa01281e4a3654c43341782524e5d056e1313a7c",
+    "note": "Structure strings removed; numeric CSV data retained."
+  }
+}

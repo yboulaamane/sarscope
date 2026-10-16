@@ -1,0 +1,67 @@
+{
+  "schema": 1,
+  "purpose": "Reproduce an external program before claiming SARscope numerical equivalence",
+  "selected_reference": "Haga et al. (2025), Py-CoMSIA, Pharmaceuticals 18:440",
+  "doi": "10.3390/ph18030440",
+  "repository": "https://github.com/clhaga/pycomsia",
+  "commit": "0b30179ecc20aac5a003577b4437399a8fb20bca",
+  "archive_url": "https://codeload.github.com/clhaga/pycomsia/tar.gz/0b30179ecc20aac5a003577b4437399a8fb20bca",
+  "archive_sha256": "cb767cb5f7cceb0870760b8ccb108dab45b3879e89d45bada28002793e3be7f0",
+  "license": "CC-BY-SA-4.0 (repository LICENSE); paper CC-BY-4.0",
+  "isolation": "Execute unmodified program in a separate temporary checkout/environment. Do not import, copy, translate or derive SARscope methods from its source. No GPL source consulted.",
+  "dataset": {
+    "train": {
+      "path": "sdfs/STEROIDS_train.sdf",
+      "sha256": "65758c2794c745dc4b8361f9025aac930b30da5bb0f9f4fc2d33e5eaa2a313a0",
+      "valid_records": 21,
+      "invalid_records": 1
+    },
+    "test": {
+      "path": "sdfs/STEROIDS_test.sdf",
+      "sha256": "c2c77ddc42f3be8926fe2276fffeb6251d97b0f74f279bb9b3febf172011d23a",
+      "valid_records": 10,
+      "invalid_records": 0
+    },
+    "activity_property": "Activity",
+    "activity_transformation": "None: the author's split files already store positive pActivity",
+    "coordinates": "Use deposited alignment and explicit hydrogens unchanged in the reference execution",
+    "redistribution": "Do not bundle upstream SDFs; retain hashes, accounting and derived numerical results only"
+  },
+  "cli_settings": {
+    "grid_resolution": 1.0,
+    "grid_padding": 4.0,
+    "fields": ["steric", "electrostatic", "hydrophobic"],
+    "cli_fields": "SEH",
+    "num_components": 3,
+    "column_filter": 0.0,
+    "disable_visualization": true
+  },
+  "paper_targets": {"table": 1, "q2": 0.609, "train_r2": 0.917, "components": 3},
+  "predeclared_tolerances": {
+    "q2_absolute": 0.005,
+    "train_r2_absolute": 0.005,
+    "table2_residual_absolute": 0.015,
+    "note": "Diagnostic tolerances, not grounds to tune parameters or discard compounds. A running CLI alone does not satisfy these targets."
+  },
+  "environment": {
+    "python": "3.12 (available locally; paper used 3.11, so this is a recorded deviation)",
+    "numpy": "2.2.4",
+    "rdkit": "2024.9.6",
+    "scikit-learn": "1.6.1",
+    "pyvista": "0.44.2"
+  },
+  "acceptance": [
+    "All valid 21 training and 10 test compounds accounted for; unreadable source records explicitly reported",
+    "Unmodified reference command succeeds and produces finite outputs before any SARscope equivalence claim",
+    "Extract or export reference intermediates/predictions by documented interfaces, not source-code translation",
+    "Compare identical charges, coordinates, grid and field columns before fitting PLS",
+    "Separate historical-protocol emulation from SARscope's training-only preprocessing",
+    "Keep test-independent model development; these already-inspected test compounds are a reproduction fixture, not fresh validation",
+    "SEH success would not establish hydrogen-bond-field or CoMFA reproduction"
+  ],
+  "alternative": {
+    "reference": "Ragno (2019), Py-CoMFA, J Comput Aided Mol Des 33:855-864",
+    "doi": "10.1007/s10822-019-00231-x",
+    "reason_not_first": "30 pre-aligned datasets reported, but source and intermediate reference outputs were not established as directly accessible in this search; institutional preprint download returned 403"
+  }
+}

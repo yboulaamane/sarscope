@@ -1,0 +1,76 @@
+{
+  "schema": 2,
+  "interpretation_revision": "Initial per-column scaling did not reproduce the reference. Frozen processed outputs show a population SD per complete field block and separate train/test column centres. Correction follows intermediate-array evidence, not test-score optimisation. Original run retained.",
+  "method_source": "Haga et al. (2025), doi:10.3390/ph18030440, Methods 4.4-4.7",
+  "implementation": "SARscope data loading, alignment checks, grid, fields, preprocessing, component selection, fitting, prediction and metrics; NumPy/RDKit/scikit-learn primitives only",
+  "upstream_program_required": false,
+  "data": {
+    "base_url": "https://raw.githubusercontent.com/clhaga/pycomsia/0b30179ecc20aac5a003577b4437399a8fb20bca/sdfs/",
+    "train": {
+      "file": "STEROIDS_train.sdf",
+      "sha256": "65758c2794c745dc4b8361f9025aac930b30da5bb0f9f4fc2d33e5eaa2a313a0",
+      "valid": 21,
+      "invalid": 1
+    },
+    "test": {
+      "file": "STEROIDS_test.sdf",
+      "sha256": "c2c77ddc42f3be8926fe2276fffeb6251d97b0f74f279bb9b3febf172011d23a",
+      "valid": 10,
+      "invalid": 0
+    },
+    "activity": "Activity",
+    "coordinate_policy": "Preserve deposited explicit-H coordinates, validate finite coordinates and stereochemistry, no minimisation or re-alignment",
+    "redistribution": "Fetch data only. Do not bundle upstream SDF or program code."
+  },
+  "fields": {
+    "method": "comsia",
+    "field_subset": [
+      "steric",
+      "electrostatic",
+      "hydrophobic"
+    ],
+    "charge_model": "gasteiger",
+    "spacing": 1.0,
+    "margin": 4.0,
+    "grid_convention": "rounded_extent",
+    "alpha": 0.3,
+    "preserve_input_hydrogens": true,
+    "assess_prealigned_core": false,
+    "field_scaling": "raw",
+    "keep_fraction": 1.0,
+    "max_features": 60000,
+    "component_cap": 12,
+    "component_sample_ratio": null,
+    "component_selection": "max_q2",
+    "pls_max_iter": 100,
+    "pls_tolerance": 0.0001,
+    "permutations": 0,
+    "max_grid_points": 20000,
+    "max_memory_mb": 512
+  },
+  "historical_preprocessing": {
+    "column_filter": 0.0,
+    "standardisation": "One population SD per field across all 31 molecules and grid points, followed by separate train/test column means. Methods 4.6 field-scaling interpretation checked against frozen numerical outputs. Benchmark-only, transductive; not native validation.",
+    "target_mean_diagnostic": "A separately labelled oracle-adjusted statistic adds measured test mean minus training mean. Never call it a model prediction or use it in native validation.",
+    "selection": "SARscope full maximum-q2 search over 1-12 components, original 21 training rows, LOO conditional on the historical representation",
+    "prediction": "Fit selected count on 21 original training rows; predict all 10 original test rows"
+  },
+  "native_comparison": {
+    "component_cap": 4,
+    "component_sample_ratio": 5,
+    "component_selection": "max_q2",
+    "field_scaling": "column_std",
+    "grid_convention": "rounded_extent",
+    "warning": "Grid is training-only; filtering/scaling/selection refit within CV. This is not expected to reproduce transductive historical scores. All outcomes retained; no test-based model selection."
+  },
+  "targets": {
+    "q2": 0.609,
+    "train_r2": 0.917,
+    "components": 3
+  },
+  "absolute_tolerances": {
+    "q2": 0.005,
+    "train_r2": 0.005
+  },
+  "scope": "Independent SEH historical protocol reproduction on a supplied pre-aligned cohort, not original CoMFA, five-field equivalence, new alignment validation or unbiased predictive validation"
+}

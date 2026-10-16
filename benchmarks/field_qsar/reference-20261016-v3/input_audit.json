@@ -1,0 +1,264 @@
+{
+  "train": {
+    "valid_records": 21,
+    "invalid_records": [
+      22
+    ],
+    "records": [
+      {
+        "record_1based": 1,
+        "name": "aldosterone",
+        "activity": 6.2789998,
+        "atoms": 54,
+        "explicit_hydrogens": 28,
+        "graph_sha256": "3137c9b1045d06d6360adf637642299f4b4340cd410ae359f691f2d99d91d2fa"
+      },
+      {
+        "record_1based": 2,
+        "name": "androstanediol",
+        "activity": 5.0,
+        "atoms": 53,
+        "explicit_hydrogens": 32,
+        "graph_sha256": "08bcc6979b37e350daf2e4fc4c2d239e438138d0039f902a7190fab5805b10aa"
+      },
+      {
+        "record_1based": 3,
+        "name": "androstenediol",
+        "activity": 5.0,
+        "atoms": 51,
+        "explicit_hydrogens": 30,
+        "graph_sha256": "42add7b56324a9fad8a96219342233df12a659bb65acaab1efea24766df404cc"
+      },
+      {
+        "record_1based": 4,
+        "name": "androstenedione",
+        "activity": 5.763,
+        "atoms": 47,
+        "explicit_hydrogens": 26,
+        "graph_sha256": "cd6b61467c1a9563428535571c29a2c949b40f4bf12a090f50d8d50f77f1f2ab"
+      },
+      {
+        "record_1based": 5,
+        "name": "androsterone",
+        "activity": 5.6129999,
+        "atoms": 51,
+        "explicit_hydrogens": 30,
+        "graph_sha256": "b7115995297121b94219c54e46061815fab92d7ef779e6b3c2bfc26c8bc91455"
+      },
+      {
+        "record_1based": 6,
+        "name": "corticosterone",
+        "activity": 7.881,
+        "atoms": 55,
+        "explicit_hydrogens": 30,
+        "graph_sha256": "47ebcc90c7bf0ef0fbcb4d0b8da6e95fd2ef0db898fae799c2aac8d8241a54d4"
+      },
+      {
+        "record_1based": 7,
+        "name": "cortisol",
+        "activity": 7.881,
+        "atoms": 56,
+        "explicit_hydrogens": 30,
+        "graph_sha256": "af948137250823d5d705f441ad466626aa263388d9d5cea88bb2cbc598ea2444"
+      },
+      {
+        "record_1based": 8,
+        "name": "cortisone",
+        "activity": 6.8920002,
+        "atoms": 54,
+        "explicit_hydrogens": 28,
+        "graph_sha256": "8c17896c194d43b1763fa5e95c35548af7f950fedac9ac73245ce5c25c481b50"
+      },
+      {
+        "record_1based": 9,
+        "name": "dehydroepiandrosterone",
+        "activity": 5.0,
+        "atoms": 49,
+        "explicit_hydrogens": 28,
+        "graph_sha256": "a37c29e64ee28e458e96a7a0a173b22a835a5dd834b15e19a963188206e50a78"
+      },
+      {
+        "record_1based": 10,
+        "name": "11-deoxycorticosterone",
+        "activity": 7.6529999,
+        "atoms": 54,
+        "explicit_hydrogens": 30,
+        "graph_sha256": "6b9fd37b4242bdf1f3fe6864d40bdade24f042312a35b38795df19cc90029ca9"
+      },
+      {
+        "record_1based": 11,
+        "name": "11-deoxycortisol",
+        "activity": 7.881,
+        "atoms": 55,
+        "explicit_hydrogens": 30,
+        "graph_sha256": "25cd2d4c2ac5c2cc8621e3f6ba73265bd040c50750c18c7babb671d45558ccb4"
+      },
+      {
+        "record_1based": 12,
+        "name": "dihydrotestosterone",
+        "activity": 5.9190001,
+        "atoms": 51,
+        "explicit_hydrogens": 30,
+        "graph_sha256": "a1ec01b3e472d011d8b8d12af4a9634330ddccfb829c159ff4f3d52b547a462a"
+      },
+      {
+        "record_1based": 13,
+        "name": "estradiol",
+        "activity": 5.0,
+        "atoms": 44,
+        "explicit_hydrogens": 24,
+        "graph_sha256": "55be8531a4c77e10ae257b6ac5380265c405c238471ba6e57b8e0266404ff82f"
+      },
+      {
+        "record_1based": 14,
+        "name": "estriol",
+        "activity": 5.0,
+        "atoms": 45,
+        "explicit_hydrogens": 24,
+        "graph_sha256": "84b1ea18c78bfaa0df57c763af21bee078738b392fa8a2efb7b55fa4ddfd4f69"
+      },
+      {
+        "record_1based": 15,
+        "name": "estrone",
+        "activity": 5.0,
+        "atoms": 42,
+        "explicit_hydrogens": 22,
+        "graph_sha256": "d951825a4641bb336776a1fc7a7308e091a26dfbc54c83e8ebcdc2d64ceff2f1"
+      },
+      {
+        "record_1based": 16,
+        "name": "etiocholanolone",
+        "activity": 5.2249999,
+        "atoms": 51,
+        "explicit_hydrogens": 30,
+        "graph_sha256": "0de98a844fc6eab2f395ad70bc29e4303a72bf9ce3eea0bc16d9de112ed6c484"
+      },
+      {
+        "record_1based": 17,
+        "name": "pregnenolone",
+        "activity": 5.2249999,
+        "atoms": 55,
+        "explicit_hydrogens": 32,
+        "graph_sha256": "baabef0b99dbdd02166e5aeb08673e83bdd8e97b2d22f9d9a11235f8d73c7484"
+      },
+      {
+        "record_1based": 18,
+        "name": "17-hydroxypregnenolone",
+        "activity": 5.0,
+        "atoms": 56,
+        "explicit_hydrogens": 32,
+        "graph_sha256": "41f5c5d38b4eecf096b16d5f09142e41f4795d97f0dcafe8c7511ba03d85ae1b"
+      },
+      {
+        "record_1based": 19,
+        "name": "progesterone",
+        "activity": 7.3800001,
+        "atoms": 53,
+        "explicit_hydrogens": 30,
+        "graph_sha256": "16e624e04e781e7d382fb3c01ff2a678f1c4d0ff3e09ecc67c77e277e97f6e10"
+      },
+      {
+        "record_1based": 20,
+        "name": "17-hydroxyprogesterone",
+        "activity": 7.7399998,
+        "atoms": 54,
+        "explicit_hydrogens": 30,
+        "graph_sha256": "839f1b1f3129d3862fe8996bdfa410b06e7f93880ccd93d54715f1c40f054e12"
+      },
+      {
+        "record_1based": 21,
+        "name": "testosterone",
+        "activity": 6.724,
+        "atoms": 49,
+        "explicit_hydrogens": 28,
+        "graph_sha256": "02f6f3bcbff50bf4dd1e546f2fb53ba8ee787d31ad289b60f737b7f6adde01bf"
+      }
+    ]
+  },
+  "test": {
+    "valid_records": 10,
+    "invalid_records": [],
+    "records": [
+      {
+        "record_1based": 1,
+        "name": "prednisolone",
+        "activity": 7.5120001,
+        "atoms": 54,
+        "explicit_hydrogens": 28,
+        "graph_sha256": "9b975e5e3d42a4c0979c1e40ce3fbe721a510c0e953b8001c217a2a796ec9c83"
+      },
+      {
+        "record_1based": 2,
+        "name": "cortisol-21-acetate",
+        "activity": 7.553,
+        "atoms": 61,
+        "explicit_hydrogens": 31,
+        "graph_sha256": "e80f0cf5627c26c6c5750912399966c808d1aedbb300d50a6a019a3f242ab4cb"
+      },
+      {
+        "record_1based": 3,
+        "name": "4-pregnene-3,11,20-trione",
+        "activity": 6.7789998,
+        "atoms": 52,
+        "explicit_hydrogens": 28,
+        "graph_sha256": "d1f615adfce0b80892d4352f21d3fbb0a18266b5bcf68f6119629a056dc492eb"
+      },
+      {
+        "record_1based": 4,
+        "name": "epicorticosterone",
+        "activity": 7.1999998,
+        "atoms": 55,
+        "explicit_hydrogens": 30,
+        "graph_sha256": "33801729496d9ea7513faa40683a92c47ad7f3426a6f6753eb5ae3771133363c"
+      },
+      {
+        "record_1based": 5,
+        "name": "19-nortestosterone",
+        "activity": 6.1440001,
+        "atoms": 46,
+        "explicit_hydrogens": 26,
+        "graph_sha256": "7f7f3ffa618817dfef29d112f71926a26c2a175a4a738863dbaa46b81d809f71"
+      },
+      {
+        "record_1based": 6,
+        "name": "16a,17-dihydroxy-4-pregnene-3,20-dione",
+        "activity": 6.2470002,
+        "atoms": 55,
+        "explicit_hydrogens": 30,
+        "graph_sha256": "543f8541c23ac54b4303b43c8fcf3f1189454c2fd68451dd961aaa89ff72dc7b"
+      },
+      {
+        "record_1based": 7,
+        "name": "16a-methyl-4-pregnene-3,20-dione",
+        "activity": 7.1199999,
+        "atoms": 56,
+        "explicit_hydrogens": 32,
+        "graph_sha256": "fa8dfc65c07255f305e69528b0fc12c573baf5dae3f7d555c3705d0b3b7ba7a9"
+      },
+      {
+        "record_1based": 8,
+        "name": "19-norprogesterone",
+        "activity": 6.8169999,
+        "atoms": 50,
+        "explicit_hydrogens": 28,
+        "graph_sha256": "afc916636482b6ec3edb1f68e97d1939ae1f40cc1e447bce747f5679bf59b4d0"
+      },
+      {
+        "record_1based": 9,
+        "name": "11b,17,21-trihydroxy-2a-methyl-4-pregnen-3,20-dione",
+        "activity": 7.6880002,
+        "atoms": 59,
+        "explicit_hydrogens": 32,
+        "graph_sha256": "b2d9a2ce319ac44a829824236668318e49f8b4b25c80f7c471dbcc8552290690"
+      },
+      {
+        "record_1based": 10,
+        "name": "11b,17,21-trihydroxy-2a-methyl-9a-fluoro-4-pregnen-3,20-dione",
+        "activity": 5.7969999,
+        "atoms": 59,
+        "explicit_hydrogens": 31,
+        "graph_sha256": "e159ea022be0df5bc371c97d0e65b00127fa230829e5e87cb7bec17941ece6cf"
+      }
+    ]
+  }
+}

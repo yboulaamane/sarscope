@@ -1,0 +1,4 @@
+field,absolute_contribution_percent,retained_columns,positive_level,negative_level,positive_interpretation,negative_interpretation,positive_color,negative_color
+steric,33.257200617928575,5160,0.0002459389362984718,-0.0003327982656450213,More local atomic volume is associated with higher pActivity,Opposite association to the positive contour,green,yellow
+electrostatic,34.960341483480974,5123,0.00030288422387043435,-0.00028034677228452697,More positive local charge is associated with higher pActivity,Opposite association to the positive contour,blue,red
+hydrophobic,31.782457898590447,5135,0.0003099706590446132,-0.00013390979620060253,More local Crippen logP associates with higher pActivity,Opposite association to the positive contour,orange,white

@@ -1946,6 +1946,10 @@ WORKFLOW_KEYS = (
     "comparison_stage",
     "uploaded_predictions",
     "shortlist_stage",
+    "field_qsar_prepared",
+    "field_qsar_result",
+    "field_qsar_active_result",
+    "field_qsar_archive",
 )
 
 
@@ -2199,6 +2203,7 @@ def assemble_report_results(
             ml.regression_test_predictions if ml is not None else pd.DataFrame()
         ),
         rgroups=scaffolds.rgroups,
+        field_qsar=st.session_state.get("field_qsar_active_result"),
         skipped={**curation.skipped, **properties.skipped, **(ml.skipped if ml else {})},
         provenance={
             **curation.provenance,
@@ -2487,7 +2492,16 @@ def main() -> None:
     st.set_page_config(page_title="SARscope", layout="wide", page_icon="🔬")
     apply_visual_theme()
     with st.sidebar:
-        workflow = st.radio("Workflow", ["ChEMBL potency & SAR", "PubChem qualitative screen"])
+        workflow = st.radio(
+            "Workflow",
+            ["ChEMBL potency & SAR", "PubChem qualitative screen", "3D QSAR · own compounds"],
+        )
+    if workflow == "3D QSAR · own compounds":
+        from sarscope.field_qsar_ui import show_field_qsar
+
+        st.title("SARscope · 3D QSAR")
+        show_field_qsar(key="upload_field_qsar")
+        return
     if workflow == "PubChem qualitative screen":
         show_pubchem_screen()
         return
@@ -2706,10 +2720,17 @@ def main() -> None:
             "7 · Report",
             "8 · Selectivity",
             "9 · Prioritize",
+            "10 · 3D QSAR",
         ],
         key="analysis_tab",
         on_change="rerun",
     )
+    with tabs[9]:
+        from sarscope.field_qsar_ui import show_field_qsar
+
+        show_field_qsar(
+            curation.table, curation.curation.evidence, curation.provenance.get("source", {})
+        )
     with tabs[0]:
         show_curation(curation)
         with st.expander("Curated molecules"):

@@ -1,0 +1,18 @@
+{
+  "schema": 1,
+  "reference_selection": "reference-selection.json",
+  "field_arrays": "field-parity-20261016-v3",
+  "labels": "reference-20261016-v4/input_audit.json",
+  "public_api": "src.PLSAnalysisTestSets.PLSAnalysis",
+  "fields": ["steric", "electrostatic", "hydrophobic"],
+  "sources": ["reference", "sarscope"],
+  "training": 21,
+  "test": 10,
+  "max_components": 12,
+  "column_filter": 0.0,
+  "paper_targets": {"q2": 0.609, "train_r2": 0.917, "components": 3},
+  "tolerances": {"paper_q2_absolute": 0.005, "paper_train_r2_absolute": 0.005, "cross_source_prediction_absolute": 1e-8},
+  "rationale": "Use the author's explicit-split API rather than its CLI, and search the API's documented default maximum of 12 components instead of forcing the published answer at 3. Retain the complete q2 curve and the actually selected component count.",
+  "scope": "Historical external API execution, including its preprocessing. Never transfer train/test-combined preprocessing or unconstrained component selection into SARscope production.",
+  "chronology": "After inspecting API signatures/docstrings, an initial three-component call produced rounded paper-like metrics but its CSV export failed because PLS_Analysis did not exist. This registered run fixes only the export directory and uses the API's documented default search bound. It is not an untouched predictive validation."
+}

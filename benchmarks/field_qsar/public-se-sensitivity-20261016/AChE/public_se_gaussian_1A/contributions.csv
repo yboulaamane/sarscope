@@ -1,0 +1,21 @@
+field,absolute_contribution_percent,retained_columns,positive_level,negative_level,positive_interpretation,negative_interpretation,positive_color,negative_color,variant
+steric,100.0,2000,0.0016932503911873977,-0.0006234436344645328,More local atomic volume is associated with higher pActivity,Opposite association to the positive contour,green,yellow,baseline
+electrostatic,0.0,0,,,More positive local charge is associated with higher pActivity,Opposite association to the positive contour,blue,red,baseline
+steric,100.0,2000,0.0016932503911873977,-0.0006234436344645328,More local atomic volume is associated with higher pActivity,Opposite association to the positive contour,green,yellow,mmff94
+electrostatic,0.0,0,,,More positive local charge is associated with higher pActivity,Opposite association to the positive contour,blue,red,mmff94
+steric,100.0,2000,0.0017868342059344322,-0.0005937015640089353,More local atomic volume is associated with higher pActivity,Opposite association to the positive contour,green,yellow,phase_x
+electrostatic,0.0,0,,,More positive local charge is associated with higher pActivity,Opposite association to the positive contour,blue,red,phase_x
+steric,100.0,2000,0.0017016397890799047,-0.0006327013322087661,More local atomic volume is associated with higher pActivity,Opposite association to the positive contour,green,yellow,phase_y
+electrostatic,0.0,0,,,More positive local charge is associated with higher pActivity,Opposite association to the positive contour,blue,red,phase_y
+steric,100.0,2000,0.0016850225452077537,-0.0005951094449741853,More local atomic volume is associated with higher pActivity,Opposite association to the positive contour,green,yellow,phase_z
+electrostatic,0.0,0,,,More positive local charge is associated with higher pActivity,Opposite association to the positive contour,blue,red,phase_z
+steric,100.0,2000,0.0016515110252521882,-0.0005925259258581098,More local atomic volume is associated with higher pActivity,Opposite association to the positive contour,green,yellow,phase_xyz
+electrostatic,0.0,0,,,More positive local charge is associated with higher pActivity,Opposite association to the positive contour,blue,red,phase_xyz
+steric,100.0,2000,0.0018779066686121673,-0.0007629863538629412,More local atomic volume is associated with higher pActivity,Opposite association to the positive contour,green,yellow,pose_1101
+electrostatic,0.0,0,,,More positive local charge is associated with higher pActivity,Opposite association to the positive contour,blue,red,pose_1101
+steric,100.0,2000,0.0011661674623671251,-0.0007394297499464724,More local atomic volume is associated with higher pActivity,Opposite association to the positive contour,green,yellow,pose_1102
+electrostatic,0.0,0,,,More positive local charge is associated with higher pActivity,Opposite association to the positive contour,blue,red,pose_1102
+steric,100.0,2000,0.0015680627762255646,-0.0005267028472358845,More local atomic volume is associated with higher pActivity,Opposite association to the positive contour,green,yellow,pose_1103
+electrostatic,0.0,0,,,More positive local charge is associated with higher pActivity,Opposite association to the positive contour,blue,red,pose_1103
+steric,100.0,2000,0.0016932503911873985,-0.0006234436344645326,More local atomic volume is associated with higher pActivity,Opposite association to the positive contour,green,yellow,common_translation
+electrostatic,0.0,0,,,More positive local charge is associated with higher pActivity,Opposite association to the positive contour,blue,red,common_translation

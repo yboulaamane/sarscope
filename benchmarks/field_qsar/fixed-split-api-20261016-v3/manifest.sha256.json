@@ -1,0 +1,20 @@
+{
+  "assessment.json": "4617c2ed54a27c4c1bc141c9d7c68f161721311ef24f347d2cc1d2a3b609435d",
+  "protocol.json": "6e78c99ca053442d817d5789355f9ae1f410cb9f026fceb02f977f79d0eeceb8",
+  "reference/PLS_Analysis/PLS_Metrics.csv": "e929136b1e90fd2ca9e93b776b249bea20b73f07e5a36eb0a24b3937405f95a2",
+  "reference/PLS_Analysis/Predictions_and_Residuals.csv": "08c58227527040879c97d388e325f1a3c3fe9015bdbe5b24456258637f7f6e65",
+  "reference/PLS_Analysis/Test_Predictions_and_Residuals.csv": "124ed4dd0c512bb9031f2a49595dc39adca0f7579598dbbf0b3b0eef28fac472",
+  "reference/PLS_Analysis/Training_Predictions_and_Residuals.csv": "20d213acffeaf45418f3f6bcd2f9aadf952385caa7743befd1987756af20c006",
+  "reference/api_state.json": "f3f4f59b3ee2890292b48d40567dd7f8a85cfd9450c41f546667e8f779155fe7",
+  "reference/processed_fields.npz": "b00d6cb3bcbf26807805d19ac76d61f5c9ed5d485f13602204daf1d4a80a8767",
+  "reference/stderr.txt": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+  "reference/stdout.txt": "2608fa736bc6a9841e502768816ac72997f92a5e57fa1f4da51c857fe1d2d83c",
+  "sarscope/PLS_Analysis/PLS_Metrics.csv": "c52f93cb593743f92e8b5fb10b50f0b104b0db22a029b4a8f08a32ba42eaf135",
+  "sarscope/PLS_Analysis/Predictions_and_Residuals.csv": "5b7d09338c7da19fa52ce86d73ef8c191e1f51d59151be20b3c441491017646e",
+  "sarscope/PLS_Analysis/Test_Predictions_and_Residuals.csv": "3230eeed13536dde23a7661055943009fc1cf7936e7854a98f32ac87365d63be",
+  "sarscope/PLS_Analysis/Training_Predictions_and_Residuals.csv": "ba745a5232f433fe7ed8aea825c43f62e3734adafeae29f4ce3bc91a0a149561",
+  "sarscope/api_state.json": "1372458047463d669df4924a2b8f66f07e5a29f9b0d17b51e598e2b0220631b5",
+  "sarscope/processed_fields.npz": "cc29b1da8c9681229a7dda64ded2f4ea8783d8bdf971934146fd8328d51b6a40",
+  "sarscope/stderr.txt": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+  "sarscope/stdout.txt": "bfb4557e6f55d869d246ab03bff0b1b3e60900b249f518f8c86d51ce2eb39285"
+}

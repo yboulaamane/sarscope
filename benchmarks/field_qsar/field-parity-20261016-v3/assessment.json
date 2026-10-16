@@ -1,0 +1,82 @@
+{
+  "reference_commit": "0b30179ecc20aac5a003577b4437399a8fb20bca",
+  "archive_sha256": "cb767cb5f7cceb0870760b8ccb108dab45b3879e89d45bada28002793e3be7f0",
+  "probe_sha256": "d37d946bdc00d2e8c4c131c3a18dad72b26fe23b5c3bf0d29aaa878736e9596f",
+  "production_fields_sha256": "f807f33e611e308b8842521ee86cbb89f7e5eee9bbf1f2fe850c54418a9afd22",
+  "scope": "Raw fields only, with identical deposited explicit-H coordinates and grid. Both workers use the same comparator environment; production preparation is bypassed.",
+  "tolerances": {
+    "field_rtol": 1e-10,
+    "field_atol": 1e-10,
+    "charge_atol": 1e-12
+  },
+  "posthoc_scale_note": "Empirically inferred sign/scale factors are diagnostics, not literature-specified parameters or a claim of raw-field equivalence. They are not applied to SARscope production fields.",
+  "fields": {
+    "steric": {
+      "values_compared": 159712,
+      "finite": true,
+      "max_absolute_error": 46.56283660671422,
+      "rmse": 6.701212877086867,
+      "pearson_r": -0.9999999999999999,
+      "matches_at_declared_tolerance": false,
+      "posthoc_reference_over_sarscope_factor": -1.0,
+      "posthoc_scaled_max_absolute_error": 7.105427357601002e-15,
+      "posthoc_scaled_rmse": 3.2528248196023324e-16,
+      "spatial_shape_agrees_after_posthoc_scaling": true
+    },
+    "electrostatic": {
+      "values_compared": 159712,
+      "finite": true,
+      "max_absolute_error": 202.10987738137538,
+      "rmse": 6.033828356176231,
+      "pearson_r": 1.0,
+      "matches_at_declared_tolerance": false,
+      "posthoc_reference_over_sarscope_factor": 337.00000000000006,
+      "posthoc_scaled_max_absolute_error": 2.5579538487363607e-13,
+      "posthoc_scaled_rmse": 2.7128053984965625e-15,
+      "spatial_shape_agrees_after_posthoc_scaling": true
+    },
+    "hydrophobic": {
+      "values_compared": 159712,
+      "finite": true,
+      "max_absolute_error": 35.118652397621275,
+      "rmse": 2.2960653222445893,
+      "pearson_r": 1.0,
+      "matches_at_declared_tolerance": false,
+      "posthoc_reference_over_sarscope_factor": 25.0,
+      "posthoc_scaled_max_absolute_error": 2.4868995751603507e-14,
+      "posthoc_scaled_rmse": 7.526196290657959e-16,
+      "spatial_shape_agrees_after_posthoc_scaling": true
+    },
+    "hbond_donor": {
+      "values_compared": 159712,
+      "finite": true,
+      "max_absolute_error": 24.052424791551957,
+      "rmse": 1.173369789134032,
+      "pearson_r": 0.5544759244010953,
+      "matches_at_declared_tolerance": false,
+      "posthoc_reference_over_sarscope_factor": 11.168389385370142,
+      "posthoc_scaled_max_absolute_error": 21.088801043745804,
+      "posthoc_scaled_rmse": 0.994671182534738,
+      "spatial_shape_agrees_after_posthoc_scaling": false
+    },
+    "hbond_acceptor": {
+      "values_compared": 159712,
+      "finite": true,
+      "max_absolute_error": 29.64274086784504,
+      "rmse": 2.3859245116803387,
+      "pearson_r": 0.6616138516389379,
+      "matches_at_declared_tolerance": false,
+      "posthoc_reference_over_sarscope_factor": 17.784638671932004,
+      "posthoc_scaled_max_absolute_error": 24.139093061519205,
+      "posthoc_scaled_rmse": 1.7930454953923165,
+      "spatial_shape_agrees_after_posthoc_scaling": false
+    },
+    "charges": {
+      "values_compared": 1626,
+      "max_absolute_error": 0.0,
+      "matches_at_declared_tolerance": true
+    }
+  },
+  "full_method_reproduction": false,
+  "predictive_validation": false
+}

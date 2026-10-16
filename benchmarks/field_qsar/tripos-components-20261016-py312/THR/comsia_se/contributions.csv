@@ -1,0 +1,3 @@
+field,absolute_contribution_percent,retained_columns,positive_level,negative_level,positive_interpretation,negative_interpretation,positive_color,negative_color
+steric,41.43225069677831,738,0.002047059693841039,-0.00033753250400962763,More local atomic volume is associated with higher pActivity,Opposite association to the positive contour,green,yellow
+electrostatic,58.56774930322169,376,0.006924860871117915,-0.0017198552152685824,More positive local charge is associated with higher pActivity,Opposite association to the positive contour,blue,red

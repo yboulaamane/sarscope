@@ -1,0 +1,105 @@
+{
+  "freeze_verified_against_current_workflow": true,
+  "protocol_sha256": "a5903a036e1211187d831df4c3a11434e8b4eba6dc617c73375867f2e60c65d7",
+  "all_input_manifests_verified": true,
+  "sampling": {
+    "phase_checks_passed": 12,
+    "phase_checks_total": 12,
+    "worst_phase_prediction_change": 0.0023448567853652,
+    "common_translation_max": 6.217248937900877e-15,
+    "relative_pose_flags_failed": 5,
+    "relative_pose_flags_total": 9
+  },
+  "cross_environment": {
+    "same_machine_not_independent_lab": true,
+    "max_prediction_difference": 2.6645352591003757e-15,
+    "all_component_counts_agree": true,
+    "all_column_counts_agree": true,
+    "max_rf_rmse_difference": 0.002185704671376576
+  },
+  "held_out_models": [
+    {
+      "method": "gaussian_se_primary",
+      "nested_q2": 0.0708970822003001,
+      "test_r2": -1.0251601057811262,
+      "test_r2_conditional_95_interval": [
+        -3.858988282735964,
+        -0.1985225637096338
+      ],
+      "test_rmse": 1.3710839458728263,
+      "mean_baseline_rmse": 1.0452360352850805,
+      "rf_baseline_rmse": 0.8314620978567996,
+      "permutation_pvalue": 0.01,
+      "passes_predeclared_predictive_thresholds": false,
+      "failed_pipeline_checks": [
+        "Nested training CV q\u00b2 > 0.5",
+        "Held-out predictive R\u00b2 > 0.6",
+        "Origin calibration (GT-style heuristic)",
+        "Alignment thresholds met",
+        "Native end-to-end 3D-QSAR validation"
+      ],
+      "pca_box_coverage": 0.9545454545454546,
+      "rows_over_missingness_limit": 0,
+      "retained_columns_by_field": {
+        "steric": 2000,
+        "electrostatic": 0
+      }
+    },
+    {
+      "method": "comfa_se_secondary",
+      "nested_q2": 0.1257126503950084,
+      "test_r2": -1.0662176936711307,
+      "test_r2_conditional_95_interval": [
+        -5.111208353762223,
+        0.1561548978913543
+      ],
+      "test_rmse": 1.3849127132873866,
+      "mean_baseline_rmse": 1.0452360352850805,
+      "rf_baseline_rmse": 0.8314620978567991,
+      "permutation_pvalue": 0.01,
+      "passes_predeclared_predictive_thresholds": false,
+      "failed_pipeline_checks": [
+        "Nested training CV q\u00b2 > 0.5",
+        "Held-out predictive R\u00b2 > 0.6",
+        "Origin calibration (GT-style heuristic)",
+        "Alignment thresholds met",
+        "Native end-to-end 3D-QSAR validation",
+        "Mean-filled held-out fields within configured reliability limit"
+      ],
+      "pca_box_coverage": 1.0,
+      "rows_over_missingness_limit": 14,
+      "retained_columns_by_field": {
+        "steric": 217,
+        "electrostatic": 170
+      }
+    }
+  ],
+  "source_graph_audit": {
+    "AChE": {
+      "rows": 111,
+      "graphs_with_radical_electrons": 0,
+      "disconnected_graphs": 0
+    },
+    "ATA": {
+      "rows": 94,
+      "graphs_with_radical_electrons": 0,
+      "disconnected_graphs": 0
+    },
+    "CCR5": {
+      "rows": 75,
+      "graphs_with_radical_electrons": 0,
+      "disconnected_graphs": 0
+    },
+    "THR": {
+      "rows": 88,
+      "graphs_with_radical_electrons": 59,
+      "disconnected_graphs": 0
+    }
+  },
+  "predictive_release_decision": "NO-GO: both reserved-cohort models fail predictive criteria",
+  "scope": "Documented public SE components, reviewed pre-aligned SDF; not full SYBYL parity",
+  "package_certified": false,
+  "test_set_status": "ATA is now consumed; do not describe it as reserved/untouched or retune on it",
+  "source_audit_interpretation": "Radicals/disconnected graphs are retrospective flags requiring source adjudication, not proof that a given structure is wrong or an excuse to discard poor predictions. Nothing was repaired, removed, or rescored.",
+  "reporter_sha256": "dccf2325f0fbe691c77f9321e47b9bab4ce26bce1ac9f3c9d34855566d3d85b7"
+}

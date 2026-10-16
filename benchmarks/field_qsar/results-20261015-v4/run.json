@@ -1,0 +1,39 @@
+{
+  "schema": 1,
+  "created_utc": "2026-10-15T19:56:45+00:00",
+  "packages": {
+    "sorbent": "0.1.1",
+    "rdkit": "2026.9.1",
+    "numpy": "2.5.4",
+    "pandas": "3.0.6",
+    "scipy": "1.18.1",
+    "scikit-learn": "1.9.1",
+    "joblib": "1.6.0",
+    "scikit-fingerprints": null,
+    "molfeat": null,
+    "shap": null,
+    "umap-learn": null,
+    "gemmi": null,
+    "meeko": null
+  },
+  "protocol_sha256": "4cae0a4db7c91c7eaad7c4cd99f34d7481488486d1bb49ab5de365886048323a",
+  "benchmark_runner_sha256": "42f7c388db3d956a36447aba08fe4d6e53eab1503bddd5005c2c1a535a8038c4",
+  "completed_cases": 8,
+  "failed_cases": [],
+  "activity_discrepancies": [
+    {
+      "molecule_id": "etiocholanolone",
+      "sdf_pactivity": 5.2249999,
+      "article_pactivity": 5.26,
+      "sdf_minus_article": -0.035000099999999534
+    },
+    {
+      "molecule_id": "pregnenolone",
+      "sdf_pactivity": 5.2249999,
+      "article_pactivity": 5.26,
+      "sdf_minus_article": -0.035000099999999534
+    }
+  ],
+  "exact_historical_reproduction": false,
+  "conclusion": "Executed independent field-method comparison, not an exact historical reproduction, external multi-target validation, or evidence that all user models are valid."
+}

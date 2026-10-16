@@ -1,0 +1,233 @@
+{
+  "train": {
+    "valid_records": 21,
+    "invalid_records": [
+      22
+    ],
+    "records": [
+      {
+        "record_1based": 1,
+        "name": "aldosterone",
+        "activity": 6.2789998,
+        "atoms": 54,
+        "explicit_hydrogens": 28
+      },
+      {
+        "record_1based": 2,
+        "name": "androstanediol",
+        "activity": 5.0,
+        "atoms": 53,
+        "explicit_hydrogens": 32
+      },
+      {
+        "record_1based": 3,
+        "name": "androstenediol",
+        "activity": 5.0,
+        "atoms": 51,
+        "explicit_hydrogens": 30
+      },
+      {
+        "record_1based": 4,
+        "name": "androstenedione",
+        "activity": 5.763,
+        "atoms": 47,
+        "explicit_hydrogens": 26
+      },
+      {
+        "record_1based": 5,
+        "name": "androsterone",
+        "activity": 5.6129999,
+        "atoms": 51,
+        "explicit_hydrogens": 30
+      },
+      {
+        "record_1based": 6,
+        "name": "corticosterone",
+        "activity": 7.881,
+        "atoms": 55,
+        "explicit_hydrogens": 30
+      },
+      {
+        "record_1based": 7,
+        "name": "cortisol",
+        "activity": 7.881,
+        "atoms": 56,
+        "explicit_hydrogens": 30
+      },
+      {
+        "record_1based": 8,
+        "name": "cortisone",
+        "activity": 6.8920002,
+        "atoms": 54,
+        "explicit_hydrogens": 28
+      },
+      {
+        "record_1based": 9,
+        "name": "dehydroepiandrosterone",
+        "activity": 5.0,
+        "atoms": 49,
+        "explicit_hydrogens": 28
+      },
+      {
+        "record_1based": 10,
+        "name": "11-deoxycorticosterone",
+        "activity": 7.6529999,
+        "atoms": 54,
+        "explicit_hydrogens": 30
+      },
+      {
+        "record_1based": 11,
+        "name": "11-deoxycortisol",
+        "activity": 7.881,
+        "atoms": 55,
+        "explicit_hydrogens": 30
+      },
+      {
+        "record_1based": 12,
+        "name": "dihydrotestosterone",
+        "activity": 5.9190001,
+        "atoms": 51,
+        "explicit_hydrogens": 30
+      },
+      {
+        "record_1based": 13,
+        "name": "estradiol",
+        "activity": 5.0,
+        "atoms": 44,
+        "explicit_hydrogens": 24
+      },
+      {
+        "record_1based": 14,
+        "name": "estriol",
+        "activity": 5.0,
+        "atoms": 45,
+        "explicit_hydrogens": 24
+      },
+      {
+        "record_1based": 15,
+        "name": "estrone",
+        "activity": 5.0,
+        "atoms": 42,
+        "explicit_hydrogens": 22
+      },
+      {
+        "record_1based": 16,
+        "name": "etiocholanolone",
+        "activity": 5.2249999,
+        "atoms": 51,
+        "explicit_hydrogens": 30
+      },
+      {
+        "record_1based": 17,
+        "name": "pregnenolone",
+        "activity": 5.2249999,
+        "atoms": 55,
+        "explicit_hydrogens": 32
+      },
+      {
+        "record_1based": 18,
+        "name": "17-hydroxypregnenolone",
+        "activity": 5.0,
+        "atoms": 56,
+        "explicit_hydrogens": 32
+      },
+      {
+        "record_1based": 19,
+        "name": "progesterone",
+        "activity": 7.3800001,
+        "atoms": 53,
+        "explicit_hydrogens": 30
+      },
+      {
+        "record_1based": 20,
+        "name": "17-hydroxyprogesterone",
+        "activity": 7.7399998,
+        "atoms": 54,
+        "explicit_hydrogens": 30
+      },
+      {
+        "record_1based": 21,
+        "name": "testosterone",
+        "activity": 6.724,
+        "atoms": 49,
+        "explicit_hydrogens": 28
+      }
+    ]
+  },
+  "test": {
+    "valid_records": 10,
+    "invalid_records": [],
+    "records": [
+      {
+        "record_1based": 1,
+        "name": "prednisolone",
+        "activity": 7.5120001,
+        "atoms": 54,
+        "explicit_hydrogens": 28
+      },
+      {
+        "record_1based": 2,
+        "name": "cortisol-21-acetate",
+        "activity": 7.553,
+        "atoms": 61,
+        "explicit_hydrogens": 31
+      },
+      {
+        "record_1based": 3,
+        "name": "4-pregnene-3,11,20-trione",
+        "activity": 6.7789998,
+        "atoms": 52,
+        "explicit_hydrogens": 28
+      },
+      {
+        "record_1based": 4,
+        "name": "epicorticosterone",
+        "activity": 7.1999998,
+        "atoms": 55,
+        "explicit_hydrogens": 30
+      },
+      {
+        "record_1based": 5,
+        "name": "19-nortestosterone",
+        "activity": 6.1440001,
+        "atoms": 46,
+        "explicit_hydrogens": 26
+      },
+      {
+        "record_1based": 6,
+        "name": "16a,17-dihydroxy-4-pregnene-3,20-dione",
+        "activity": 6.2470002,
+        "atoms": 55,
+        "explicit_hydrogens": 30
+      },
+      {
+        "record_1based": 7,
+        "name": "16a-methyl-4-pregnene-3,20-dione",
+        "activity": 7.1199999,
+        "atoms": 56,
+        "explicit_hydrogens": 32
+      },
+      {
+        "record_1based": 8,
+        "name": "19-norprogesterone",
+        "activity": 6.8169999,
+        "atoms": 50,
+        "explicit_hydrogens": 28
+      },
+      {
+        "record_1based": 9,
+        "name": "11b,17,21-trihydroxy-2a-methyl-4-pregnen-3,20-dione",
+        "activity": 7.6880002,
+        "atoms": 59,
+        "explicit_hydrogens": 32
+      },
+      {
+        "record_1based": 10,
+        "name": "11b,17,21-trihydroxy-2a-methyl-9a-fluoro-4-pregnen-3,20-dione",
+        "activity": 5.7969999,
+        "atoms": 59,
+        "explicit_hydrogens": 31
+      }
+    ]
+  }
+}

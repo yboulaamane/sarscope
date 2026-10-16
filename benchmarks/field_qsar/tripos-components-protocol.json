@@ -1,0 +1,50 @@
+{
+  "schema": 1,
+  "purpose": "Characterise public Tripos-5.2 SE parameters and SYBYL-documented prediction-time missingness policy; NOT a SYBYL benchmark reproduction",
+  "frozen_date": "2026-10-16",
+  "data_base_url": "https://raw.githubusercontent.com/clhaga/pycomsia/0b30179ecc20aac5a003577b4437399a8fb20bca/sdfs/",
+  "data_license": "Upstream repository CC BY-SA 4.0; source SDFs fetched, not redistributed",
+  "datasets": [
+    {
+      "name": "AChE", "family": "carboxylesterase", "activity": "Activity",
+      "train": {"sha256": "14eff44908ccad1e9dc1a9e77050aa5eb80b5b268ef8bf8e8c698713643cf74e", "bytes": 360861, "valid": 74, "invalid": 0},
+      "test": {"sha256": "6184bef069c37beaaa9a4251c50f4e2153d74bb87a2f0bffacf76ea464ce825c", "bytes": 180989, "valid": 37, "invalid": 0}
+    },
+    {
+      "name": "CCR5", "family": "G-protein-coupled receptor", "activity": "Activity",
+      "train": {"sha256": "afa97e9a19c65c8d19523233016f3f065ab72cd4a51030b6ce79196290d489f5", "bytes": 397370, "valid": 63, "invalid": 0},
+      "test": {"sha256": "ed0d0e29e7d933034f97025780efb2be5e3ac9ef6578f4cd2a18247fe1825ce9", "bytes": 77781, "valid": 12, "invalid": 0}
+    },
+    {
+      "name": "THR", "family": "serine protease", "activity": "Activity",
+      "train": {"sha256": "eceefa5dd935bae97d14be521714a2d8641703a768fe21743e02f1071f6a540f", "bytes": 339293, "valid": 59, "invalid": 0},
+      "test": {"sha256": "b649d942f899dd09177516e8fed9f28ae5f0c23ae55fc2020118e1d94e473128", "bytes": 176642, "valid": 29, "invalid": 0}
+    }
+  ],
+  "fields": {
+    "field_definition": "tripos52_se", "field_subset": ["steric", "electrostatic"],
+    "alignment": "prealigned", "assess_prealigned_core": false, "preserve_input_hydrogens": true,
+    "charge_model": "gasteiger", "allow_charge_fallback": false,
+    "spacing": 2.0, "margin": 4.0, "field_scaling": "block_std",
+    "keep_fraction": 0.3, "max_features": 2000, "component_cap": 4,
+    "component_selection": "max_q2", "component_sample_ratio": 5,
+    "max_molecules": 150, "max_grid_points": 20000, "max_memory_mb": 512,
+    "permutations": 99, "permutation_timeout": 600, "seed": 42
+  },
+  "methods": [
+    {"name": "comsia_se", "method": "comsia", "filter_mode": "percentile"},
+    {"name": "comfa_se", "method": "comfa", "filter_mode": "absolute", "minimum_sd": 2.0,
+     "electrostatic_cutoff": 30.0, "missing_field_policy": "training_mean"}
+  ],
+  "model": {"split": "random", "cv_folds": 3, "regression_cv": "default", "seed": 42},
+  "bootstrap_repeats": 500,
+  "interpretation": {
+    "known_cohorts": "These test scores have already been inspected under other settings. This run is method characterisation, not fresh independent validation or a candidate-selection experiment.",
+    "charges": "RDKit Gasteiger-Marsili; not SYBYL Gasteiger-Huckel. Different molecular charge sources are not silently relabelled.",
+    "parameters": "Public Tripos-5.2 R/K subset and explicit organic-H/S environment rules; not the complete SYBYL atom typer or proof that SYBYL 6.6/other versions use identical tables.",
+    "preprocessing": "Train-only block scaling, fold-local masks/means/selection and n/5 cap remain SARscope settings, not established numerical SYBYL preprocessing parity.",
+    "missingness": "Undefined CoMFA terms stay NaN at field calculation. The explicit modelling policy uses fitting-column means and reports replaced terms. The 10% overall/per-electrostatic-field flag is configurable engineering policy, not a published SYBYL validity cutoff.",
+    "unsupported": "SYBYL hydrophobic data.lip tables and directional H-bond extension-point generation are not implemented in this profile; no Crippen or atom-centred indicator substitution.",
+    "no_claim": "No full SYBYL equivalence, full-package validation, superiority, novel 3D-QSAR algorithm or prospective predictivity claim. Reserved ATA evaluation remains unrun."
+  }
+}

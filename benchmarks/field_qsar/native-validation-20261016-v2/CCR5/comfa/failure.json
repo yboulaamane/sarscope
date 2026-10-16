@@ -1,0 +1,4 @@
+{
+  "stage": "calculation/evaluation",
+  "error": "ValueError: CoMFA electrostatic overlap in held-out molecules: retained fields are undefined. This split is not scorable; use CoMSIA or reviewed alignments. No test-derived mask or imputation was applied."
+}

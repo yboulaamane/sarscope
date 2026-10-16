@@ -1,0 +1,7 @@
+dataset,method,max_prediction_difference,q2_difference,test_r2_difference,rf_rmse_difference,same_component_count,same_retained_column_count
+AChE,comsia_se,0.0,0.0,0.0,0.002185704671376576,True,True
+AChE,comfa_se,2.6645352591003757e-15,1.1102230246251565e-16,3.885780586188048e-16,0.002185704671376576,True,True
+CCR5,comsia_se,0.0,1.1102230246251565e-16,0.0,0.001197529222351168,True,True
+CCR5,comfa_se,0.0,0.0,0.0,0.00119752922235139,True,True
+THR,comsia_se,1.7763568394002505e-15,1.1102230246251565e-16,2.220446049250313e-16,5.786070269497845e-05,True,True
+THR,comfa_se,0.0,0.0,0.0,5.7860702694756405e-05,True,True
