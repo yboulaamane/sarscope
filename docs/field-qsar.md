@@ -76,8 +76,17 @@ Every molecule must have resolved absolute stereochemistry and a valid 3D
 geometry. A failure blocks the series and identifies the molecule; the user
 can review/exclude it explicitly. The MCS search is bounded, and an excessive
 symmetry count refuses alignment instead of silently taking one arbitrary map.
-Generated jobs have a hard per-molecule subprocess timeout and a total
-series budget checked between jobs. Whole-series MCS coverage is QC only;
+Generated jobs use **one serial, killable worker per preparation run**, rather
+than reloading Python/RDKit in a new process for every compound. There is no
+parallel burst of workers. Each conformer/MCS job has a 30-second default
+limit; worker startup also has a bounded wait and counts towards the existing
+180-second whole-series budget. A rigid alignment reuses the fixed reference
+coordinates rather than embedding that reference again in the compound loop.
+Timeout errors distinguish startup, a compound job and whole-series exhaustion,
+and compound failures identify the position and completed count. A timeout
+does not establish that the current structure is invalid. No molecule or
+stereo constraint is skipped, and partial preparations are not accepted.
+Whole-series MCS coverage is QC only;
 alignment uses pairwise maps to the fixed reference, not a test-derived core.
 
 Review the overlay, core RMSD and coverage, then confirm the alignment. The
