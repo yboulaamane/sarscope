@@ -12,6 +12,29 @@ predictions reproduce R² = 0.319 only after a measured-test-mean offset under
 the historical representation. That is an oracle diagnostic, not prospective
 prediction. It is not copied into the native app or its prediction column.
 
+## Retained campaign versions
+
+Several campaigns have numbered reruns. Every version still present is kept
+deliberately, because something cites it:
+
+| Family | Kept | Why the earlier run is retained |
+| --- | --- | --- |
+| `independent-20261016` | v1, v2, v3 | INDEPENDENT.md cites all three: v3 is the current assessment, v2 the native column-scaled sensitivity run, and v1 the outputs behind the corrected interpretation. Deleting v1 would leave the correction unevidenced. |
+| `reference-20261016` | v1, v3, v4 | Cited as successive comparators. |
+| `field-parity-20261016` | v1, v3 | Both cited. |
+| `fixed-split-api-20261016` | v1, v3 | Both cited. |
+| `model-parity-20261016` | v1, v3 | Both cited. |
+| `native-validation-20261016` | v1, v2 | Both cited. |
+| `public-se-assessment-20261016` | v1, v2 | v2 is the current recalculated assessment. |
+| `results-20261015` | v1, v4 | Both cited. |
+| `sensitivity-20261016` | v1, v2 | `tests/test_field_sensitivity.py` verifies v2's manifest hashes. That test skips when the directory is absent, so removing it would silently turn a real check into a no-op. |
+| `tripos-components-20261016` | v1, v3, py312 | v3 is the frozen campaign; py312 is its cross-environment repeat. |
+
+Five orphaned reruns were removed on 16 October 2026 after checking that
+nothing in the repository referenced them: `fixed-split-api-20261016-v2`,
+`model-parity-20261016-v2`, `results-20261015-v2`, `results-20261015-v3` and
+`tripos-components-20261016-v2`. They are recoverable from git history.
+
 ## Selected reference
 
 Haga CL, Le CN, Yang XD, Phinney DG. *Py-CoMSIA: An Open-Source Implementation
