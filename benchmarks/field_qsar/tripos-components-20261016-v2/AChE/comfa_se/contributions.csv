@@ -1,3 +1,0 @@
-field,absolute_contribution_percent,retained_columns,positive_level,negative_level,positive_interpretation,negative_interpretation,positive_color,negative_color
-steric,40.46678762130076,180,0.020424462529371978,-0.01283944507804638,Higher LJ probe energy is associated with higher pActivity; this is not an unconditional instruction to add bulk,Opposite association to the positive contour,green,yellow
-electrostatic,59.53321237869925,1820,0.0023902234140176426,-0.0020594033402634867,More positive local charge is associated with higher pActivity,Opposite association to the positive contour,blue,red

@@ -1,3 +1,0 @@
-Haga et al. Pharmaceuticals 2025, 18, 440; doi:10.3390/ph18030440
-Published Table 1/2 reference data: CC BY 4.0.
-Upstream Coats/exeResearch SDF is fetched by pinned URL/hash for local execution; its redistribution permission was not established and it is NOT bundled here.

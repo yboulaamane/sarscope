@@ -1,7 +1,0 @@
-{
-  "excluded_record": 32,
-  "excluded_name": "cortisolacetat",
-  "same_encoded_graph_as": [],
-  "reason": "Extra deposited compound omitted from the 31-row published Table 2; no residual-based exclusions.",
-  "independent_structure_adjudication": "SDF graph versus its own separately encoded SMILES; not independent experimental verification of structures or activity measurements"
-}
