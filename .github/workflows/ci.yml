@@ -46,6 +46,7 @@ jobs:
           tests/test_field_qsar.py tests/test_field_reproduction.py
           tests/test_field_reference.py tests/test_field_sensitivity.py
           tests/test_tripos_reference.py tests/test_field_qualification.py
+          tests/test_alignment_worker.py
           --junitxml=field-verification.xml
       - uses: actions/upload-artifact@v4
         if: always()

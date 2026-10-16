@@ -12,7 +12,8 @@ import importlib.util
 import multiprocessing as mp
 import time
 from collections.abc import Sequence
-from dataclasses import dataclass, replace
+from contextlib import nullcontext
+from dataclasses import dataclass
 from typing import Any
 
 import numpy as np
@@ -185,48 +186,129 @@ def _generate(
     return Chem.MolToMolBlock(best_mol), {**diagnostics, "restrained_energy": best_energy}
 
 
-def _worker(send: Any, smiles: str, reference_block: str | None, params: FieldQsarParams) -> None:
+def _worker(connection: Any) -> None:
+    """Serial requests amortise spawn/import cost without parallelising RDKit."""
     try:
-        send.send((True, _generate(smiles, reference_block, params)))
-    except Exception as exc:
-        send.send((False, str(exc)))
+        connection.send(("ready", None))
+        while True:
+            try:
+                request = connection.recv()
+            except EOFError:
+                return
+            if request is None:
+                return
+            try:
+                connection.send((True, _generate(*request)))
+            except Exception as exc:
+                connection.send((False, str(exc)))
     finally:
-        send.close()
+        connection.close()
+
+
+class _AlignmentGenerator:
+    """One killable worker per series, with separate startup/job/series errors.
+
+    A slow or failed request still blocks the series; no compound, stereo
+    constraint or alignment check is silently skipped. The outer series
+    deadline includes worker startup and every request.
+    """
+
+    def __init__(self, params: FieldQsarParams, deadline: float) -> None:
+        self.params, self.deadline = params, deadline
+        context = mp.get_context("spawn")
+        self.connection, self.child = context.Pipe(duplex=True)
+        self.process = context.Process(target=_worker, args=(self.child,), daemon=True)
+
+    def _allowance(self) -> tuple[float, bool]:
+        remaining = self.deadline - time.monotonic()
+        if remaining <= 0:
+            raise ValueError(
+                f"Whole-series alignment budget ({self.params.alignment_timeout}s) exhausted. "
+                "This is not evidence that the current compound cannot embed. "
+                "Use a smaller, related series or reviewed pre-aligned SDF."
+            )
+        allowance = min(self.params.molecule_timeout, remaining)
+        return allowance, remaining < self.params.molecule_timeout
+
+    def _receive(self, stage: str) -> Any:
+        allowance, series_limited = self._allowance()
+        try:
+            if not self.connection.poll(allowance):
+                if series_limited:
+                    raise ValueError(
+                        f"Whole-series alignment budget ({self.params.alignment_timeout}s) "
+                        f"exhausted during {stage}; only {allowance:.1f}s remained. "
+                        "This does not identify an invalid compound. "
+                        "Use a smaller, related series or reviewed pre-aligned SDF."
+                    )
+                raise ValueError(
+                    f"Alignment {stage} exceeded its {self.params.molecule_timeout}s limit. "
+                    "The shared host may be busy, or this job may need reviewed pre-aligned input. "
+                    "No molecule or stereochemical constraint was skipped."
+                )
+            return self.connection.recv()
+        except (EOFError, OSError) as exc:
+            raise ValueError(
+                f"Alignment worker stopped unexpectedly during {stage}. "
+                "The host may have stopped the process; no partial alignment is accepted."
+            ) from exc
+
+    def __enter__(self) -> _AlignmentGenerator:
+        try:
+            self._allowance()
+            self.process.start()
+            self.child.close()
+            if self._receive("worker startup") != ("ready", None):
+                raise ValueError("Alignment worker did not initialise correctly.")
+            return self
+        except Exception:
+            self.close()
+            raise
+
+    def generate(self, smiles: str, reference: Any | None) -> tuple[Any, dict[str, Any]]:
+        self._allowance()
+        try:
+            self.connection.send(
+                (
+                    smiles,
+                    Chem.MolToMolBlock(reference) if reference is not None else None,
+                    self.params,
+                )
+            )
+        except (EOFError, OSError) as exc:
+            raise ValueError(
+                "Alignment worker stopped before receiving the next job; "
+                "no partial alignment is accepted."
+            ) from exc
+        ok, result = self._receive("conformer/MCS job")
+        if not ok:
+            raise ValueError(result)
+        block, diagnostics = result
+        molecule = Chem.MolFromMolBlock(block, removeHs=False)
+        if molecule is None:
+            raise ValueError("Alignment worker returned unreadable coordinates.")
+        return molecule, diagnostics
+
+    def close(self) -> None:
+        self.connection.close()
+        self.child.close()
+        if self.process.pid is not None:
+            if self.process.is_alive():
+                self.process.terminate()
+            self.process.join(timeout=2)
+            if self.process.is_alive():
+                self.process.kill()
+                self.process.join()
+
+    def __exit__(self, *args: Any) -> None:
+        self.close()
 
 
 def _bounded_generate(
     smiles: str, reference: Any | None, params: FieldQsarParams
 ) -> tuple[Any, dict[str, Any]]:
-    context = mp.get_context("spawn")
-    receive, send = context.Pipe(duplex=False)
-    process = context.Process(
-        target=_worker,
-        args=(
-            send,
-            smiles,
-            Chem.MolToMolBlock(reference) if reference is not None else None,
-            params,
-        ),
-        daemon=True,
-    )
-    process.start()
-    send.close()
-    try:
-        if not receive.poll(params.molecule_timeout):
-            raise ValueError("Conformer/alignment time budget exceeded; provide pre-aligned input.")
-        ok, result = receive.recv()
-        if not ok:
-            raise ValueError(result)
-        block, diagnostics = result
-        return Chem.MolFromMolBlock(block, removeHs=False), diagnostics
-    finally:
-        receive.close()
-        if process.is_alive():
-            process.terminate()
-        process.join(timeout=2)
-        if process.is_alive():
-            process.kill()
-            process.join()
+    with _AlignmentGenerator(params, time.monotonic() + params.alignment_timeout) as worker:
+        return worker.generate(smiles, reference)
 
 
 def align_series(
@@ -278,17 +360,38 @@ def align_series(
             "checks passed; common-core RMSD/coverage were not assessed. Alignment validity "
             "must come from the declared external protocol, not this software.",
         )
+    session = (
+        nullcontext(None)
+        if params.alignment == "prealigned"
+        else _AlignmentGenerator(params, deadline)
+    )
+    with session as worker:
+        return _align_checked(mols, heavy, identifiers, params, deadline, worker)
+
+
+def _align_checked(
+    mols: Sequence[Any],
+    heavy: Sequence[Any],
+    identifiers: Sequence[str],
+    params: FieldQsarParams,
+    deadline: float,
+    worker: _AlignmentGenerator | None,
+) -> AlignmentResult:
     reference = heavy[params.reference_index]
     if params.alignment != "prealigned" and (
         not reference.GetNumConformers() or not reference.GetConformer().Is3D()
     ):
-        reference, _ = _bounded_generate(Chem.MolToSmiles(reference), None, params)
+        assert worker is not None
+        try:
+            reference, _ = worker.generate(Chem.MolToSmiles(reference), None)
+        except ValueError as exc:
+            raise ValueError(f"Reference {identifiers[params.reference_index]}: {exc}") from exc
         reference = Chem.RemoveHs(reference)
     coordinates(reference)
     validate_conformer_stereo(reference, Chem.MolToSmiles(reference))
     aligned: list[Any] = []
     rows = []
-    for identifier, mol in zip(identifiers, heavy, strict=True):
+    for position, (identifier, mol) in enumerate(zip(identifiers, heavy, strict=True)):
         try:
             remaining = int(deadline - time.monotonic())
             if remaining < 1:
@@ -301,11 +404,11 @@ def align_series(
                 output = Chem.Mol(mol)
                 mapping, _, _ = best_mapping(output, reference, params, fixed_frame=True)
             else:
-                output, _ = _bounded_generate(
-                    Chem.MolToSmiles(mol),
-                    reference,
-                    replace(params, molecule_timeout=min(params.molecule_timeout, remaining)),
-                )
+                assert worker is not None
+                if position == params.reference_index and params.alignment == "rigid_mcs":
+                    output = Chem.Mol(reference)
+                else:
+                    output, _ = worker.generate(Chem.MolToSmiles(mol), reference)
                 output = Chem.RemoveHs(output)
                 mapping, _, _ = best_mapping(output, reference, params, fixed_frame=True)
             xyz, ref_xyz = coordinates(output), coordinates(reference)
@@ -335,7 +438,10 @@ def align_series(
                 }
             )
         except Exception as exc:
-            raise ValueError(f"{identifier}: {exc}") from exc
+            raise ValueError(
+                f"{identifier} (compound {position + 1}/{len(heavy)}, "
+                f"{len(aligned)} completed): {exc}"
+            ) from exc
     common = _mcs(heavy, params.mcs_timeout)
     coverage = common.numAtoms / float(np.mean([m.GetNumHeavyAtoms() for m in heavy]))
     assumptions = {

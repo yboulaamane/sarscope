@@ -21,7 +21,7 @@ test:
 
 ## Offline implementation checks; passing is not certification of a user's model.
 verify-fields:
-	$(PY) -m pytest -q tests/test_field_numerics.py tests/test_field_campaign.py tests/test_field_qsar.py tests/test_field_reproduction.py tests/test_field_reference.py tests/test_app_field_qsar.py tests/test_field_sensitivity.py tests/test_tripos_reference.py tests/test_field_qualification.py
+	$(PY) -m pytest -q tests/test_field_numerics.py tests/test_field_campaign.py tests/test_field_qsar.py tests/test_field_reproduction.py tests/test_field_reference.py tests/test_app_field_qsar.py tests/test_field_sensitivity.py tests/test_tripos_reference.py tests/test_field_qualification.py tests/test_alignment_worker.py
 
 lint:
 	$(VENV)/bin/ruff check .
