@@ -1,0 +1,41 @@
+{
+  "candidate_id": "public-tripos-se-reviewed-sdf-20261016",
+  "protocol_sha256": "a5903a036e1211187d831df4c3a11434e8b4eba6dc617c73375867f2e60c65d7",
+  "sensitivity_manifest_sha256": "6863eb4478916dcd93631c9f28a5344611d957dee8859ec606efbba457aa5eb6",
+  "workflow_sha256": {
+    "params.py": "561fc4bdda0e41c8134dc4f222ac4d9ed9d8f9e391d0dc45b45ffbba98c2555c",
+    "field_qsar.py": "e70cb61e145b83e774c51521530de973aa0ec0ac65c6f549d6385c46fb2d7c79",
+    "field_campaign.py": "b8cad0050d9b546b0e14bdf1729dce21031fdd17e7a37af7864342546e02e3b3",
+    "field_qualification.py": "13e43de0192bf417bbbfbfa306c9d383650abab644c66dde5892b4814a5685b5",
+    "field_sensitivity.py": "f5a99d9a96f010f2c9d44abb72a16890a0201f928fd618c4cfb72c3bc4d40320",
+    "analysis/fields.py": "58cd02f59bbed6985d01811ee4d7d09d7708f002368c008097b2a8c6f1bf6399",
+    "analysis/align3d.py": "d88fabe2ff7a5142bc45af85016ea2595ec28ad120ca3d86ca34adb429fc7582",
+    "analysis/field_filter.py": "0b4c28d4cfb2947965e682fa03824af4391f4f186bcd3ed43441e451a98967f7",
+    "analysis/regression.py": "b376cbdf8942656973b2ae96a511ad19829764cc9d1df28ef6ea17bc072837b9",
+    "analysis/contours.py": "7ef563755456a681a6553723db5d9d835a34f9e1e3721fc4e09b1c4f5d0c96f7",
+    "analysis/tripos_reference.py": "9923675fcdc4da762afa9c5904959f3fbf85fd74df2eedc3a6a627c6baab5f55"
+  },
+  "sampling_gates_passed": true,
+  "pose_warning_count": 5,
+  "package_or_model_certified": false,
+  "fresh_labels_downloaded_for_freeze": false,
+  "interpretation": "Immutable candidate, not validation or a winning-model claim",
+  "versions": {
+    "sorbent": "0.1.1",
+    "rdkit": "2026.9.1",
+    "numpy": "2.5.4",
+    "pandas": "3.0.6",
+    "scipy": "1.18.1",
+    "scikit-learn": "1.9.1",
+    "joblib": "1.6.0",
+    "scikit-fingerprints": null,
+    "molfeat": null,
+    "shap": null,
+    "umap-learn": null,
+    "gemmi": null,
+    "meeko": null,
+    "threadpoolctl": "3.7.0"
+  },
+  "profile": "public_se_gaussian_1A",
+  "scope": "Pre-aligned, reviewed explicit-H organic SDF; public Tripos-5.2 steric/electrostatic subset; Gaussian primary. No generated-binding-mode or full SYBYL compatibility claim."
+}

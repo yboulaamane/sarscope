@@ -1,0 +1,2 @@
+Warning: All donor positions filtered out for atom 8
+Warning: All donor positions filtered out for atom 53

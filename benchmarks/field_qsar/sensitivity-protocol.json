@@ -1,0 +1,31 @@
+{
+  "schema": 1,
+  "frozen_date": "2026-10-16",
+  "purpose": "Training-only characterisation before an additional untouched-cohort evaluation; no external-label based preset selection",
+  "data_base_url": "https://raw.githubusercontent.com/clhaga/pycomsia/0b30179ecc20aac5a003577b4437399a8fb20bca/sdfs/",
+  "data_license": "Upstream CC BY-SA 4.0; fetched SDFs not redistributed",
+  "datasets": [
+    {"name": "AChE", "activity": "Activity", "train": {"sha256": "14eff44908ccad1e9dc1a9e77050aa5eb80b5b268ef8bf8e8c698713643cf74e", "bytes": 360861, "valid": 74, "invalid": 0}},
+    {"name": "CCR5", "activity": "Activity", "train": {"sha256": "afa97e9a19c65c8d19523233016f3f065ab72cd4a51030b6ce79196290d489f5", "bytes": 397370, "valid": 63, "invalid": 0}},
+    {"name": "THR", "activity": "Activity", "train": {"sha256": "eceefa5dd935bae97d14be521714a2d8641703a768fe21743e02f1071f6a540f", "bytes": 339293, "valid": 59, "invalid": 0}}
+  ],
+  "fields": {
+    "method": "comsia", "alignment": "prealigned", "assess_prealigned_core": false,
+    "preserve_input_hydrogens": true, "charge_model": "gasteiger",
+    "allow_charge_fallback": false, "spacing": 2.0, "margin": 4.0,
+    "keep_fraction": 0.3, "max_features": 2000, "component_cap": 4,
+    "component_selection": "max_q2", "component_sample_ratio": 5,
+    "max_molecules": 150, "max_grid_points": 20000, "max_memory_mb": 512,
+    "permutations": 0, "seed": 42
+  },
+  "model": {"split": "random", "cv_folds": 3, "regression_cv": "default", "seed": 42},
+  "profiles": [
+    {"name": "native_raw_2A", "settings": {"field_scaling": "raw", "spacing": 2.0}},
+    {"name": "candidate_block_1A", "settings": {"field_scaling": "block_std", "spacing": 1.0}}
+  ],
+  "candidate_rationale": "A fixed finer grid samples the Gaussian more densely; training-only field-block scaling makes differing numerical field units explicit. Candidate chosen on numerical-method grounds before this sensitivity run, not as the winner on inspected external R2. The older raw-grid outcomes are retained; no app default is silently changed.",
+  "variants": "Fixed baseline, MMFF94, four half-step grid phases, three independent 0.25-A/5-degree relative rigid-pose perturbations and a common integer-A translation control; first fitting reference fixed for relative perturbations",
+  "engineering_thresholds": {"oof_change_p95": 0.5, "oof_change_max": 1.0, "common_translation_max": 1e-8},
+  "interpretation": "Thresholds are predeclared engineering flags, not universal pharmacological validation cutoffs. Charge and relative-pose sensitivity can be genuine method/data dependence, not code errors. No generated conformer or experimental binding mode is validated by rigid perturbations.",
+  "next_evaluation_rule": "Freeze candidate_block_1A unchanged after numerical controls and all sampling-phase flags pass on the three training sets. If they fail, do not consume fresh external labels to choose a replacement. Independent charge/pose flags remain model-specific warnings. CoMFA remains experimental. Fresh public historical cohorts are not blinded prospective evidence."
+}

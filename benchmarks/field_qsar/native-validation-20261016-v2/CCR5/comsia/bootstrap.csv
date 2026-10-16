@@ -1,0 +1,5 @@
+metric,estimate,lower_95,upper_95,method,repeats,valid_repeats,scaffold_blocks,seed
+R²,-0.6924620462403914,-40.878585267690816,0.20253702671163282,paired scaffold-block percentile bootstrap,500,500,7,42
+RMSE,0.9963407088383245,0.7846747775969801,1.3868216050554496,paired scaffold-block percentile bootstrap,500,500,7,42
+MAE,0.9328435388879814,0.7580545271766109,1.3556593004633326,paired scaffold-block percentile bootstrap,500,500,7,42
+RMSE gain versus baseline,-0.1835938647333042,-0.9004090959534566,0.12418639340968562,paired scaffold-block percentile bootstrap,500,500,7,42

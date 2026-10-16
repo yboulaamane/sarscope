@@ -1,0 +1,15 @@
+{
+  "audited_date": "2026-10-16",
+  "reference": "Publicly mirrored Tripos SYBYL 6.6 QSAR documentation (1999) and public Tripos-5.2 parameter documentation; not a current vendor executable specification",
+  "retrieval": "Verified HTTPS using Python 3.12 after the Python 3.13 TLS stack rejected the legacy host certificate. Certificate verification was not disabled. No proprietary table/program or GPL implementation source was read.",
+  "sources": [
+    {"section": "CoMSIA field definitions", "url": "https://life.nthu.edu.tw/~lslth/QSARandCoMFA/sybyl/sybyl/qsar/qsar_theory18.html", "sha256": "ed133f5e14854cfd489cbb99046cbf00c919858bf6bccd763c0aa84922a2e699", "bytes": 15458},
+    {"section": "Prediction with missing descriptors", "url": "https://life.nthu.edu.tw/~lslth/QSARandCoMFA/sybyl/sybyl/qsar/qsar_theory15.html", "sha256": "9a3d3b8140a9bcfbaf8cbae4cf7c268843eb4a8d3b0f42db9213bd9f40e22822", "bytes": 12734},
+    {"section": "CoMFA field controls", "url": "https://life.nthu.edu.tw/~lslth/QSARandCoMFA/sybyl/sybyl/qsar/qsar_gui11.html", "sha256": "f23603b8eb52aec9250b2127eea98974a8b9307c986705a508a316ae953b6f12", "bytes": 25388},
+    {"section": "CoMFA scaling", "url": "https://life.nthu.edu.tw/~lslth/QSARandCoMFA/sybyl/sybyl/qsar/qsar_theory7.html", "sha256": "e93dddda21b8bf7f412685c585b466308e6375aac2ded5236ea5d67c59284ad0", "bytes": 12359},
+    {"section": "Tripos-5.2 R/K parameters, Table 21", "url": "https://rdock.github.io/documentation/html_docs/reference-guide/appendix.html", "sha256": "109611b473f777419e6f94026f8816fc026fdb6b6d4338b16068f35169063068", "bytes": 36223}
+  ],
+  "primary_force_field": "https://doi.org/10.1002/jcc.540100804",
+  "not_obtained": ["SYBYL executable reference outputs", "comsia/data.lip full atom-property tables", "complete DISCO-like directional extension-point generation specification", "vendor atom-typing parity fixtures"],
+  "claim": "Documented-component implementation and source audit only, not full SYBYL compatibility or validation"
+}

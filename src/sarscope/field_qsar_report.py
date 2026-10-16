@@ -1,0 +1,202 @@
+"""Portable field-QSAR evidence bundles, with failures visible in the report."""
+
+from __future__ import annotations
+
+import base64
+import hashlib
+import html
+import io
+import json
+import zipfile
+from typing import Any
+
+import numpy as np
+import pandas as pd
+from rdkit import Chem
+
+from sarscope.analysis.contours import open_dx, pymol_script
+from sarscope.field_qsar import FieldQsarResult, PreparedFieldSeries
+
+
+def unmodelled_field_warning(summary: pd.DataFrame) -> str:
+    """A zero-field contribution can reflect feature removal, not chemistry."""
+    absent = summary.loc[summary.retained_columns.eq(0), "field"].astype(str).tolist()
+    if not absent:
+        return ""
+    return (
+        "Filtering retained no columns for: " + ", ".join(absent) + ". "
+        "These fields do not contribute to this fitted model. Zero contribution is not "
+        "evidence of no biological effect; unchanged predictions after changing charges "
+        "cannot demonstrate charge robustness if electrostatic columns were removed."
+    )
+
+
+def aligned_sdf(prepared: PreparedFieldSeries, reference_only: bool = False) -> str:
+    buffer = io.StringIO()
+    writer = Chem.SDWriter(buffer)
+    indices = (
+        [prepared.params.reference_index] if reference_only else range(len(prepared.dataset.table))
+    )
+    for index in indices:
+        mol = Chem.Mol(prepared.alignment.molecules[index])
+        row = prepared.dataset.table.iloc[index]
+        mol.SetProp("_Name", str(row.molecule_id))
+        mol.SetDoubleProp("pactivity", float(row.pactivity))
+        writer.write(mol)
+    writer.close()
+    return buffer.getvalue()
+
+
+def _plots(result: FieldQsarResult) -> dict[str, bytes]:
+    from matplotlib.figure import Figure
+
+    test = result.predictions[result.predictions["split"] == "held_out"]
+    images = {}
+    for kind in ("predicted_vs_observed", "residuals", "permutations"):
+        figure = Figure(figsize=(6, 4), layout="constrained")
+        axis = figure.subplots()
+        if kind == "predicted_vs_observed":
+            axis.scatter(test.pactivity, test.prediction, c="#1b9e77", label="3D field PLS")
+            axis.scatter(
+                test.pactivity,
+                test.baseline_prediction,
+                c="#b47ed8",
+                marker="x",
+                label="2D ECFP4 RF",
+            )
+            lo = min(test.pactivity.min(), test.prediction.min(), test.baseline_prediction.min())
+            hi = max(test.pactivity.max(), test.prediction.max(), test.baseline_prediction.max())
+            axis.plot([lo, hi], [lo, hi], "--", color="grey")
+            axis.set(xlabel="Observed pActivity", ylabel="Held-out prediction")
+            axis.legend()
+        elif kind == "residuals":
+            axis.scatter(test.prediction, test.residual, c="#d28738")
+            axis.axhline(0, color="grey", linestyle="--")
+            axis.set(xlabel="Held-out predicted pActivity", ylabel="Observed − predicted")
+        else:
+            if not result.permutations.empty:
+                axis.hist(
+                    result.permutations.q2, bins=min(15, len(result.permutations)), color="#a997cb"
+                )
+            q2 = float(result.statistics.iloc[0].cv_pooled_q2)
+            axis.axvline(q2, color="#1b9e77", label="Real nested-CV q²")
+            axis.set(xlabel="Training-only permutation q²", ylabel="Count")
+            axis.legend()
+        buffer = io.BytesIO()
+        figure.savefig(buffer, format="png", dpi=130)
+        images[kind] = buffer.getvalue()
+    return images
+
+
+def field_qsar_files(result: FieldQsarResult) -> dict[str, bytes]:
+    """No executable pickle: raw inputs, geometry, fields and provenance suffice for audit."""
+    files: dict[str, bytes] = {}
+    tables = {
+        "predictions": result.predictions,
+        "statistics": result.statistics,
+        "validation_checks": result.checks,
+        "permutations": result.permutations,
+        "field_contributions": result.contours.summary,
+        "alignment": result.prepared.alignment.report,
+        "measurements": result.prepared.dataset.measurements,
+        "input_accounting": result.prepared.dataset.accounting,
+        "charges": pd.DataFrame(result.fields.charges),
+        "component_selection": result.regression.fitted_model.selection_table_,
+    }
+    for name, table in tables.items():
+        files[f"{name}.csv"] = table.to_csv(index=False).encode()
+    files["aligned.sdf"] = aligned_sdf(result.prepared).encode()
+    files["reference.sdf"] = aligned_sdf(result.prepared, reference_only=True).encode()
+    files["contours.pml"] = pymol_script(result.contours).encode()
+    for name, values in result.contours.maps.items():
+        files[f"{name}.dx"] = open_dx(result.fields.grid, values).encode()
+    matrix = io.BytesIO()
+    np.savez_compressed(
+        matrix,
+        fields=result.fields.matrix,
+        labels=np.array(result.fields.labels),
+        retained_mask=result.regression.fitted_filter.support_,
+        coefficients=np.asarray(result.regression.fitted_model.coef_),
+        training_sd=result.regression.fitted_filter.training_sd_,
+        column_scale=result.regression.fitted_filter.column_scale_,
+        training_column_means=result.regression.fitted_filter.column_mean_,
+    )
+    files["fields.npz"] = matrix.getvalue()
+    record: dict[str, Any] = {**result.provenance, "status": result.status}
+    files["provenance.json"] = json.dumps(record, indent=2, allow_nan=False).encode()
+    if result.training_stability is not None:
+        for name in ("summary", "predictions", "contributions"):
+            files[f"training_stability/{name}.csv"] = (
+                result.training_stability[name].to_csv(index=False).encode()
+            )
+        files["training_stability/provenance.json"] = json.dumps(
+            result.training_stability["provenance"], indent=2, allow_nan=False
+        ).encode()
+    images = _plots(result)
+    sections = [
+        "<!doctype html><html><meta charset='utf-8'><title>SARscope field QSAR</title>",
+        "<style>body{max-width:1100px;margin:30px auto;font:16px/1.5 system-ui;padding:20px}"
+        "table{border-collapse:collapse;display:block;overflow:auto;font-size:12px}"
+        "td,th{padding:6px;border:1px solid #ddd}img{max-width:100%}"
+        ".warning{border-left:4px solid #c76b22;padding:12px;background:#fff2df}</style>",
+        "<h1>SARscope · experimental field QSAR</h1>",
+        f"<p class='warning'>{html.escape(result.status)}</p>",
+        "<p>Model associations, not binding energies, observed contacts or proof of mechanism. "
+        "No published q² reproduction or superiority over existing software is claimed.</p>",
+        f"<p>{html.escape(result.prepared.alignment.assumption)}</p>",
+        f"<p>{html.escape(result.fields.convention)}</p>",
+    ]
+    field_warning = unmodelled_field_warning(result.contours.summary)
+    if field_warning:
+        sections.append(f"<p class='warning'>{html.escape(field_warning)}</p>")
+    for name in (
+        "validation_checks",
+        "statistics",
+        "field_contributions",
+        "alignment",
+        "component_selection",
+    ):
+        sections.extend(
+            [
+                f"<h2>{html.escape(name.replace('_', ' ').title())}</h2>",
+                tables[name].to_html(index=False, escape=True),
+            ]
+        )
+    sections.append(
+        "<p>Field percentages are shares of absolute coefficient × training-SD "
+        "contributions, not independent explained variance or binding energy.</p>"
+    )
+    if result.training_stability is not None:
+        sections.extend(
+            [
+                "<h2>Training-only stability diagnostics</h2>",
+                "<p>Held-out labels/rows were excluded. Flags concern sensitivity to numerical "
+                "sampling, charges or small relative pose changes; they do not certify "
+                "a binding mode, validate generated conformers "
+                "or establish model predictivity.</p>",
+                result.training_stability["summary"].to_html(index=False, escape=True),
+            ]
+        )
+    for name, content in images.items():
+        files[f"figures/{name}.png"] = content
+        sections.append(
+            f"<h2>{name.replace('_', ' ').title()}</h2><img alt='{name}' "
+            f"src='data:image/png;base64,{base64.b64encode(content).decode()}'>"
+        )
+    sections.append(
+        "<p>Random series splits measure interpolation. The PCA box is only a "
+        "coarse applicability diagnostic. Reusing test scores for tuning invalidates "
+        "the hold-out. Selection-CV q² is not the nested evaluation q².</p></html>"
+    )
+    files["report.html"] = "\n".join(sections).encode()
+    manifest = {name: hashlib.sha256(content).hexdigest() for name, content in files.items()}
+    files["manifest.sha256.json"] = json.dumps(manifest, indent=2).encode()
+    return files
+
+
+def field_qsar_archive(result: FieldQsarResult) -> bytes:
+    buffer = io.BytesIO()
+    with zipfile.ZipFile(buffer, "w", zipfile.ZIP_DEFLATED) as archive:
+        for name, content in field_qsar_files(result).items():
+            archive.writestr(name, content)
+    return buffer.getvalue()

@@ -1,0 +1,23 @@
+{
+  "assessment.json": "f94c32be9497eba4e675b38a0ebf76d12b2162035e95e3a851e58ed01cfc1738",
+  "block_std__reference__external_predictions.csv": "7b6ade3c5a19c332298a43c22f4c9c533b2d3175e20b15905600617c0adf0797",
+  "block_std__reference__loo_predictions.csv": "0eb7a5cfa0f71e146249d48bc310203cfba84d5ddcb48eab9d6162aaf8420a33",
+  "block_std__reference__scores.csv": "31bcb52eb825bfa5e3d6b00544c6cf28c5d82b3dc7c6ad8ba19e14533ff24d74",
+  "block_std__reference_unit_converted__external_predictions.csv": "fa63f8751522c2175ccbe805e1e20fe899ba8faab183c7d7a305ba4361ae2297",
+  "block_std__reference_unit_converted__loo_predictions.csv": "38cf17da735de0007605efd8373058a473fba08bd6fd53bac9396be2f8c09a15",
+  "block_std__reference_unit_converted__scores.csv": "62a2a3ac385f809d052965a07d3ae6569bf9d687b8bfde08c0088892717d939f",
+  "block_std__sarscope__external_predictions.csv": "7bfb3f5e5944ea7e7a0fe1d4c6a478563783cc472b35914e9b2798a7bdb24e69",
+  "block_std__sarscope__loo_predictions.csv": "11da933d78c9fb322639b6d1a3b13da8f39c19a8df6f4ee13dbf2f5e04adb4b7",
+  "block_std__sarscope__scores.csv": "cbb23ecefc14ed16ad32fae6aed33a16910444ce88f03e252264c43f33bc2fbd",
+  "protocol.json": "46fb91be2a10b9a88558799ab471e98582630e3f8c0f348da7b2655a2252c730",
+  "raw__reference__external_predictions.csv": "42d28eb6b4bb57664985a28b99f7d81063b242d11d2948fbb2a5768a45b05cf4",
+  "raw__reference__loo_predictions.csv": "1240694e25580d68891dd2daf0a6b6fc9e1908c21f34df5d16074b47ff5ea53c",
+  "raw__reference__scores.csv": "ab9fe4c3d46b975eec0ee85e64e2406947e9f6155ffb6d1f4193b5816a18e201",
+  "raw__reference_unit_converted__external_predictions.csv": "d837b5d81bbabebcf889ec08d760a6505a07155f9d3da03f33ffc6a01e32ac3d",
+  "raw__reference_unit_converted__loo_predictions.csv": "c1ec519786420eeb9e757149112e5fa52309cc586a2e0b3a1ac97c6e4958cb49",
+  "raw__reference_unit_converted__scores.csv": "2f90a555db48b38b50bb5c5bfe3871599d8f30e3d523f73813ee3e3c3bf1f122",
+  "raw__sarscope__external_predictions.csv": "49be430dfcd12e8b7eae39b447f8b693e6688662b75caa8c1ddc194049e4da98",
+  "raw__sarscope__loo_predictions.csv": "d46c4c54f42be2d0c5380c106c560134412a8ce2ea0d59d98494d1b2aba01efa",
+  "raw__sarscope__scores.csv": "055e2674587947ef61af396286bfd2f70e5d0cc6cc97a8abf121f89a070d7cc3",
+  "summary.csv": "bb3be5ab2f2b760607e060bad6380f5ba2a4614fcd5fda12ec37308ff4b9e34a"
+}

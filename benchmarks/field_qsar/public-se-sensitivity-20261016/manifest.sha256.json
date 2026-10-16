@@ -1,0 +1,16 @@
+{
+  "AChE/public_se_gaussian_1A/contributions.csv": "8c39abda58bc72da1a6c9e81c95ac62f97401559b1278134f773ca592d90d7d9",
+  "AChE/public_se_gaussian_1A/provenance.json": "c1f3f7f330a22dcdc88a6dfa02a0fab3262b4eb83105a55d6db087c4a609c289",
+  "AChE/public_se_gaussian_1A/summary.csv": "036710d5114abc33fdd080a69c2e9ca455202f9d9948a7b276a893c5d665f17d",
+  "AChE/public_se_gaussian_1A/training_oof_predictions.csv": "f8c827bcbedff070afc60b44ced31203721f3dd4a8a95be92182fe69c08dd0c6",
+  "CCR5/public_se_gaussian_1A/contributions.csv": "740ff0ed27096b0b3ed2f4808d3eae035cd5685358b943f27828c2bfd59156ec",
+  "CCR5/public_se_gaussian_1A/provenance.json": "729ca65ce3ed0e8a77c2f518515a980d1f1769ce4608c5a70b1712c5750f86a2",
+  "CCR5/public_se_gaussian_1A/summary.csv": "3b0b652c95ad0a422fb33ca181c890ca6c53bc7a258e8294c605bcb759015067",
+  "CCR5/public_se_gaussian_1A/training_oof_predictions.csv": "74423caf5deb6d2aed8ef11ecd209118f953bd205801bfb94e81f2e4858f1fdc",
+  "THR/public_se_gaussian_1A/contributions.csv": "993badb298fdf474f44bcd72f411415ccf0948ff6bf4697d375d2a05ae3e102e",
+  "THR/public_se_gaussian_1A/provenance.json": "b7a5d158f6f131e418d630522c7ebf59ef0f407c7215e62172cd2cb17caea713",
+  "THR/public_se_gaussian_1A/summary.csv": "457445ee2d9b96e72cfc401ad3e7bb6e3b80f5788d4c2f5e02d3f9f8c35f38b8",
+  "THR/public_se_gaussian_1A/training_oof_predictions.csv": "f45f01aa68321fd80b9e9f9a357a3e8f4a0d874c4f932f9ad843557f8f71d593",
+  "protocol.json": "7cb7fcf4157575d0a3272979b58c5ebfa067b0a61e8cb1c9ffc05b7410c186e4",
+  "summary.csv": "c348583df1d9566af25ba549e2d855c7c20cd7e9e6be9386b93af7cc02b124dd"
+}

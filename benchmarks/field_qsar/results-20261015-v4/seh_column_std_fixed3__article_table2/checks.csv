@@ -1,0 +1,9 @@
+check,passed,value
+Nested training CV q² > 0.5,True,0.7091436929821116
+Held-out predictive R² > 0.6,False,-2048670.5007412038
+Origin calibration (GT-style heuristic),False,0.12916823613948902
+Full-pipeline permutation test,False,
+At least five held-out compounds,True,10
+Alignment thresholds met,False,
+Held-out heavy atoms inside field grid,True,0
+Literature benchmark reproduction,False,Literature benchmark reproduction pending; experimental implementation.

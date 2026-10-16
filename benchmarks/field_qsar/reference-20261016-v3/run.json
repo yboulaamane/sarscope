@@ -1,0 +1,31 @@
+{
+  "command": [
+    "/tmp/sarscope-pycomsia-reference-t__0ma24/venv/bin/python",
+    "<external-checkout>/comsia.py",
+    "--train_file",
+    "<external-checkout>/sdfs/STEROIDS_train.sdf",
+    "--predict_file",
+    "<external-checkout>/sdfs/STEROIDS_test.sdf",
+    "--sdf_activity",
+    "Activity",
+    "--grid_resolution",
+    "1.0",
+    "--grid_padding",
+    "4.0",
+    "--num_components",
+    "3",
+    "--column_filter",
+    "0.0",
+    "--fields",
+    "SEH",
+    "--disable_visualization"
+  ],
+  "reference_commit": "0b30179ecc20aac5a003577b4437399a8fb20bca",
+  "returncode": 0,
+  "timed_out": false,
+  "timeout_seconds": 180.0,
+  "reference_program_modified": false,
+  "reference_source_consulted_for_implementation": false,
+  "numerical_reproduction_established": false,
+  "note": "Process success is not numerical equivalence; compare retained outputs."
+}

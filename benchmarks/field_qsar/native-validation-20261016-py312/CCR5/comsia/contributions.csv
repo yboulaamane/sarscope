@@ -1,0 +1,6 @@
+field,absolute_contribution_percent,retained_columns,positive_level,negative_level,positive_interpretation,negative_interpretation,positive_color,negative_color
+steric,99.32205032037261,724,0.0007278484145176742,-0.00032641885095126613,More local atomic volume is associated with higher pActivity,Opposite association to the positive contour,green,yellow
+electrostatic,0.014844279273864227,363,4.271153013193438e-07,-5.102241641898674e-07,More positive local charge is associated with higher pActivity,Opposite association to the positive contour,blue,red
+hydrophobic,0.20911202300010173,460,1.8284146590188533e-06,-4.469743062757988e-06,More local Crippen logP associates with higher pActivity,Opposite association to the positive contour,orange,white
+hbond_donor,0.02396959638785841,165,1.4347575889018297e-06,-3.716139620442042e-07,More local ligand donor character is associated with higher pActivity,Opposite association to the positive contour,cyan,purple
+hbond_acceptor,0.43002378096554533,288,1.7883249353267223e-05,-3.4174993426466405e-06,More local ligand acceptor character associates with higher potency,Opposite association to the positive contour,magenta,salmon

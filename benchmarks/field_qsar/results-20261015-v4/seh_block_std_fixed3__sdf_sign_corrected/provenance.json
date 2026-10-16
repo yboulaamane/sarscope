@@ -1,0 +1,389 @@
+{
+  "sarscope": "0.1.0.dev0",
+  "created_utc": "2026-10-15T19:56:16+00:00",
+  "python": "3.13.13",
+  "platform": "Linux-6.18.33.1-microsoft-standard-WSL2-x86_64-with-glibc2.39",
+  "packages": {
+    "sorbent": "0.1.1",
+    "rdkit": "2026.9.1",
+    "numpy": "2.5.4",
+    "pandas": "3.0.6",
+    "scipy": "1.18.1",
+    "scikit-learn": "1.9.1",
+    "joblib": "1.6.0",
+    "scikit-fingerprints": null,
+    "molfeat": null,
+    "shap": null,
+    "umap-learn": null,
+    "gemmi": null,
+    "meeko": null
+  },
+  "source": {
+    "kind": "frozen_literature_comparison",
+    "activity_source": "sdf_sign_corrected",
+    "dataset_sha256": "32000e0fafb6b0f4ad2af42854038615962ebe1fb46801ebfd16a7743b85a26c",
+    "article_sha256": "e6cc3e2bac74f93598d6652f668f123abe3526c326ae26d196ab0feb936ad647",
+    "endpoint": "CBG historical binding activity; tabulated point convention",
+    "activity_transform": "pActivity = -stored_pKi_CBG; verify against every published Table 2 value"
+  },
+  "params": {
+    "curation": {
+      "standard_types": [
+        "IC50"
+      ],
+      "relations": [
+        "="
+      ],
+      "units": [
+        "nM"
+      ],
+      "assay_types": [
+        "B"
+      ],
+      "variant": null,
+      "drop_potential_duplicates": true,
+      "drop_flagged_validity": true,
+      "bao_formats": null,
+      "assay_ids": null,
+      "source_ids": null,
+      "min_confidence_score": null,
+      "max_document_year": null,
+      "aggregate": "median",
+      "max_replicate_range": null,
+      "canonical_tautomer": true
+    },
+    "classes": {
+      "bounds": [
+        [
+          "potent",
+          8.0
+        ],
+        [
+          "active",
+          7.0
+        ],
+        [
+          "intermediate",
+          6.0
+        ]
+      ],
+      "floor_label": "inactive",
+      "group1": [
+        "potent",
+        "active"
+      ]
+    },
+    "landscape": {
+      "fingerprints": [
+        "ecfp4",
+        "maccs"
+      ],
+      "similarity_threshold": 0.9,
+      "activity_threshold": 2.0,
+      "generator_sd": 2.0
+    },
+    "matched_pairs": {
+      "max_variable_heavy_atoms": 10,
+      "max_pairs": 100000
+    },
+    "model": {
+      "features": {
+        "fingerprint": "ecfp4",
+        "ecfp_bits": 2048,
+        "variance_threshold": 0.1,
+        "correlation_threshold": 0.95,
+        "representation": "fingerprint",
+        "descriptor_names": []
+      },
+      "algorithms": [
+        "extra_trees",
+        "random_forest",
+        "gradient_boosting",
+        "nearest_neighbors"
+      ],
+      "regression_algorithms": [
+        "field_pls"
+      ],
+      "test_fraction": 0.2,
+      "cv_folds": 3,
+      "regression_cv": "loo",
+      "split": "random",
+      "time_cutoff": 2019,
+      "source_test_id": null,
+      "oversample": false,
+      "leakage_audit": false,
+      "seed": 42,
+      "field_qsar": {
+        "method": "comsia",
+        "field_subset": [
+          "steric",
+          "electrostatic",
+          "hydrophobic"
+        ],
+        "field_scaling": "block_std",
+        "spacing": 1.0,
+        "margin": 4.0,
+        "charge_model": "gasteiger",
+        "allow_charge_fallback": false,
+        "alpha": 0.3,
+        "dielectric": 1.0,
+        "steric_cutoff": 30.0,
+        "minimum_distance": 0.3,
+        "probe_radius": 1.7,
+        "probe_epsilon": 0.107,
+        "filter_mode": "percentile",
+        "minimum_sd": 2.0,
+        "keep_fraction": 1.0,
+        "max_features": 60000,
+        "component_cap": 4,
+        "fixed_components": 3,
+        "component_improvement": 0.05,
+        "alignment": "prealigned",
+        "assess_prealigned_core": false,
+        "reference_index": 0,
+        "min_core_coverage": 0.5,
+        "max_alignment_rmsd": 1.0,
+        "mcs_timeout": 5,
+        "max_mappings": 256,
+        "conformers": 8,
+        "molecule_timeout": 30,
+        "alignment_timeout": 180,
+        "permutation_timeout": 300,
+        "max_molecules": 100,
+        "max_grid_points": 20000,
+        "max_memory_mb": 512,
+        "chunk_points": 512,
+        "permutations": 0,
+        "permutation_alpha": 0.05,
+        "contour_percentile": 80.0,
+        "seed": 42
+      }
+    }
+  },
+  "field_qsar": {
+    "method": "comsia",
+    "field_subset": [
+      "steric",
+      "electrostatic",
+      "hydrophobic"
+    ],
+    "field_scaling": "block_std",
+    "spacing": 1.0,
+    "margin": 4.0,
+    "charge_model": "gasteiger",
+    "allow_charge_fallback": false,
+    "alpha": 0.3,
+    "dielectric": 1.0,
+    "steric_cutoff": 30.0,
+    "minimum_distance": 0.3,
+    "probe_radius": 1.7,
+    "probe_epsilon": 0.107,
+    "filter_mode": "percentile",
+    "minimum_sd": 2.0,
+    "keep_fraction": 1.0,
+    "max_features": 60000,
+    "component_cap": 4,
+    "fixed_components": 3,
+    "component_improvement": 0.05,
+    "alignment": "prealigned",
+    "assess_prealigned_core": false,
+    "reference_index": 0,
+    "min_core_coverage": 0.5,
+    "max_alignment_rmsd": 1.0,
+    "mcs_timeout": 5,
+    "max_mappings": 256,
+    "conformers": 8,
+    "molecule_timeout": 30,
+    "alignment_timeout": 180,
+    "permutation_timeout": 300,
+    "max_molecules": 100,
+    "max_grid_points": 20000,
+    "max_memory_mb": 512,
+    "chunk_points": 512,
+    "permutations": 0,
+    "permutation_alpha": 0.05,
+    "contour_percentile": 80.0,
+    "seed": 42
+  },
+  "model": {
+    "features": {
+      "fingerprint": "ecfp4",
+      "ecfp_bits": 2048,
+      "variance_threshold": 0.1,
+      "correlation_threshold": 0.95,
+      "representation": "fingerprint",
+      "descriptor_names": []
+    },
+    "algorithms": [
+      "extra_trees",
+      "random_forest",
+      "gradient_boosting",
+      "nearest_neighbors"
+    ],
+    "regression_algorithms": [
+      "field_pls"
+    ],
+    "test_fraction": 0.2,
+    "cv_folds": 3,
+    "regression_cv": "loo",
+    "split": "random",
+    "time_cutoff": 2019,
+    "source_test_id": null,
+    "oversample": false,
+    "leakage_audit": false,
+    "seed": 42,
+    "field_qsar": {
+      "method": "comsia",
+      "field_subset": [
+        "steric",
+        "electrostatic",
+        "hydrophobic"
+      ],
+      "field_scaling": "block_std",
+      "spacing": 1.0,
+      "margin": 4.0,
+      "charge_model": "gasteiger",
+      "allow_charge_fallback": false,
+      "alpha": 0.3,
+      "dielectric": 1.0,
+      "steric_cutoff": 30.0,
+      "minimum_distance": 0.3,
+      "probe_radius": 1.7,
+      "probe_epsilon": 0.107,
+      "filter_mode": "percentile",
+      "minimum_sd": 2.0,
+      "keep_fraction": 1.0,
+      "max_features": 60000,
+      "component_cap": 4,
+      "fixed_components": 3,
+      "component_improvement": 0.05,
+      "alignment": "prealigned",
+      "assess_prealigned_core": false,
+      "reference_index": 0,
+      "min_core_coverage": 0.5,
+      "max_alignment_rmsd": 1.0,
+      "mcs_timeout": 5,
+      "max_mappings": 256,
+      "conformers": 8,
+      "molecule_timeout": 30,
+      "alignment_timeout": 180,
+      "permutation_timeout": 300,
+      "max_molecules": 100,
+      "max_grid_points": 20000,
+      "max_memory_mb": 512,
+      "chunk_points": 512,
+      "permutations": 0,
+      "permutation_alpha": 0.05,
+      "contour_percentile": 80.0,
+      "seed": 42
+    }
+  },
+  "grid": {
+    "origin": [
+      -11.0,
+      -7.0,
+      -7.0
+    ],
+    "shape": [
+      23,
+      15,
+      15
+    ],
+    "spacing": 1.0
+  },
+  "field_convention": "positive-sum Gaussian; r^3/RDKit radii; Crippen logP; atom-centred H-bond features",
+  "alignment_assumption": "Supplied pre-aligned coordinates retained unchanged. Stereo and finite-coordinate checks passed; common-core RMSD/coverage were not assessed. Alignment validity must come from the declared external protocol, not this software.",
+  "alignment_settings": {
+    "method": "comsia",
+    "field_subset": [],
+    "field_scaling": "raw",
+    "spacing": 2.0,
+    "margin": 4.0,
+    "charge_model": "gasteiger",
+    "allow_charge_fallback": false,
+    "alpha": 0.3,
+    "dielectric": 1.0,
+    "steric_cutoff": 30.0,
+    "minimum_distance": 0.3,
+    "probe_radius": 1.7,
+    "probe_epsilon": 0.107,
+    "filter_mode": "percentile",
+    "minimum_sd": 2.0,
+    "keep_fraction": 0.3,
+    "max_features": 2000,
+    "component_cap": 4,
+    "fixed_components": null,
+    "component_improvement": 0.05,
+    "alignment": "prealigned",
+    "assess_prealigned_core": false,
+    "reference_index": 0,
+    "min_core_coverage": 0.5,
+    "max_alignment_rmsd": 1.0,
+    "mcs_timeout": 5,
+    "max_mappings": 256,
+    "conformers": 8,
+    "molecule_timeout": 30,
+    "alignment_timeout": 180,
+    "permutation_timeout": 120,
+    "max_molecules": 100,
+    "max_grid_points": 12000,
+    "max_memory_mb": 256,
+    "chunk_points": 512,
+    "permutations": 19,
+    "permutation_alpha": 0.05,
+    "contour_percentile": 80.0,
+    "seed": 42
+  },
+  "common_core_smarts": "",
+  "benchmark_status": "Literature benchmark reproduction pending; experimental implementation.",
+  "feature_mask_policy": "training-only; undefined held-out CoMFA fields refuse scoring",
+  "cv": "nested component selection; pooled q2 = 1 - PRESS / training SST",
+  "split_interpretation": "prespecified external benchmark partition",
+  "split_indices": {
+    "train": [
+      0,
+      1,
+      2,
+      3,
+      4,
+      5,
+      6,
+      7,
+      8,
+      9,
+      10,
+      11,
+      12,
+      13,
+      14,
+      15,
+      16,
+      17,
+      18,
+      19,
+      20
+    ],
+    "test": [
+      21,
+      22,
+      23,
+      24,
+      25,
+      26,
+      27,
+      28,
+      29,
+      30
+    ]
+  },
+  "permutation_test": "training labels only; repeats nested selection; (1+C)/(1+B)",
+  "input_measurements_sha256": "48ad1b29257ba25f609d2fd6acb4950040eaf54a0e277600478dd0b2ac4d980d",
+  "implementation_sha256": {
+    "field_qsar.py": "9e920e993386486efaf6bf84cd1a2307e8c2b5caa5dad7aa6870d44493b999a0",
+    "analysis/fields.py": "f807f33e611e308b8842521ee86cbb89f7e5eee9bbf1f2fe850c54418a9afd22",
+    "analysis/align3d.py": "dd76f0fa33a06b64465daa55ef5127b33f15e63492c0643faf3e0714f63a990d",
+    "analysis/contours.py": "7ef563755456a681a6553723db5d9d835a34f9e1e3721fc4e09b1c4f5d0c96f7",
+    "analysis/field_filter.py": "383d8c35be1d899d86dbb7aed4652f454ac51dffb95370c34f33ab4c6846fdda",
+    "analysis/regression.py": "2779a29c6ef39befe759a97d0932fa8c1b34b7dbb5eec2caee7c482bcc07de03"
+  }
+}

@@ -1,0 +1,211 @@
+{
+  "settings": {
+    "method": "comsia",
+    "field_subset": [],
+    "field_scaling": "raw",
+    "grid_convention": "enclosing",
+    "grid_phase": [
+      0.0,
+      0.0,
+      0.0
+    ],
+    "spacing": 2.0,
+    "margin": 4.0,
+    "charge_model": "gasteiger",
+    "allow_charge_fallback": false,
+    "alpha": 0.3,
+    "dielectric": 1.0,
+    "steric_cutoff": 30.0,
+    "minimum_distance": 0.3,
+    "probe_radius": 1.7,
+    "probe_epsilon": 0.107,
+    "filter_mode": "percentile",
+    "minimum_sd": 2.0,
+    "keep_fraction": 0.3,
+    "max_features": 2000,
+    "component_cap": 4,
+    "fixed_components": null,
+    "component_improvement": 0.05,
+    "component_selection": "max_q2",
+    "component_sample_ratio": 5,
+    "pls_max_iter": 500,
+    "pls_tolerance": 1e-06,
+    "alignment": "prealigned",
+    "assess_prealigned_core": false,
+    "preserve_input_hydrogens": true,
+    "reference_index": 0,
+    "min_core_coverage": 0.5,
+    "max_alignment_rmsd": 1.0,
+    "mcs_timeout": 5,
+    "max_mappings": 256,
+    "conformers": 8,
+    "molecule_timeout": 30,
+    "alignment_timeout": 180,
+    "permutation_timeout": 120,
+    "max_molecules": 150,
+    "max_grid_points": 20000,
+    "max_memory_mb": 512,
+    "chunk_points": 512,
+    "permutations": 0,
+    "permutation_alpha": 0.05,
+    "contour_percentile": 80.0,
+    "seed": 42
+  },
+  "model": {
+    "features": {
+      "fingerprint": "ecfp4",
+      "ecfp_bits": 2048,
+      "variance_threshold": 0.1,
+      "correlation_threshold": 0.95,
+      "representation": "fingerprint",
+      "descriptor_names": []
+    },
+    "algorithms": [
+      "extra_trees",
+      "random_forest",
+      "gradient_boosting",
+      "nearest_neighbors"
+    ],
+    "regression_algorithms": [
+      "extra_trees",
+      "random_forest",
+      "gradient_boosting",
+      "nearest_neighbors",
+      "svr"
+    ],
+    "test_fraction": 0.2,
+    "cv_folds": 3,
+    "regression_cv": "default",
+    "split": "random",
+    "time_cutoff": 2019,
+    "source_test_id": null,
+    "oversample": true,
+    "leakage_audit": true,
+    "seed": 42,
+    "field_qsar": null
+  },
+  "variants": [
+    {
+      "name": "baseline",
+      "settings": {},
+      "kind": "baseline"
+    },
+    {
+      "name": "mmff94",
+      "settings": {
+        "charge_model": "mmff94"
+      },
+      "kind": "charge"
+    },
+    {
+      "name": "phase_x",
+      "settings": {
+        "grid_phase": [
+          0.5,
+          0,
+          0
+        ]
+      },
+      "kind": "grid_phase"
+    },
+    {
+      "name": "phase_y",
+      "settings": {
+        "grid_phase": [
+          0,
+          0.5,
+          0
+        ]
+      },
+      "kind": "grid_phase"
+    },
+    {
+      "name": "phase_z",
+      "settings": {
+        "grid_phase": [
+          0,
+          0,
+          0.5
+        ]
+      },
+      "kind": "grid_phase"
+    },
+    {
+      "name": "phase_xyz",
+      "settings": {
+        "grid_phase": [
+          0.5,
+          0.5,
+          0.5
+        ]
+      },
+      "kind": "grid_phase"
+    },
+    {
+      "name": "pose_1101",
+      "settings": {},
+      "kind": "relative_pose",
+      "seed": 1101
+    },
+    {
+      "name": "pose_1102",
+      "settings": {},
+      "kind": "relative_pose",
+      "seed": 1102
+    },
+    {
+      "name": "pose_1103",
+      "settings": {},
+      "kind": "relative_pose",
+      "seed": 1103
+    },
+    {
+      "name": "common_translation",
+      "settings": {},
+      "kind": "numerical_control"
+    }
+  ],
+  "source": {
+    "name": "CCR5",
+    "activity": "Activity",
+    "train": {
+      "sha256": "afa97e9a19c65c8d19523233016f3f065ab72cd4a51030b6ce79196290d489f5",
+      "bytes": 397370,
+      "valid": 63,
+      "invalid": 0
+    },
+    "scope": "training_only"
+  },
+  "training_rows": 63,
+  "held_out_rows_used": 0,
+  "held_out_labels_used": false,
+  "decision": "diagnostic only; no automatic preset/charge selection or certification",
+  "thresholds": {
+    "prediction_change_p95": 0.5,
+    "prediction_change_max": 1.0,
+    "common_translation_max": 1e-08
+  },
+  "pose_perturbation": {
+    "translation_A": 0.25,
+    "rotation_degrees": 5,
+    "reference": "first training row held fixed"
+  },
+  "versions": {
+    "sorbent": "0.1.1",
+    "rdkit": "2026.9.1",
+    "numpy": "2.5.4",
+    "pandas": "3.0.6",
+    "scipy": "1.18.1",
+    "scikit-learn": "1.9.1",
+    "joblib": "1.6.0",
+    "scikit-fingerprints": null,
+    "molfeat": null,
+    "shap": null,
+    "umap-learn": null,
+    "gemmi": null,
+    "meeko": null,
+    "threadpoolctl": "3.7.0"
+  },
+  "runner_sha256": "fd33993befeaccc647c5f51e366e1d44413baa3c4d7fdbe45970d2130232f98d",
+  "elapsed_seconds": 5.823526528998627
+}

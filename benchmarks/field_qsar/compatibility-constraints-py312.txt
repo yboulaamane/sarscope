@@ -1,0 +1,6 @@
+# Tested numerical stack, not a complete transitive dependency lock.
+numpy==2.2.4
+pandas==2.2.3
+rdkit==2024.9.6
+scikit-learn==1.6.1
+scipy==1.18.1

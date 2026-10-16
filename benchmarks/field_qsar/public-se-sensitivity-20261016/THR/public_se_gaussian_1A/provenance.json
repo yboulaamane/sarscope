@@ -1,0 +1,232 @@
+{
+  "settings": {
+    "method": "comsia",
+    "field_definition": "tripos52_se",
+    "field_subset": [
+      "steric",
+      "electrostatic"
+    ],
+    "field_scaling": "block_std",
+    "grid_convention": "enclosing",
+    "grid_phase": [
+      0.0,
+      0.0,
+      0.0
+    ],
+    "spacing": 1.0,
+    "margin": 4.0,
+    "charge_model": "gasteiger",
+    "allow_charge_fallback": false,
+    "alpha": 0.3,
+    "dielectric": 1.0,
+    "dielectric_model": "constant",
+    "electrostatic_cutoff": null,
+    "missing_field_policy": "refuse",
+    "max_imputed_fraction": 0.1,
+    "steric_cutoff": 30.0,
+    "minimum_distance": 0.3,
+    "probe_radius": 1.7,
+    "probe_epsilon": 0.107,
+    "filter_mode": "percentile",
+    "minimum_sd": 2.0,
+    "keep_fraction": 0.3,
+    "max_features": 2000,
+    "component_cap": 4,
+    "fixed_components": null,
+    "component_improvement": 0.05,
+    "component_selection": "max_q2",
+    "component_sample_ratio": 5,
+    "pls_max_iter": 500,
+    "pls_tolerance": 1e-06,
+    "alignment": "prealigned",
+    "assess_prealigned_core": false,
+    "preserve_input_hydrogens": true,
+    "reference_index": 0,
+    "min_core_coverage": 0.5,
+    "max_alignment_rmsd": 1.0,
+    "mcs_timeout": 5,
+    "max_mappings": 256,
+    "conformers": 8,
+    "molecule_timeout": 30,
+    "alignment_timeout": 180,
+    "permutation_timeout": 600,
+    "max_molecules": 150,
+    "max_grid_points": 80000,
+    "max_memory_mb": 512,
+    "chunk_points": 512,
+    "permutations": 0,
+    "permutation_alpha": 0.05,
+    "contour_percentile": 80.0,
+    "seed": 42
+  },
+  "model": {
+    "features": {
+      "fingerprint": "ecfp4",
+      "ecfp_bits": 2048,
+      "variance_threshold": 0.1,
+      "correlation_threshold": 0.95,
+      "representation": "fingerprint",
+      "descriptor_names": []
+    },
+    "algorithms": [
+      "extra_trees",
+      "random_forest",
+      "gradient_boosting",
+      "nearest_neighbors"
+    ],
+    "regression_algorithms": [
+      "extra_trees",
+      "random_forest",
+      "gradient_boosting",
+      "nearest_neighbors",
+      "svr"
+    ],
+    "test_fraction": 0.2,
+    "cv_folds": 3,
+    "regression_cv": "default",
+    "split": "random",
+    "time_cutoff": 2019,
+    "source_test_id": null,
+    "oversample": true,
+    "leakage_audit": true,
+    "seed": 42,
+    "field_qsar": null
+  },
+  "variants": [
+    {
+      "name": "baseline",
+      "settings": {},
+      "kind": "baseline"
+    },
+    {
+      "name": "mmff94",
+      "settings": {
+        "charge_model": "mmff94"
+      },
+      "kind": "charge"
+    },
+    {
+      "name": "phase_x",
+      "settings": {
+        "grid_phase": [
+          0.5,
+          0,
+          0
+        ]
+      },
+      "kind": "grid_phase"
+    },
+    {
+      "name": "phase_y",
+      "settings": {
+        "grid_phase": [
+          0,
+          0.5,
+          0
+        ]
+      },
+      "kind": "grid_phase"
+    },
+    {
+      "name": "phase_z",
+      "settings": {
+        "grid_phase": [
+          0,
+          0,
+          0.5
+        ]
+      },
+      "kind": "grid_phase"
+    },
+    {
+      "name": "phase_xyz",
+      "settings": {
+        "grid_phase": [
+          0.5,
+          0.5,
+          0.5
+        ]
+      },
+      "kind": "grid_phase"
+    },
+    {
+      "name": "pose_1101",
+      "settings": {},
+      "kind": "relative_pose",
+      "seed": 1101
+    },
+    {
+      "name": "pose_1102",
+      "settings": {},
+      "kind": "relative_pose",
+      "seed": 1102
+    },
+    {
+      "name": "pose_1103",
+      "settings": {},
+      "kind": "relative_pose",
+      "seed": 1103
+    },
+    {
+      "name": "common_translation",
+      "settings": {},
+      "kind": "numerical_control"
+    }
+  ],
+  "source": {
+    "name": "THR",
+    "activity": "Activity",
+    "train": {
+      "sha256": "eceefa5dd935bae97d14be521714a2d8641703a768fe21743e02f1071f6a540f",
+      "bytes": 339293,
+      "valid": 59,
+      "invalid": 0
+    },
+    "scope": "training_only"
+  },
+  "training_rows": 59,
+  "held_out_rows_used": 0,
+  "held_out_labels_used": false,
+  "decision": "diagnostic only; no automatic preset/charge selection or certification",
+  "thresholds": {
+    "prediction_change_p95": 0.5,
+    "prediction_change_max": 1.0,
+    "common_translation_max": 1e-08
+  },
+  "pose_perturbation": {
+    "translation_A": 0.25,
+    "rotation_degrees": 5,
+    "reference": "first training row held fixed"
+  },
+  "versions": {
+    "sorbent": "0.1.1",
+    "rdkit": "2026.9.1",
+    "numpy": "2.5.4",
+    "pandas": "3.0.6",
+    "scipy": "1.18.1",
+    "scikit-learn": "1.9.1",
+    "joblib": "1.6.0",
+    "scikit-fingerprints": null,
+    "molfeat": null,
+    "shap": null,
+    "umap-learn": null,
+    "gemmi": null,
+    "meeko": null,
+    "threadpoolctl": "3.7.0"
+  },
+  "runner_sha256": "f5a99d9a96f010f2c9d44abb72a16890a0201f928fd618c4cfb72c3bc4d40320",
+  "workflow_sha256": {
+    "params.py": "561fc4bdda0e41c8134dc4f222ac4d9ed9d8f9e391d0dc45b45ffbba98c2555c",
+    "field_qsar.py": "e70cb61e145b83e774c51521530de973aa0ec0ac65c6f549d6385c46fb2d7c79",
+    "field_campaign.py": "b8cad0050d9b546b0e14bdf1729dce21031fdd17e7a37af7864342546e02e3b3",
+    "field_qualification.py": "13e43de0192bf417bbbfbfa306c9d383650abab644c66dde5892b4814a5685b5",
+    "field_sensitivity.py": "f5a99d9a96f010f2c9d44abb72a16890a0201f928fd618c4cfb72c3bc4d40320",
+    "analysis/fields.py": "58cd02f59bbed6985d01811ee4d7d09d7708f002368c008097b2a8c6f1bf6399",
+    "analysis/align3d.py": "d88fabe2ff7a5142bc45af85016ea2595ec28ad120ca3d86ca34adb429fc7582",
+    "analysis/field_filter.py": "0b4c28d4cfb2947965e682fa03824af4391f4f186bcd3ed43441e451a98967f7",
+    "analysis/regression.py": "b376cbdf8942656973b2ae96a511ad19829764cc9d1df28ef6ea17bc072837b9",
+    "analysis/contours.py": "7ef563755456a681a6553723db5d9d835a34f9e1e3721fc4e09b1c4f5d0c96f7",
+    "analysis/tripos_reference.py": "9923675fcdc4da762afa9c5904959f3fbf85fd74df2eedc3a6a627c6baab5f55"
+  },
+  "elapsed_seconds": 11.78947911299474
+}

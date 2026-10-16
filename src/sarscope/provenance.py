@@ -26,6 +26,9 @@ TRACKED_PACKAGES: tuple[str, ...] = (
     "molfeat",
     "shap",
     "umap-learn",
+    "gemmi",
+    "meeko",
+    "threadpoolctl",
 )
 
 

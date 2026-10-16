@@ -1,0 +1,45 @@
+{
+  "expected_cases": 6,
+  "completed_cases": 3,
+  "failed_cases": 3,
+  "families": [
+    "G-protein-coupled receptor",
+    "carboxylesterase",
+    "serine protease"
+  ],
+  "all_failures_retained": true,
+  "historical_preprocessing_or_test_mean_correction": false,
+  "prospective_or_blinded": false,
+  "package_certified": false,
+  "interpretation": {
+    "unit": "Each method/target is a separate evaluation, not a pooled activity endpoint",
+    "software_verification": "Successful calculation or poor predictive performance is not by itself proof of a correct or incorrect algorithm",
+    "model_qualification": "Use the existing run-level checks; a failed gate remains failed. Skipped alignment-core QC does not pass alignment validation.",
+    "independence": "New-to-SARscope evaluations on public historical test splits, not blinded, prospective or independent-laboratory validation",
+    "no_claim": "This campaign cannot by itself certify the package, establish proprietary CoMFA/CoMSIA parity, validate generated alignment, or establish universal predictive superiority"
+  },
+  "runner_sha256": "5ab5031d5226cc92377773dad096e11b14a88291f46fe31b16d0469f2eaabd06",
+  "source_sha256": {
+    "analysis/__init__.py": "16843b0ee9db3fe972470713594885a2bed0016ea553ec3ff63774a933b81974",
+    "analysis/align3d.py": "d88fabe2ff7a5142bc45af85016ea2595ec28ad120ca3d86ca34adb429fc7582",
+    "analysis/chemical_space.py": "dc1ba4bf659bd3a9f2b478795a0d4663420731bf3fd202147bd7b069007674a2",
+    "analysis/contours.py": "7ef563755456a681a6553723db5d9d835a34f9e1e3721fc4e09b1c4f5d0c96f7",
+    "analysis/descriptors.py": "fc674a610ccf912f3c4e573e342fac8c10ba626dffb915511791f2f8eb620e7c",
+    "analysis/diagnostics.py": "fe79f6a12a4d6dbdd591ef3db8efe2c5ba553011fd89d712570dcec5c0b78a8d",
+    "analysis/domain.py": "919a2c78958bdcdc41c5f01900511eb8ecc52c120ffffc2536c1f2e31b12dc41",
+    "analysis/explain.py": "d2989bd5b6a1d0652cae673dd8ad1ad14f96eca25b219fdef5fc5fc62af30296",
+    "analysis/features.py": "2a1ddadd5b247f3f0ba882984a164e85f89f54b714fdee1415408cbadb0aa9f0",
+    "analysis/field_filter.py": "383d8c35be1d899d86dbb7aed4652f454ac51dffb95370c34f33ab4c6846fdda",
+    "analysis/fields.py": "b8cf614dabaebf37d7c4ed64457aa157526114910572fbfa20361e07cc69835f",
+    "analysis/landscape.py": "b2d9a06be424db1fc03657e5ffc0270841f12e854bf21bf9ee375c569d2eb84f",
+    "analysis/mmp.py": "f4af38af66c0559e0d1b4fe50f19943e692f5268cc66e94d47c573eb63c566d3",
+    "analysis/model.py": "32a03089cc51390ad7f691a6d38ef97a3cc6cbb6b3424912e94d1a54ac501a5f",
+    "analysis/profile.py": "3a467b6bece02420e4f3fbeca444fc23a80e518e6889e1dff2f33f86cd3e1d78",
+    "analysis/regression.py": "b376cbdf8942656973b2ae96a511ad19829764cc9d1df28ef6ea17bc072837b9",
+    "analysis/representations.py": "518cd0643e7dbe812e4d4c815577ded21232fba47a078574a12364fb3749b7f9",
+    "analysis/rgroups.py": "482750c78e68368afe9b1bce3121448a98dcc2d154a63a4a7c577d9476abc335",
+    "analysis/sar_map.py": "c4b1579e3e80579637a395d8447d826f497506345542c6e84240035fc46add43",
+    "analysis/sar_stress.py": "57293fd4a9441d5e17f3b5703d2daa1baa811a4241dcae8aa998668138f1fd0f",
+    "analysis/scaffolds.py": "be3e775cb483a4f318591e989afab7a9d75ae97ad798b6b1951694f100f00dac"
+  }
+}

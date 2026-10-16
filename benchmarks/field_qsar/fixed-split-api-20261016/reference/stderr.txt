@@ -1,0 +1,25 @@
+Traceback (most recent call last):
+  File "/home/yassir/cdd/sarscope/benchmarks/field_qsar/fixed_split_api_probe.py", line 176, in <module>
+    main()
+  File "/home/yassir/cdd/sarscope/benchmarks/field_qsar/fixed_split_api_probe.py", line 168, in main
+    worker(args.checkout, args.out, args.source)
+  File "/home/yassir/cdd/sarscope/benchmarks/field_qsar/fixed_split_api_probe.py", line 49, in worker
+    json.dumps(
+  File "/usr/lib/python3.12/json/__init__.py", line 238, in dumps
+    **kw).encode(obj)
+          ^^^^^^^^^^^
+  File "/usr/lib/python3.12/json/encoder.py", line 202, in encode
+    chunks = list(chunks)
+             ^^^^^^^^^^^^
+  File "/usr/lib/python3.12/json/encoder.py", line 432, in _iterencode
+    yield from _iterencode_dict(o, _current_indent_level)
+  File "/usr/lib/python3.12/json/encoder.py", line 406, in _iterencode_dict
+    yield from chunks
+  File "/usr/lib/python3.12/json/encoder.py", line 406, in _iterencode_dict
+    yield from chunks
+  File "/usr/lib/python3.12/json/encoder.py", line 439, in _iterencode
+    o = _default(o)
+        ^^^^^^^^^^^
+  File "/usr/lib/python3.12/json/encoder.py", line 180, in default
+    raise TypeError(f'Object of type {o.__class__.__name__} '
+TypeError: Object of type int64 is not JSON serializable
