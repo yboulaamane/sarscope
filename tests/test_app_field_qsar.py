@@ -72,6 +72,59 @@ def test_viewer_escapes_uploaded_script_fragments():
     assert "\\u003c/script>" in content
 
 
+@pytest.mark.parametrize("compound_count", [55, 125])
+def test_scaffold_change_resets_compounds_but_ordinary_reruns_preserve_edits(
+    field_result, monkeypatch, compound_count
+):
+    from dataclasses import replace
+
+    import pandas as pd
+
+    import sarscope.field_qsar_ui as ui
+
+    original = field_result.prepared.dataset
+    table = pd.concat([original.table] * 7, ignore_index=True).iloc[:compound_count].copy()
+    table["molecule_id"] = [f"selection_test_{i}" for i in range(compound_count)]
+    dataset = replace(
+        original,
+        table=table,
+        measurements=table[["molecule_id", "smiles", "pactivity"]].copy(),
+        molecules=[original.molecules[i % len(original.molecules)] for i in range(compound_count)],
+    )
+    current = {"dataset": dataset}
+    monkeypatch.setattr(ui, "_assay_dataset", lambda *args: current["dataset"])
+    # Controlled ten-member groups isolate widget state from scaffold chemistry.
+    monkeypatch.setattr(
+        ui,
+        "add_scaffolds",
+        lambda table: table.assign(murcko=[f"series_{i // 10}" for i in range(len(table))]),
+    )
+    app = AppTest.from_string(SCRIPT, default_timeout=30)
+    app.session_state["fixture"] = field_result
+    app.run()
+    assert not app.exception
+    assert len(app.multiselect(key="test_field_compounds").value) == 10
+    first_scaffold = app.selectbox(key="test_field_scaffold").value
+    chosen = app.multiselect(key="test_field_compounds").value[1:]
+    app.multiselect(key="test_field_compounds").set_value(chosen).run()
+    app.run()
+    assert app.multiselect(key="test_field_compounds").value == chosen
+    app.selectbox(key="test_field_scaffold").select("All compounds").run()
+    assert not app.exception
+    expected = table.molecule_id.tolist() if compound_count <= 100 else []
+    assert app.multiselect(key="test_field_compounds").value == expected
+    if expected:
+        app.multiselect(key="test_field_compounds").set_value(expected[1:]).run()
+        app.run()
+        assert app.multiselect(key="test_field_compounds").value == expected[1:]
+        current["dataset"] = replace(dataset, source={"kind": "replacement upload"})
+        app.run()
+        assert app.multiselect(key="test_field_compounds").value == expected
+    app.selectbox(key="test_field_scaffold").select(first_scaffold).run()
+    assert not app.exception
+    assert len(app.multiselect(key="test_field_compounds").value) == 10
+
+
 def test_training_stability_is_button_gated_and_excludes_heldout_rows(field_result, monkeypatch):
     from types import SimpleNamespace
 
