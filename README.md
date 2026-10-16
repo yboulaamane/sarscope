@@ -422,5 +422,10 @@ do not — see `analysis/descriptors.py` for why.
 
 ## License
 
-MIT. ChEMBL data is CC BY-SA 3.0; cite ChEMBL when you publish results built on
-it.
+CC BY-SA 4.0. Share-alike: anything derived from this code must carry a
+BY-SA licence too. ChEMBL source data is CC BY-SA 3.0 (EMBL-EBI) under its own
+attribution; cite ChEMBL when you publish results built on it.
+
+CC BY-SA 4.0 is not an OSI-approved licence and reserves patent and trademark
+rights (section 2(b)(2)). It was chosen so that code may be shared with
+CC BY-SA 4.0 reference implementations of the same methods.

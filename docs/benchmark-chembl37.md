@@ -7,7 +7,7 @@ activity records. The fixed panel covers BRAF (kinase), DRD2 (class A GPCR),
 and ESR1 (nuclear receptor). Full frozen data and molecule-level predictions
 are not redistributed here. They are regenerated into `runs/benchmark-chembl37/`,
 which stays gitignored, by re-running the benchmark against ChEMBL. Source
-records are CC BY-SA 3.0 (EMBL-EBI) rather than the MIT code licence.
+records are CC BY-SA 3.0 (EMBL-EBI), distinct from the CC BY-SA 4.0 code licence.
 
 | Target | Family | Raw IC50 | Curated | Train / test | Test R² | Test RMSE | Test Spearman | Median baseline RMSE |
 |---|---|---:|---:|---:|---:|---:|---:|---:|

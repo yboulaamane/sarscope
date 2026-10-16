@@ -8,7 +8,7 @@ authors:
 repository-code: "https://github.com/yboulaamane/sarscope"
 url: "https://sarscope.streamlit.app/"
 version: "0.1.0"
-license: MIT
+license: CC-BY-SA-4.0
 abstract: "A staged browser and command-line workflow for traceable assay-aware SAR analysis, activity-cliff exploration and retrospective QSAR. Evidence grades are descriptive support heuristics, not calibrated probabilities."
 keywords:
   - cheminformatics
