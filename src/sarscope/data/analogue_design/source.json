@@ -1,0 +1,190 @@
+{
+  "kind": "bundled_chembl_assay",
+  "release": "ChEMBL_37",
+  "retrieved_utc": "2026-10-17T06:17:32+00:00",
+  "target_id": "CHEMBL203",
+  "target_name": "EGFR",
+  "assay": "CHEMBL944276",
+  "description": "Inhibition of human recombinant EGFR",
+  "confidence_score": 9,
+  "endpoint": "IC50",
+  "variant": "Unreported",
+  "document": {
+    "document_chembl_id": "CHEMBL1140899",
+    "title": "Computational studies of epidermal growth factor receptor: docking reliability, three-dimensional quantitative structure-activity relationship analysis, and virtual screening studies.",
+    "authors": "La Motta C, Sartini S, Tuccinardi T, Nerini E, Da Settimo F, Martinelli A.",
+    "journal": "J Med Chem",
+    "year": 2009,
+    "doi": "10.1021/jm800829v"
+  },
+  "urls": {
+    "activities": "https://www.ebi.ac.uk/chembl/api/data/activity.json?assay_chembl_id=CHEMBL944276&limit=1000",
+    "assay": "https://www.ebi.ac.uk/chembl/api/data/assay/CHEMBL944276.json",
+    "document": "https://www.ebi.ac.uk/chembl/api/data/document/CHEMBL1140899.json",
+    "status": "https://www.ebi.ac.uk/chembl/api/data/status.json"
+  },
+  "license": "CC-BY-SA-3.0",
+  "license_url": "https://creativecommons.org/licenses/by-sa/3.0/",
+  "attribution": "Data from ChEMBL, EMBL-EBI; original source La Motta et al., J Med Chem 2009, doi:10.1021/jm800829v.",
+  "conversion": "pIC50 = 9 - log10(IC50 in nM); retained same-assay exact records, median per curated isomeric structure; no fabricated or imputed activities.",
+  "comparability_note": "One ChEMBL assay annotation from a retrospective computational study. Underlying experimental protocol comparability was not independently verified. Unreported variants are not confirmed wild type.",
+  "curation": {
+    "standard_types": [
+      "IC50"
+    ],
+    "relations": [
+      "="
+    ],
+    "units": [
+      "nM"
+    ],
+    "assay_types": [
+      "B"
+    ],
+    "variant": null,
+    "drop_potential_duplicates": true,
+    "drop_flagged_validity": true,
+    "bao_formats": null,
+    "assay_ids": null,
+    "source_ids": null,
+    "min_confidence_score": null,
+    "max_document_year": null,
+    "aggregate": "median",
+    "max_replicate_range": null,
+    "canonical_tautomer": false
+  },
+  "curation_steps": [
+    {
+      "name": "standard_type",
+      "records_in": 181,
+      "records_out": 181,
+      "molecules_out": 180,
+      "detail": "kept IC50"
+    },
+    {
+      "name": "relation",
+      "records_in": 181,
+      "records_out": 178,
+      "molecules_out": 177,
+      "detail": ""
+    },
+    {
+      "name": "units",
+      "records_in": 178,
+      "records_out": 178,
+      "molecules_out": 177,
+      "detail": "converted concentration values to -log10(molar) before aggregation"
+    },
+    {
+      "name": "assay_type",
+      "records_in": 178,
+      "records_out": 178,
+      "molecules_out": 177,
+      "detail": ""
+    },
+    {
+      "name": "source_origin",
+      "records_in": 178,
+      "records_out": 178,
+      "molecules_out": 177,
+      "detail": ""
+    },
+    {
+      "name": "variant",
+      "records_in": 178,
+      "records_out": 178,
+      "molecules_out": 177,
+      "detail": ""
+    },
+    {
+      "name": "potential_duplicate",
+      "records_in": 178,
+      "records_out": 106,
+      "molecules_out": 106,
+      "detail": ""
+    },
+    {
+      "name": "validity",
+      "records_in": 106,
+      "records_out": 106,
+      "molecules_out": 106,
+      "detail": ""
+    },
+    {
+      "name": "bao_format",
+      "records_in": 106,
+      "records_out": 106,
+      "molecules_out": 106,
+      "detail": ""
+    },
+    {
+      "name": "assay_id",
+      "records_in": 106,
+      "records_out": 106,
+      "molecules_out": 106,
+      "detail": ""
+    },
+    {
+      "name": "target_confidence",
+      "records_in": 106,
+      "records_out": 106,
+      "molecules_out": 106,
+      "detail": ""
+    },
+    {
+      "name": "document_year",
+      "records_in": 106,
+      "records_out": 106,
+      "molecules_out": 106,
+      "detail": ""
+    },
+    {
+      "name": "structure",
+      "records_in": 106,
+      "records_out": 106,
+      "molecules_out": 106,
+      "detail": ""
+    },
+    {
+      "name": "value",
+      "records_in": 106,
+      "records_out": 106,
+      "molecules_out": 106,
+      "detail": ""
+    },
+    {
+      "name": "standardisation",
+      "records_in": 106,
+      "records_out": 106,
+      "molecules_out": 106,
+      "detail": "0 structures failed"
+    },
+    {
+      "name": "aggregation",
+      "records_in": 106,
+      "records_out": 106,
+      "molecules_out": 106,
+      "detail": "0 structures merged records from more than one source ID"
+    }
+  ],
+  "input_records": 181,
+  "retained_records": 106,
+  "compounds": 106,
+  "recommended": {
+    "scaffold": "c1ccc(Cc2ncnc3ccccc23)cc1",
+    "parent_id": "CHEMBL522134",
+    "reason": "Three variable positions and several unmeasured combinations; not selected by predicted potency."
+  },
+  "files_sha256": {
+    "egfr_ic50.csv": "e5d50a4c5dfac3879a7401375fdd39a5c78b8d1fa94218921746db5ae734e59a",
+    "measurements.csv": "977b9449c72e593cfb18ffa68414f504f1fe052d1412afd117ec4b04e19788a4"
+  },
+  "download_sha256": {
+    "CHEMBL944276.json": "529c1c37d20b9db7160cd1145d5522d4b4e5b2c756bbd669da68ddee1e7e4258",
+    "metadata-944276.json": "4d8ee0d46bc6ecb86fb8cab3fd6efd0bc7b60279160d115ff9f87c0ebbf87092",
+    "document-944276.json": "6b3358daf11a6af7ba98106f4b6f8813834f6a9c2fef61521b550be7c58e9c31",
+    "status.json": "29dc1fb09487a8d2962253a4d0d92c4ded0aa0d831effab42445d0c3483d4740"
+  },
+  "builder_sha256": "e671b8256f3ae462b870ff5ae41d9d93492592205af3503a890fc38a0397c550",
+  "selection_note": "Selected after examining four EGFR assay examples for usable SAR and fixed-default RF performance. Demonstration selection is not independent benchmark validation. No seed, hyperparameter, cutoff or potency-based row selection was used."
+}

@@ -1,0 +1,139 @@
+{
+  "python": "3.13.13",
+  "packages": {
+    "sorbent": "0.1.1",
+    "rdkit": "2026.9.1",
+    "numpy": "2.5.4",
+    "pandas": "3.0.6",
+    "scipy": "1.18.1",
+    "scikit-learn": "1.9.1",
+    "joblib": "1.6.0",
+    "scikit-fingerprints": null,
+    "molfeat": null,
+    "shap": null,
+    "umap-learn": null,
+    "gemmi": null,
+    "meeko": null,
+    "threadpoolctl": "3.7.0"
+  },
+  "model_settings": {
+    "features": {
+      "fingerprint": "ecfp4",
+      "ecfp_bits": 2048,
+      "variance_threshold": 0.1,
+      "correlation_threshold": 0.95,
+      "representation": "fingerprint",
+      "descriptor_names": []
+    },
+    "algorithms": [
+      "extra_trees",
+      "random_forest",
+      "gradient_boosting",
+      "nearest_neighbors"
+    ],
+    "regression_algorithms": [
+      "random_forest"
+    ],
+    "test_fraction": 0.25,
+    "cv_folds": 3,
+    "regression_cv": "default",
+    "split": "random",
+    "time_cutoff": 2019,
+    "source_test_id": null,
+    "oversample": false,
+    "leakage_audit": false,
+    "seed": 42,
+    "field_qsar": null
+  },
+  "scoring_checks": [
+    {
+      "check": "Held-out compounds",
+      "value": 27,
+      "passed": true
+    },
+    {
+      "check": "Held-out R\u00b2",
+      "value": 0.9178270863,
+      "passed": true
+    },
+    {
+      "check": "Pooled training-CV q\u00b2",
+      "value": 0.5855044957,
+      "passed": true
+    },
+    {
+      "check": "Test RMSE below training-mean baseline",
+      "value": 0.4081426825,
+      "passed": true
+    },
+    {
+      "check": "Finite positive training-CV residual band",
+      "value": 1.5883938638,
+      "passed": true
+    },
+    {
+      "check": "Selected estimator is not the mean baseline",
+      "value": "random_forest",
+      "passed": true
+    }
+  ],
+  "scores": [
+    {
+      "algorithm": "random_forest",
+      "train_r2": 0.970047736,
+      "cv_r2": 0.6021132638,
+      "cv_r2_sd": 0.3242451767,
+      "test_r2": 0.9178270863,
+      "train_rmse": 0.2389720418,
+      "cv_rmse": 0.8284608693,
+      "cv_rmse_sd": 0.3769366239,
+      "test_rmse": 0.4081426825,
+      "train_spearman": 0.9782206609,
+      "cv_spearman": 0.6883223648,
+      "cv_spearman_sd": 0.0846283732,
+      "test_spearman": 0.8990686544,
+      "train_mae": 0.1651364793,
+      "cv_mae": 0.5538426331,
+      "cv_mae_sd": 0.2143604197,
+      "test_mae": 0.312470279,
+      "n_features": 92,
+      "design_pooled_cv_q2": 0.5855044957
+    },
+    {
+      "algorithm": "mean_baseline",
+      "train_r2": 0.0,
+      "cv_r2": -0.0083087691,
+      "cv_r2_sd": 0.0066178365,
+      "test_r2": -0.0059224157,
+      "train_rmse": 1.3808047315,
+      "cv_rmse": 1.381976043,
+      "cv_rmse_sd": 0.081956428,
+      "test_rmse": 1.4280056122,
+      "train_spearman": null,
+      "cv_spearman": null,
+      "cv_spearman_sd": null,
+      "test_spearman": null,
+      "train_mae": 1.0557871418,
+      "cv_mae": 1.0569922861,
+      "cv_mae_sd": 0.0482952691,
+      "test_mae": 1.1270776648,
+      "n_features": 92,
+      "design_pooled_cv_q2": 0.5855044957
+    }
+  ],
+  "walkthrough": {
+    "scaffold": "c1ccc(Cc2ncnc3ccccc23)cc1",
+    "parent_id": "CHEMBL522134",
+    "reason": "Three variable positions and several unmeasured combinations; not selected by predicted potency.",
+    "positions": [
+      "R2",
+      "R3",
+      "R4"
+    ],
+    "series_compounds": 9,
+    "proposals": 7,
+    "unmeasured": 6,
+    "scored_unmeasured": 6
+  },
+  "limitation": "Selected retrospective random-split example, not independent/prospective validation or evidence of improved leads. Broad assay model performance does not establish reliable within-series potency differences. Supporting substitutions may have only one measured pair."
+}

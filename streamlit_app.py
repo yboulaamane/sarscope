@@ -1950,6 +1950,9 @@ WORKFLOW_KEYS = (
     "field_qsar_result",
     "field_qsar_active_result",
     "field_qsar_archive",
+    "analogue_design_result",
+    "analogue_design_model",
+    "analogue_design_scored",
 )
 
 
@@ -2494,8 +2497,18 @@ def main() -> None:
     with st.sidebar:
         workflow = st.radio(
             "Workflow",
-            ["ChEMBL potency & SAR", "PubChem qualitative screen", "3D QSAR · own compounds"],
+            [
+                "ChEMBL potency & SAR",
+                "PubChem qualitative screen",
+                "3D QSAR · own compounds",
+                "Design analogues · own compounds",
+            ],
         )
+    if workflow == "Design analogues · own compounds":
+        from sarscope.analogue_design_ui import show_design_upload
+
+        show_design_upload()
+        return
     if workflow == "3D QSAR · own compounds":
         from sarscope.field_qsar_ui import show_field_qsar
 
@@ -2721,6 +2734,7 @@ def main() -> None:
             "8 · Selectivity",
             "9 · Prioritize",
             "10 · 3D QSAR",
+            "11 · Design analogues",
         ],
         key="analysis_tab",
         on_change="rerun",
@@ -2731,6 +2745,22 @@ def main() -> None:
         show_field_qsar(
             curation.table, curation.curation.evidence, curation.provenance.get("source", {})
         )
+    with tabs[10]:
+        from sarscope.analogue_design_ui import show_analogue_design
+
+        prepared_series = st.session_state.get("scaffold_stage")
+        if prepared_series is None or not prepared_series.rgroups:
+            st.info(
+                "Prepare SAR series in 3 · SAR map, then design analogues here. No ML is required."
+            )
+        else:
+            show_analogue_design(
+                prepared_series.rgroups,
+                prepared_series.table,
+                curation.curation.evidence,
+                curation.provenance.get("source", {}),
+                canonical_tautomer=curation.params.curation.canonical_tautomer,
+            )
     with tabs[0]:
         show_curation(curation)
         with st.expander("Curated molecules"):
