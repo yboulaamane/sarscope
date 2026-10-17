@@ -30,10 +30,22 @@ _SRC = Path(__file__).parent / "src"
 if _SRC.is_dir() and str(_SRC) not in sys.path:
     sys.path.insert(0, str(_SRC))
 
+import streamlit as st  # noqa: E402
+
+# Send useful first-paint feedback before importing the scientific stack.
+# Importing this module in the CLI/tests must not create Streamlit UI elements.
+_startup_notice = None
+if __name__ == "__main__":
+    st.set_page_config(page_title="SARscope", layout="wide", page_icon="🔬")
+    _startup_notice = st.empty()
+    _startup_notice.info(
+        "Loading SARscope's chemistry and modelling tools… "
+        "No dataset is being downloaded and no analysis is running."
+    )
+
 import altair as alt  # noqa: E402
 import numpy as np  # noqa: E402
 import pandas as pd  # noqa: E402
-import streamlit as st  # noqa: E402
 from sklearn.metrics import precision_recall_curve, roc_curve  # noqa: E402
 
 from sarscope import __version__, provenance  # noqa: E402
@@ -115,7 +127,6 @@ from sarscope.pipeline import (  # noqa: E402
 )
 from sarscope.predict import PredictionBundle, similarity_domain_threshold  # noqa: E402
 from sarscope.prioritise import diverse_shortlist, predict_candidates  # noqa: E402
-from sarscope.report import write_report  # noqa: E402
 from sarscope.sar_ui import show_matched_pair_explorer, show_sar_map  # noqa: E402
 from sarscope.screen import run_screen_snapshot  # noqa: E402
 from sarscope.sources.chembl import (  # noqa: E402
@@ -1921,6 +1932,8 @@ def show_applicability_domain(results: RunResults | MlStage) -> None:
 
 def report_zip(results: RunResults) -> bytes:
     """The same folder the CLI writes, as a zip for the download button."""
+    from sarscope.report import write_report
+
     with TemporaryDirectory() as tmp:
         out = Path(tmp) / "report"
         write_report(results, out)
@@ -2492,7 +2505,10 @@ def show_pubchem_screen() -> None:
 
 
 def main() -> None:
-    st.set_page_config(page_title="SARscope", layout="wide", page_icon="🔬")
+    if _startup_notice is None:
+        st.set_page_config(page_title="SARscope", layout="wide", page_icon="🔬")
+    else:
+        _startup_notice.empty()
     apply_visual_theme()
     with st.sidebar:
         workflow = st.radio(

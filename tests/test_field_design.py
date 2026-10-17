@@ -93,6 +93,9 @@ def test_predictions_reproduce_displayed_model_without_fitting_or_2d_fallback(
         assert "aligned_3d_candidates.sdf" in archive.namelist()
         audit = json.loads(archive.read("3d_scoring_audit.json"))
         assert audit["model_signature"] == before and audit["prediction_model"] == "3D field PLS"
+        assert b"prediction_pair_conflict" in archive.read("candidates.csv")
+        assert b"pair_evidence_warning" in archive.read("candidates.csv")
+        assert "pair_conflict_policy" in audit
 
 
 def test_changed_model_grid_or_reference_invalidates_old_design(fitted, designed):
@@ -172,8 +175,14 @@ def test_measured_example_is_real_focused_and_has_honest_3d_verification():
 def test_novel_pose_is_generated_against_fitted_reference_and_uses_unchanged_fields(
     fitted, designed, monkeypatch
 ):
+    import sys
+    from pathlib import Path
+
     import sarscope.field_design as module
 
+    # AppTest can leave __main__.__file__ pointing to its temporary unguarded
+    # script. Spawn must import a safe real module, not rerun that Streamlit UI.
+    monkeypatch.setattr(sys.modules["__main__"], "__file__", str(Path(__file__).resolve()))
     if not module.preparation_available():
         pytest.skip("Optional preparation extra is absent")
     designed.candidates = designed.candidates.iloc[:1].copy()

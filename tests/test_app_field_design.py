@@ -53,6 +53,9 @@ show_field_design(st.session_state.fixture, 'design3d')
     assert not app.exception
     widget(app, "button", "Generate proposals for this 3D model").click().run()
     assert not app.exception
+    assert not any(
+        s.value == "Proposed experiments, not confirmed improvements" for s in app.subheader
+    )
     assert widget(app, "button", "Align and predict with this 3D model").disabled
     consent = widget(
         app, "checkbox", "I understand: show exploratory predictions from this unvalidated 3D model"
@@ -65,6 +68,8 @@ show_field_design(st.session_state.fixture, 'design3d')
     assert prediction.audit["prediction_model"] == "3D field PLS"
     assert prediction.audit["2d_fallback"] is False
     assert not prediction.contributions.empty
+    assert any("not candidate prediction minus the measured parent" in c.value for c in app.caption)
+    assert any(s.value == "Proposed experiments, not confirmed improvements" for s in app.subheader)
     widget(
         app, "checkbox", "I understand: show exploratory predictions from this unvalidated 3D model"
     ).uncheck().run()

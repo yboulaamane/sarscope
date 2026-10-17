@@ -56,6 +56,14 @@ def _show_result(
             "Try another parent/position or add measured matched pairs; no chemistry was invented."
         )
     else:
+        if "prediction_pair_conflict" in frame:
+            conflict_count = int(frame.prediction_pair_conflict.fillna(False).sum())
+            if conflict_count:
+                st.warning(
+                    f"{conflict_count} prediction(s) oppose at least one supporting measured "
+                    "pair. Inspect the evidence warnings before prioritising experiments; "
+                    "matched-pair effects can depend on substitution context."
+                )
         unmeasured = int(frame.known_ids.eq("").sum())
         st.caption(
             f"{unmeasured} unmeasured combinations · "
@@ -81,7 +89,10 @@ def _show_result(
             "near_activity_cliff",
             "unresolved_stereo",
             "predicted_pactivity",
+            "model_parent_prediction",
             "predicted_delta_vs_parent",
+            "prediction_pair_conflict",
+            "pair_evidence_warning",
             "prediction_status",
         ]
         st.dataframe(
@@ -98,7 +109,10 @@ def _show_result(
                     format="%.2f",
                 ),
                 "predicted_pactivity": "Model pActivity",
+                "model_parent_prediction": "Model parent pActivity",
                 "predicted_delta_vs_parent": "Model Δ vs model parent",
+                "prediction_pair_conflict": "Opposes measured pair(s)",
+                "pair_evidence_warning": "Model vs measured-pair evidence",
                 "contradictory_effects": "Conflicting measured effects",
                 "delta_MW": "ΔMW (Da)",
                 "delta_logP": "ΔlogP",
@@ -119,11 +133,13 @@ def _show_result(
                         "field": "delta_MW",
                         "type": "quantitative",
                         "title": "Molecular-weight change vs parent (Da)",
+                        "axis": {"tickCount": 6, "format": ".0f", "labelOverlap": True},
                     },
                     "y": {
                         "field": "delta_logP",
                         "type": "quantitative",
                         "title": "Calculated logP change vs parent",
+                        "axis": {"tickCount": 6, "format": ".1f"},
                     },
                     "color": {
                         "field": "near_activity_cliff",
@@ -160,6 +176,18 @@ def _show_result(
             f"{candidate.prediction_status}. "
             f"Known in selected assay: {candidate.known_ids or 'no'}."
         )
+        if (
+            "model_parent_prediction" in candidate
+            and pd.notna(candidate.model_parent_prediction)
+            and pd.notna(candidate.predicted_pactivity)
+        ):
+            st.caption(
+                f"Measured parent pActivity: {result.parent.iloc[0].observed_pactivity:.2f}; "
+                f"model parent: {candidate.model_parent_prediction:.2f}; "
+                f"model candidate: {candidate.predicted_pactivity:.2f}. "
+                "The predicted change compares candidate and parent from the same model, "
+                "not candidate prediction minus the measured parent."
+            )
         st.caption(
             f"Nearest measured analogue: {candidate.nearest_measured_id} · "
             f"ECFP4 Tanimoto {candidate.nearest_measured_similarity:.2f} · "
@@ -188,6 +216,9 @@ def _show_result(
             st.warning(
                 "This swap has both positive and negative measured effects: context matters."
             )
+        if "prediction_pair_conflict" in candidate and pd.notna(candidate.prediction_pair_conflict):
+            if candidate.prediction_pair_conflict:
+                st.warning(candidate.pair_evidence_warning)
         if candidate.near_activity_cliff:
             st.warning(
                 "Close to a measured activity-cliff compound. Similarity alone can miss a large "

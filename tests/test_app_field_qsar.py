@@ -46,6 +46,7 @@ def test_prepare_review_run_and_setting_changes_hide_old_results(field_result, m
     assert not app.exception
     run = next(b for b in app.button if b.label == "Run experimental 3D QSAR")
     assert run.disabled
+    assert any("To enable Run, tick" in item.value for item in app.info)
     next(
         c for c in app.checkbox if c.label == "I reviewed the overlay and alignment assumptions"
     ).check()
@@ -62,6 +63,98 @@ def test_prepare_review_run_and_setting_changes_hide_old_results(field_result, m
     assert not app.exception
     assert "test_field_active_result" not in app.session_state
     assert any("Earlier results are hidden" in i.value for i in app.info)
+
+
+def test_invalid_scaffold_split_explains_reason_and_disables_run(field_result, monkeypatch):
+    import sarscope.field_qsar_ui as ui
+
+    monkeypatch.setattr(ui, "_assay_dataset", lambda *args: field_result.prepared.dataset)
+    app = AppTest.from_string(SCRIPT, default_timeout=30)
+    app.session_state["fixture"] = field_result
+    app.run()
+    app.button(key="test_field_prepare").click().run()
+    app.checkbox(key="test_field_reviewed").check().run()
+    app.selectbox(key="test_field_split").select("scaffold").run()
+    assert not app.exception
+    assert app.button(key="test_field_run").disabled
+    assert any(
+        "All compounds share one scaffold. Use a random split." in w.value for w in app.warning
+    )
+    assert not any("Run the model for these settings" in i.value for i in app.info)
+
+
+def test_model_error_replaces_stale_run_prompt_and_is_cleared_on_setting_change(
+    field_result, monkeypatch
+):
+    import sarscope.field_qsar_ui as ui
+
+    monkeypatch.setattr(ui, "_assay_dataset", lambda *args: field_result.prepared.dataset)
+
+    def fail(*args):
+        raise ValueError("Overlap: review Missing electrostatic descriptors")
+
+    monkeypatch.setattr(ui, "run_field_qsar_stage", fail)
+    app = AppTest.from_string(SCRIPT, default_timeout=30)
+    app.session_state["fixture"] = field_result
+    app.run()
+    app.button(key="test_field_prepare").click().run()
+    app.checkbox(key="test_field_reviewed").check().run()
+    app.button(key="test_field_run").click().run()
+    assert not app.exception
+    assert any("Missing electrostatic descriptors" in e.value for e in app.error)
+    assert not any("Run the model for these settings" in i.value for i in app.info)
+    app.run()
+    assert app.error  # Remains visible on ordinary rerun, not only the failed button event.
+    app.selectbox(key="test_field_charge").select("mmff94").run()
+    assert not app.error
+    assert any("Earlier results are hidden" in i.value for i in app.info)
+
+
+def test_field_caption_and_overlap_setting_follow_selected_method(field_result, monkeypatch):
+    import sarscope.field_qsar_ui as ui
+
+    monkeypatch.setattr(ui, "_assay_dataset", lambda *args: field_result.prepared.dataset)
+    app = AppTest.from_string(SCRIPT, default_timeout=30)
+    app.session_state["fixture"] = field_result
+    app.run()
+    app.button(key="test_field_prepare").click().run()
+    app.selectbox(key="test_field_method").select("comfa").run()
+    assert not app.exception
+    assert any("Lennard–Jones steric energy" in c.value for c in app.caption)
+    assert app.selectbox(key="test_field_missing_sarscope").value == "refuse"
+    # The policy must not disappear into the collapsed model-settings expander.
+    expander = next(e for e in app.expander if e.label == "Field and model settings")
+    assert not any(s.label == "Missing electrostatic descriptors" for s in expander.selectbox)
+    spacing = app.selectbox(key="test_field_spacing")
+    assert spacing.options == ["1.0", "1.5", "2.0", "2.5", "3.0"]
+    assert spacing.value == 2.0
+
+
+def test_prediction_plot_axes_colours_reference_and_permutation_label(field_result):
+    import json
+
+    script = """
+import streamlit as st
+from sarscope.field_qsar_ui import show_field_result
+show_field_result(st.session_state.fixture, 'plot_fix')
+"""
+    app = AppTest.from_string(script, default_timeout=30)
+    app.session_state["fixture"] = field_result
+    app.run()
+    assert not app.exception
+    charts = app.get("vega_lite_chart")
+    predicted = json.loads(charts[0].proto.spec)
+    assert predicted["layer"][0]["mark"]["strokeDash"] == [6, 4]
+    scatter = predicted["layer"][1]["encoding"]
+    assert scatter["x"]["type"] == "quantitative"
+    assert scatter["x"]["axis"]["tickCount"] == 6
+    assert scatter["x"]["scale"]["domain"] == scatter["y"]["scale"]["domain"]
+    assert len(set(scatter["color"]["scale"]["range"])) == 2
+    residuals = json.loads(charts[1].proto.spec)
+    assert residuals["encoding"]["x"]["type"] == "quantitative"
+    assert any("Green vertical line: observed pooled outer-CV" in c.value for c in app.caption)
+    assert any("not interchangeable" in c.value for c in app.caption)
+    assert any("zero-based index" in c.value for c in app.caption)
 
 
 def test_viewer_escapes_uploaded_script_fragments():
@@ -103,12 +196,19 @@ def test_scaffold_change_resets_compounds_but_ordinary_reruns_preserve_edits(
     app.session_state["fixture"] = field_result
     app.run()
     assert not app.exception
-    assert len(app.multiselect(key="test_field_compounds").value) == 10
-    first_scaffold = app.selectbox(key="test_field_scaffold").value
+    assert app.selectbox(key="test_field_scaffold").value == "All compounds"
+    assert len(app.multiselect(key="test_field_compounds").value) == (
+        compound_count if compound_count <= 100 else 0
+    )
+    app.selectbox(key="test_field_scaffold").select("series_0").run()
+    first_scaffold = "series_0"
     chosen = app.multiselect(key="test_field_compounds").value[1:]
     app.multiselect(key="test_field_compounds").set_value(chosen).run()
     app.run()
     assert app.multiselect(key="test_field_compounds").value == chosen
+    app.button(key="test_field_select_all").click().run()
+    assert len(app.multiselect(key="test_field_compounds").value) == 10
+    assert any("alignment and modelling controls appear" in i.value for i in app.info)
     app.selectbox(key="test_field_scaffold").select("All compounds").run()
     assert not app.exception
     expected = table.molecule_id.tolist() if compound_count <= 100 else []
@@ -147,7 +247,15 @@ def test_training_stability_is_button_gated_and_excludes_heldout_rows(field_resu
                         "engineering_stability_flag": False,
                         "oof_change_p95": 0.7,
                         "oof_change_max": 1.2,
-                    }
+                    },
+                    {
+                        "variant": "common_translation",
+                        "kind": "common_frame",
+                        "completed": True,
+                        "engineering_stability_flag": True,
+                        "oof_change_p95": 1e-14,
+                        "oof_change_max": 1e-14,
+                    },
                 ]
             ),
             predictions=pd.DataFrame(),
@@ -173,6 +281,12 @@ show_training_stability(st.session_state.fixture, 'test_stability')
         ].molecule_id.tolist()
     ]
     assert any("stability flags failed" in item.value for item in app.warning)
+    import json
+
+    chart = json.loads(app.get("vega_lite_chart")[0].proto.spec)
+    assert chart["mark"]["type"] == "point"
+    assert chart["encoding"]["y"]["axis"]["labelLimit"] >= 250
+    assert any("point at zero" in c.value for c in app.caption)
 
 
 def test_reference_field_definition_exposes_se_only_and_explicit_overlap_policy(
