@@ -135,9 +135,9 @@ def test_startup_and_mode_changes_make_no_network_requests(app_api):
 
 def test_own_analogue_design_workflow_starts_without_network_requests(app_api):
     app = AppTest.from_file(str(APP), default_timeout=20).run()
-    widget(app, "radio", "Workflow").set_value("Design analogues · own compounds").run()
+    widget(app, "radio", "Workflow").set_value("2D analogue design · own compounds").run()
     assert not app.exception
-    assert any("Design next analogues" in item.value for item in app.title)
+    assert any("2D analogue design" in item.value for item in app.title)
     assert any("No 3D alignment" in item.value for item in app.caption)
     assert not app_api
 

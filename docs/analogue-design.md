@@ -1,5 +1,10 @@
 # Design next analogues
 
+For the **3D-field-model design workflow**, see
+[3D design and prediction](field-qsar.md#design-and-predict-with-the-fitted-3d-model).
+The separate 2D workflow described below is explicitly labelled **2D** in the
+app; it is not the scoring engine used after a 3D-QSAR fit.
+
 SARscope can propose small, traceable experiments around a selected parent.
 This is **experimental lead-optimisation decision support**, not a validated
 autonomous lead optimiser. Generating a plausible graph or obtaining a higher
@@ -8,12 +13,12 @@ predicted potency does not establish an improved compound.
 ## Start in Streamlit
 
 For ChEMBL data, curate the target, prepare series in **3 · SAR map**, then open
-**11 · Design analogues**. Choose one assay/endpoint/structured-variant context,
+**11 · 2D analogue design**. Choose one assay/endpoint/structured-variant context,
 a prepared scaffold series, a parent and editable R-positions. Activities are
 reaggregated within that context; target-wide medians are not substituted.
 Unreported mutation annotation is not evidence of wild type.
 
-For your own compounds, choose **Design analogues · own compounds** in the
+For your own compounds, choose **2D analogue design · own compounds** in the
 sidebar. Upload CSV/TSV (`molecule_id,smiles,pactivity`) or SDF with measured
 activities, select endpoint/units and confirm comparability. Prepare a shared
 scaffold, then choose the parent and positions. Uploaded assay comparability
@@ -25,23 +30,14 @@ Click **Generate analogue proposals**. Nothing is generated or trained on
 page load. Changing the parent, positions, assay, structures, activities or
 limits hides incompatible previous results until you regenerate.
 
-### Optional measured example
+### Measured example location
 
-The upload workflow includes **Try a measured EGFR example** with a downloadable
-[106-compound CSV](../src/sarscope/data/analogue_design/egfr_ic50.csv), original
-ChEMBL record links, conversion, separate CC BY-SA 3.0 data licence, verification
-results and a [walkthrough](../src/sarscope/data/analogue_design/README.md).
-Nothing is auto-loaded on the homepage. Check **Use measured EGFR example**,
-then explicitly prepare, generate and optionally fit/score. The preselected
-nine-member scaffold and parent CHEMBL522134 yield six unmeasured combinations
-plus one measured control. The fixed-default RF passed the current quality and
-domain gates in the checked environment (test R² ≈0.92, training-CV q² ≈0.59).
-
-This dataset was selected after examining four assays, so those favourable
-scores are **not an independent benchmark**. It is a literature-compiled,
-random-split example; underlying experimental protocol comparability was not
-independently verified. Broad assay-level model accuracy does not validate
-within-series predicted gains. It is not a validated 3D-QSAR example.
+The app's measured example is in **3D QSAR · own compounds**, with a focused
+50-compound CSV and aligned SDF. See its
+[source and walkthrough](../src/sarscope/data/field_example/README.md).
+The previous 106-compound 2D data files remain as an attributed historical
+example, but are no longer offered as the UI's demo. Their RF scores must not
+be used to claim performance of the 3D workflow.
 
 ## What is proposed
 

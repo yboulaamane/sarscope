@@ -184,6 +184,57 @@ def _assay_dataset(
     )
 
 
+@st.cache_data(show_spinner=False, max_entries=1)
+def _field_example_dataset(source_hash: str) -> FieldDataset:
+    from sarscope.field_example import field_example_dataset
+
+    return field_example_dataset()
+
+
+def _field_example_controls(key: str) -> FieldDataset | None:
+    from sarscope.field_example import field_example_archive, field_example_files
+
+    contents = field_example_files()
+    with st.expander("Try a measured 3D-QSAR example · 50 EGFR compounds"):
+        st.caption(
+            "Real IC50 measurements from ChEMBL assay CHEMBL680017 (Bridges et al., 1996). "
+            "One focused quinazoline scaffold. The supplied SDF uses generated, rigid-MCS "
+            "aligned conformations, not experimentally observed bound poses. "
+            "Its 3D results may be weak; the previous demo's favourable RF scores do not apply."
+        )
+        st.download_button(
+            "Download 3D example CSV",
+            contents["egfr_3d.csv"],
+            "egfr_3d.csv",
+            "text/csv",
+            key=f"{key}_example_csv",
+        )
+        st.download_button(
+            "Download aligned example SDF",
+            contents["egfr_3d_aligned.sdf"],
+            "egfr_3d_aligned.sdf",
+            "chemical/x-mdl-sdfile",
+            key=f"{key}_example_sdf",
+        )
+        st.download_button(
+            "Download 3D example source and walkthrough",
+            field_example_archive(),
+            "measured_3d_example.zip",
+            "application/zip",
+            key=f"{key}_example_zip",
+        )
+        selected = st.checkbox("Use measured 3D-QSAR example", key=f"{key}_example")
+        st.caption("Data: ChEMBL/EMBL-EBI, CC BY-SA 3.0; doi:10.1021/jm9503613.")
+    if not selected:
+        return None
+    st.info(
+        "Example loaded with aligned coordinates. Keep uploaded alignment, prepare/review "
+        "the overlay, then run 3D QSAR. The design-and-predict step appears below those "
+        "results and uses that same fitted 3D model. No modelling starts automatically."
+    )
+    return _field_example_dataset(hashlib.sha256(contents["source.json"]).hexdigest())
+
+
 def show_field_qsar(
     table: pd.DataFrame | None = None,
     evidence: pd.DataFrame | None = None,
@@ -206,10 +257,15 @@ def show_field_qsar(
             horizontal=True,
             key=f"{key}_source",
         )
+    example = _field_example_controls(key) if mode == "Upload my compounds" else None
     dataset = (
-        _assay_dataset(table, evidence, source or {}, key)
-        if mode == "Selected ChEMBL assay"
-        else _upload_dataset(key)
+        example
+        if example is not None
+        else (
+            _assay_dataset(table, evidence, source or {}, key)
+            if mode == "Selected ChEMBL assay"
+            else _upload_dataset(key)
+        )
     )
     if dataset is None:
         _discard_active(key)
@@ -288,7 +344,14 @@ def show_field_qsar(
         "Alignment route", routes, format_func=lambda value: route_labels[value], key=f"{key}_route"
     )
     reference = controls[1].selectbox(
-        "Reference compound", dataset.table["molecule_id"].tolist(), key=f"{key}_reference"
+        "Reference compound",
+        dataset.table["molecule_id"].tolist(),
+        index=(
+            dataset.table["molecule_id"].tolist().index(dataset.source["reference_id"])
+            if dataset.source.get("reference_id") in dataset.table["molecule_id"].tolist()
+            else 0
+        ),
+        key=f"{key}_reference",
     )
     reference_index = dataset.table["molecule_id"].tolist().index(reference)
     assess_core = True
@@ -644,6 +707,9 @@ def show_field_qsar(
     result = cached[1]
     st.session_state[f"{key}_active_result"] = result
     show_field_result(result, key)
+    from sarscope.field_design_ui import show_field_design
+
+    show_field_design(result, key)
 
 
 def show_field_result(result: FieldQsarResult, key: str) -> None:

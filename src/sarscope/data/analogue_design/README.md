@@ -1,5 +1,11 @@
 # Measured EGFR example (not a validation benchmark)
 
+**Historical 2D example:** retained for provenance, no longer the app's demo.
+For **3D QSAR · own compounds**, use the focused 50-compound CSV and aligned
+SDF in the neighbouring `field_example/` directory. None of the 2D RF scores
+below establish 3D-field performance. The original walkthrough below records
+the earlier 2D-only implementation, not current 3D controls.
+
 `egfr_ic50.csv` contains 106 curated isomeric structures and literature-reported
 IC50 potencies from ChEMBL 37 assay **CHEMBL944276**, target **CHEMBL203 (EGFR)**.
 It uses the upload format `molecule_id,smiles,pactivity`.

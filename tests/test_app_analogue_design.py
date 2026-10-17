@@ -120,7 +120,7 @@ evidence=table[["molecule_id","pactivity"]].assign(
     assert not any("Model checks failed" in item.value for item in app.warning)
 
 
-def test_optional_example_has_guided_defaults_and_runs_end_to_end_without_network(monkeypatch):
+def test_2d_upload_route_does_not_offer_the_3d_example(monkeypatch):
     import httpx
 
     monkeypatch.setattr(
@@ -131,31 +131,5 @@ def test_optional_example_has_guided_defaults_and_runs_end_to_end_without_networ
         default_timeout=30,
     ).run()
     assert not app.exception
-    assert not widget(app, "checkbox", "Use measured EGFR example").value
-    assert not app.button  # downloads only; no preparation, fitting or generation on load
-    widget(app, "checkbox", "Use measured EGFR example").check().run()
-    assert not app.exception
-    assert (
-        widget(app, "selectbox", "Shared scaffold to prepare").value == "c1ccc(Cc2ncnc3ccccc23)cc1"
-    )
-    widget(app, "button", "Prepare design series").click().run()
-    assert not app.exception
-    assert widget(app, "selectbox", "Parent compound").value == "CHEMBL522134"
-    assert "upload_analogue_design_design_result" not in app.session_state
-    widget(app, "button", "Generate analogue proposals").click().run()
-    assert not app.exception
-    result = app.session_state["upload_analogue_design_design_result"][1]
-    assert result.candidates.known_ids.eq("").sum() == 6
-    assert result.provenance["source"]["assay"] == "CHEMBL944276"
-    assert not result.provenance["source"].get("user_declared_context", False)
-    widget(app, "button", "Fit scoped 2D model").click().run()
-    assert not app.exception
-    assert not widget(app, "button", "Score generated analogues").disabled
-    widget(app, "button", "Score generated analogues").click().run()
-    assert not app.exception
-    scored = app.session_state["upload_analogue_design_design_scored"][1]
-    assert scored.candidates.predicted_pactivity.notna().sum() == 7
-    # Switching back to own data cannot leave an example or predictions visible.
-    widget(app, "checkbox", "Use measured EGFR example").uncheck().run()
-    assert not app.exception
-    assert not any(item.label == "Parent compound" for item in app.selectbox)
+    assert not any("Use measured" in item.label for item in app.checkbox)
+    assert any("3D QSAR · own compounds" in item.value for item in app.info)

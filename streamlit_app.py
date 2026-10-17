@@ -2501,10 +2501,10 @@ def main() -> None:
                 "ChEMBL potency & SAR",
                 "PubChem qualitative screen",
                 "3D QSAR · own compounds",
-                "Design analogues · own compounds",
+                "2D analogue design · own compounds",
             ],
         )
-    if workflow == "Design analogues · own compounds":
+    if workflow == "2D analogue design · own compounds":
         from sarscope.analogue_design_ui import show_design_upload
 
         show_design_upload()
@@ -2734,7 +2734,7 @@ def main() -> None:
             "8 · Selectivity",
             "9 · Prioritize",
             "10 · 3D QSAR",
-            "11 · Design analogues",
+            "11 · 2D analogue design",
         ],
         key="analysis_tab",
         on_change="rerun",

@@ -68,7 +68,7 @@ where = ["src"]
 include = ["sarscope*"]
 
 [tool.setuptools.package-data]
-sarscope = ["components/sar_map/*.html", "data/analogue_design/*"]
+sarscope = ["components/sar_map/*.html", "data/analogue_design/*", "data/field_example/*"]
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]

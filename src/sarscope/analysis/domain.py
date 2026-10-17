@@ -27,6 +27,19 @@ class DomainResult:
     in_domain: NDArray[np.bool_]  # one per query row
     train_scores: NDArray[np.float64]  # (n_train, n_components), for the plot
     query_scores: NDArray[np.float64]  # (n_query, n_components)
+    fitted_pca: Any = None
+    lower: NDArray[np.float64] | None = None
+    upper: NDArray[np.float64] | None = None
+
+    def classify(self, values: NDArray[Any]) -> DomainResult:
+        """Apply the original fitted box; never refit PCA on new compounds."""
+        if self.fitted_pca is None or self.lower is None or self.upper is None:
+            raise ValueError("Rerun the model to retain its fitted applicability-domain transform.")
+        scores = self.fitted_pca.transform(np.asarray(values, dtype=float))
+        inside = np.all((scores >= self.lower) & (scores <= self.upper), axis=1)
+        return DomainResult(
+            inside, self.train_scores, scores, self.fitted_pca, self.lower, self.upper
+        )
 
     @property
     def coverage(self) -> float:
@@ -51,4 +64,4 @@ def pca_bounding_box(
     lo = train_scores.min(axis=0) - 1e-9
     hi = train_scores.max(axis=0) + 1e-9
     inside = np.all((query_scores >= lo) & (query_scores <= hi), axis=1)
-    return DomainResult(inside, train_scores, query_scores)
+    return DomainResult(inside, train_scores, query_scores, pca, lo, hi)

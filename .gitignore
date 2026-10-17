@@ -23,6 +23,15 @@ data/
 !/src/sarscope/data/analogue_design/measurements.csv
 !/src/sarscope/data/analogue_design/source.json
 !/src/sarscope/data/analogue_design/verification.json
+!/src/sarscope/data/field_example/
+/src/sarscope/data/field_example/*
+!/src/sarscope/data/field_example/README.md
+!/src/sarscope/data/field_example/egfr_3d.csv
+!/src/sarscope/data/field_example/egfr_3d_aligned.sdf
+!/src/sarscope/data/field_example/measurements.csv
+!/src/sarscope/data/field_example/source.json
+!/src/sarscope/data/field_example/verification.json
+!/src/sarscope/data/field_example/alignment.csv
 
 # ChEMBL response cache and run outputs
 .sarscope-cache/
