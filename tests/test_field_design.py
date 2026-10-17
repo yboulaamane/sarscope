@@ -157,9 +157,9 @@ def test_measured_example_is_real_focused_and_has_honest_3d_verification():
 
     from sarscope.field_example import field_example_dataset, field_example_files
 
-    contents = field_example_files()
+    contents = field_example_files("egfr")
     csv = pd.read_csv(io.BytesIO(contents["egfr_3d.csv"]))
-    dataset = field_example_dataset()
+    dataset = field_example_dataset("egfr")
     assert len(csv) == len(dataset.table) == 50
     assert dataset.source["assay"] == "CHEMBL680017"
     assert len(add_scaffolds(dataset.table).murcko.unique()) == 1

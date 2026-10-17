@@ -1,0 +1,40 @@
+<?xml version="1.0" encoding="utf-8"?><testsuites name="pytest tests"><testsuite name="pytest" errors="0" failures="1" skipped="0" tests="13" time="26.512" timestamp="2026-10-17T14:42:36.673212+02:00" hostname="p5570"><testcase classname="tests.test_field_example" name="test_measured_positive_demo_is_offline_complete_and_audits_preparation" time="0.331" /><testcase classname="tests.test_field_example" name="test_native_default_3d_model_has_positive_predictions_without_relaxing_checks" time="8.611" /><testcase classname="tests.test_field_example" name="test_literature_design_cannot_invent_assay_comparability" time="0.024" /><testcase classname="tests.test_field_example" name="test_measured_demo_design_controls_reuse_the_displayed_3d_model" time="10.053" /><testcase classname="tests.test_field_example" name="test_literature_design_ui_requires_separate_comparability_declaration" time="0.717" /><testcase classname="tests.test_field_example" name="test_real_example_ui_passes_the_verified_native_defaults_and_displays_their_result" time="5.194"><failure message="AssertionError: assert (not ElementList(_list=[Error()]))&#10; +  where ElementList(_list=[Error()]) = AppTest(\n    _script_path='/tmp/tmp6v85oihp/7682a7f4bffc8d4ec225d9f3b5e81709',\n    default_timeout=60,\n    _session_st...SpecialBlock(\n            type='sidebar'\n        ),\n        2: SpecialBlock(\n            type='event'\n        )\n    }\n).error">measured_result = FieldQsarResult(prepared=PreparedFieldSeries(dataset=FieldDataset(table=   molecule_id merged_ids  ... activity_class ...t validated. Unmet checks: Nested training CV q² &gt; 0.5; Native end-to-end 3D-QSAR validation', training_stability=None)
+monkeypatch = &lt;_pytest.monkeypatch.MonkeyPatch object at 0x7027b1596520&gt;
+
+    def test_real_example_ui_passes_the_verified_native_defaults_and_displays_their_result(
+        measured_result, monkeypatch
+    ):
+        from dataclasses import asdict
+    
+        pytest.importorskip("streamlit")
+        from streamlit.testing.v1 import AppTest
+    
+        import sarscope.field_qsar_ui as ui
+    
+        verification = json.loads(field_example_files()["verification.json"])
+        calls = []
+    
+        def same_native_settings(prepared, model):
+            assert json.loads(json.dumps(asdict(prepared.params))) == verification["settings"]
+            assert json.loads(json.dumps(asdict(model))) == verification["model_settings"]
+            assert prepared.dataset.table.molecule_id.tolist() == (
+                measured_result.prepared.dataset.table.molecule_id.tolist()
+            )
+            calls.append(True)
+            # The module fixture runs this exact native backend once; this adapter
+            # checks UI wiring without repeating the nineteen-permutation fit.
+            return measured_result
+    
+        monkeypatch.setattr(ui, "run_field_qsar_stage", same_native_settings)
+        app = AppTest.from_string(
+            "from sarscope.field_qsar_ui import show_field_qsar\nshow_field_qsar(key='positive3d')",
+            default_timeout=60,
+        ).run()
+        app.checkbox(key="positive3d_example").check().run()
+        assert not calls
+        app.button(key="positive3d_prepare").click().run()
+&gt;       assert not app.error and not app.exception
+E       AssertionError: assert (not ElementList(_list=[Error()]))
+E        +  where ElementList(_list=[Error()]) = AppTest(\n    _script_path='/tmp/tmp6v85oihp/7682a7f4bffc8d4ec225d9f3b5e81709',\n    default_timeout=60,\n    _session_st...SpecialBlock(\n            type='sidebar'\n        ),\n        2: SpecialBlock(\n            type='event'\n        )\n    }\n).error
+
+tests/test_field_example.py:192: AssertionError</failure></testcase><testcase classname="tests.test_field_example" name="test_only_registered_examples_are_read_and_weak_case_remains_available" time="0.135" /><testcase classname="tests.test_field_example" name="test_tampered_example_file_is_refused_before_modelling" time="0.005" /><testcase classname="tests.test_ccr5_validation_record" name="test_complete_retrospective_evidence_is_hash_verified_and_not_certified" time="0.007" /><testcase classname="tests.test_ccr5_validation_record" name="test_exported_metrics_recalculate_from_actual_held_out_rows[primary]" time="0.021" /><testcase classname="tests.test_ccr5_validation_record" name="test_exported_metrics_recalculate_from_actual_held_out_rows[historical-63-12]" time="0.010" /><testcase classname="tests.test_ccr5_validation_record" name="test_exported_metrics_recalculate_from_actual_held_out_rows[scaffold]" time="0.011" /><testcase classname="tests.test_ccr5_validation_record" name="test_permutations_intervals_and_failure_records_are_not_cherry_picked" time="0.011" /></testsuite></testsuites>

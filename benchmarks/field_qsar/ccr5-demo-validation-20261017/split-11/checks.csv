@@ -1,0 +1,10 @@
+check,passed,value,criterion,details
+Nested training CV q² > 0.5,True,0.5683631362234648,See check label/configured settings,
+Held-out predictive R² > 0.6,False,0.23334625934194475,See check label/configured settings,
+Origin calibration (GT-style heuristic; value = Pearson r²),False,0.28683594918895366,"Pearson r² > 0.6 AND an origin fit: relative gap < 0.1, slope 0.85–1.15",k=0.987; k′=1.01; R₀²=0.25; R₀′²=-0.406. Pearson r² is not predictive R².
+Full-pipeline permutation test,False,,Training-label permutation p ≤ 0.05,
+At least five held-out compounds,True,19,See check label/configured settings,
+Alignment thresholds met,True,0.6578947368421053,Common-core coverage ≥ 50%; core RMSD ≤ 1 Å; no alignment warnings,Value is the whole-series common heavy-atom core coverage.
+Held-out compounds with heavy atoms outside field grid,True,0,0 compounds outside (zero is a pass),
+Native end-to-end 3D-QSAR validation,False,SEH steroid benchmark agreement (training/LOO) demonstrated by SARscope's own field-to-model implementation. Historical test-mean shifting is diagnostic only. Native end-to-end validation remains incomplete; this feature is experimental.,See check label/configured settings,
+Mean-filled held-out fields within configured reliability limit,True,0.0,Both missing-field fractions ≤ 10%,

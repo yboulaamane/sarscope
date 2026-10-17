@@ -1,5 +1,12 @@
 # Qualification of SARscope's own field methods
 
+**17 October update:** the measured CCR5 tutorial was subjected to
+[stronger retrospective checks](ccr5-demo-validation.md). Its default positive
+score reproduces, but the historical test split gives R² = −0.683, scaffold
+extrapolation fails, and two pose-stability checks fail. It remains a useful
+tutorial, **not a validated predictive lead-optimisation workflow**. No earlier
+failure is superseded by the favourable default random split.
+
 **Reference direction updated:** the user subsequently requested following
 published SYBYL methods using public documentation, without vendor access.
 See the [component-level implementation and source audit](sybyl-reference.md).

@@ -19,6 +19,7 @@ from rdkit import Chem
 from sarscope.analysis.align3d import preparation_available
 from sarscope.analysis.contours import COLORS, open_dx
 from sarscope.analysis.scaffolds import add_scaffolds
+from sarscope.field_interpretation import interpretation_review, training_pose_ranges
 from sarscope.field_qsar import (
     BENCHMARK_STATUS,
     FieldDataset,
@@ -218,47 +219,132 @@ def _assay_dataset(
     )
 
 
-@st.cache_data(show_spinner=False, max_entries=1)
-def _field_example_dataset(source_hash: str) -> FieldDataset:
+@st.cache_data(show_spinner=False, max_entries=2)
+def _field_example_dataset(name: str, source_hash: str) -> FieldDataset:
     from sarscope.field_example import field_example_dataset
 
-    return field_example_dataset()
+    return field_example_dataset(name)
+
+
+def _restore_example_settings(key: str, reference: str) -> None:
+    """Explicit reset only: never fit, auto-review, or relax a validation check."""
+    from sarscope.analysis.fields import COMSIA_FIELDS
+
+    defaults = {
+        "scaffold": "All compounds",
+        "route": "prealigned",
+        "reference": reference,
+        "assess_core": True,
+        "keep_h": False,
+        "coverage": 0.5,
+        "rmsd": 1.0,
+        "field_definition": "sarscope",
+        "method": "comsia",
+        "charge": "gasteiger",
+        "spacing": 2.0,
+        "scaling_sarscope": "raw",
+        "selection": "relative_improvement",
+        "field_subset_comsia_sarscope": list(COMSIA_FIELDS),
+        "fraction": 30,
+        "components": 4,
+        "permutations": 19,
+        "split": "random",
+        "test_fraction": 0.25,
+        "folds": 3,
+        "margin": 4.0,
+        "alpha": 0.3,
+        "seed": 42,
+        "grid_phase": (0.0, 0.0, 0.0),
+        "reviewed": False,
+    }
+    st.session_state.update({f"{key}_{suffix}": value for suffix, value in defaults.items()})
+    for suffix in ("prepared", "result", "model_error", "archive", "selection_scope", "overlay"):
+        st.session_state.pop(f"{key}_{suffix}", None)
+    _discard_active(key)
 
 
 def _field_example_controls(key: str) -> FieldDataset | None:
-    from sarscope.field_example import field_example_archive, field_example_files
+    from sarscope.field_example import FIELD_EXAMPLES, field_example_archive, field_example_files
 
-    contents = field_example_files()
-    with st.expander("Try a measured 3D-QSAR example · 50 EGFR compounds"):
-        st.caption(
-            "Real IC50 measurements from ChEMBL assay CHEMBL680017 (Bridges et al., 1996). "
-            "One focused quinazoline scaffold. The supplied SDF uses generated, rigid-MCS "
-            "aligned conformations, not experimentally observed bound poses. "
-            "Its 3D results may be weak; the previous demo's favourable RF scores do not apply."
+    with st.expander("Try a measured 3D-QSAR example"):
+        name = st.selectbox(
+            "Measured 3D example",
+            list(FIELD_EXAMPLES),
+            format_func=lambda value: FIELD_EXAMPLES[value].label,
+            key=f"{key}_example_name",
         )
+        spec = FIELD_EXAMPLES[name]
+        contents = field_example_files(name)
+        source = json.loads(contents["source.json"])
+        verification = json.loads(contents["verification.json"])
+        stats = next(s for s in verification["statistics"] if s["algorithm"] == "field_pls")
+        if name == "ccr5":
+            st.caption(
+                "75 real CCR5 antagonist measurements from a published, pre-aligned series "
+                "(Aher et al., 2007; deposited by Haga et al., 2025). Deposited log activities "
+                "are unchanged—not invented pIC50 values. All 75 records are included. "
+                "The neutral-parent preparation preserves heavy-atom coordinates and bonds; "
+                "protonation changes are audited. These are not verified crystal poses."
+            )
+        else:
+            st.caption(
+                "EGFR limitation case: 50 real IC50 measurements from ChEMBL assay CHEMBL680017 "
+                "(Bridges et al., 1996). Generated rigid-MCS poses, not observed binding poses. "
+                "The weak results are retained; this is not the recommended positive demo."
+            )
+        st.caption(
+            f"Recorded native 3D PLS default run: held-out R² {stats['test_r2']:.3f}; "
+            f"pooled nested-CV q² {stats['cv_pooled_q2']:.3f}; RMSE {stats['test_rmse']:.3f}. "
+            "These are 3D results, not the 2D RF baseline. "
+            "Changing inputs/settings changes results."
+        )
+        if name == "ccr5":
+            st.warning(
+                "Within-series tutorial, not independent validation. Pooled q² ≈ 0.499 is "
+                "below the 0.5 check; it remains failed despite positive held-out R². "
+                "This does not validate new compounds or guarantee other alignments/splits."
+            )
+            with st.expander("Other fixed splits · all outcomes retained"):
+                st.dataframe(
+                    pd.DataFrame(verification["repeat_splits"]), hide_index=True, width="stretch"
+                )
+                st.caption("Primary seed remains 42; no best-seed selection is applied.")
         st.download_button(
             "Download 3D example CSV",
-            contents["egfr_3d.csv"],
-            "egfr_3d.csv",
+            contents[spec.csv],
+            spec.csv,
             "text/csv",
             key=f"{key}_example_csv",
         )
         st.download_button(
             "Download aligned example SDF",
-            contents["egfr_3d_aligned.sdf"],
-            "egfr_3d_aligned.sdf",
+            contents[spec.sdf],
+            spec.sdf,
             "chemical/x-mdl-sdfile",
             key=f"{key}_example_sdf",
         )
         st.download_button(
             "Download 3D example source and walkthrough",
-            field_example_archive(),
-            "measured_3d_example.zip",
+            field_example_archive(name),
+            f"{name}_measured_3d_example.zip",
             "application/zip",
             key=f"{key}_example_zip",
         )
         selected = st.checkbox("Use measured 3D-QSAR example", key=f"{key}_example")
-        st.caption("Data: ChEMBL/EMBL-EBI, CC BY-SA 3.0; doi:10.1021/jm9503613.")
+        st.button(
+            "Restore example model defaults",
+            key=f"{key}_example_reset",
+            on_click=_restore_example_settings,
+            args=(key, source["reference_id"]),
+            help="Restores settings and clears results. Does not prepare, review or run a model.",
+        )
+        st.caption(
+            f"Data: {source['attribution']} · {source['license']}. Separate from the code licence."
+        )
+        st.caption(
+            "Use the aligned SDF to reproduce the recorded run. CSV has no coordinates; "
+            "regenerating conformers/alignment may give different results."
+        )
     if not selected:
         return None
     st.info(
@@ -266,7 +352,7 @@ def _field_example_controls(key: str) -> FieldDataset | None:
         "the overlay, then run 3D QSAR. The design-and-predict step appears below those "
         "results and uses that same fitted 3D model. No modelling starts automatically."
     )
-    return _field_example_dataset(hashlib.sha256(contents["source.json"]).hexdigest())
+    return _field_example_dataset(name, hashlib.sha256(contents["source.json"]).hexdigest())
 
 
 def show_field_qsar(
@@ -276,11 +362,17 @@ def show_field_qsar(
     *,
     key: str = "field_qsar",
 ) -> None:
-    st.subheader("3D QSAR · a focused chemical series")
+    st.subheader("3D QSAR · uncertainty-aware 3D SAR")
     st.markdown(
-        "Compare aligned molecular fields with measured potency, then inspect where the "
-        "model associates steric, charge or hydrogen-bond features with activity. "
-        "Choose the dataset, review its geometry, and run modelling separately."
+        "Explore a closely related chemical series with comparable measured activities and "
+        "a reviewed alignment. Compare 3D predictions with a 2D baseline, stress-test small "
+        "pose changes, then inspect contour and design hypotheses. "
+        "This is not automatic lead optimisation; predictive claims must be earned per series."
+    )
+    st.caption(
+        "For interpretable 3D SAR, prefer a reviewed pre-aligned SDF. CSV/SMILES remain "
+        "available, but generated conformers and a shared scaffold do not establish "
+        "a common binding pose. No modelling or sensitivity check starts automatically."
     )
     st.warning(BENCHMARK_STATUS + " Contours are hypotheses, not observed protein contacts.")
     mode = "Upload my compounds"
@@ -406,6 +498,12 @@ def show_field_qsar(
         key=f"{key}_reference",
     )
     reference_index = dataset.table["molecule_id"].tolist().index(reference)
+    if route != "prealigned":
+        st.warning(
+            "Generated alignment is an exploratory pose hypothesis, not an observed binding "
+            "mode. Inspect the whole congeneric series and run the training-only pose "
+            "sensitivity check before interpreting contours or proposed potency gains."
+        )
     assess_core = True
     preserve_hydrogens = False
     if route == "prealigned":
@@ -476,6 +574,12 @@ def show_field_qsar(
         return
     prepared = cached[1]
     st.caption(prepared.alignment.assumption)
+    if prepared.alignment.report.warning.astype(bool).any():
+        st.warning(
+            "Some compounds fail the chosen alignment thresholds. Focus on a tighter related "
+            "series or review the supplied coordinates; do not treat this overlay as "
+            "evidence of a shared binding mode."
+        )
     st.metric(
         "Whole-series common heavy-atom core coverage",
         f"{prepared.alignment.common_core_coverage:.0%}"
@@ -755,7 +859,7 @@ def show_field_qsar(
     )
     # Do not redisplay pre-update session results with the old check/metric schema.
     model_key = _signature(
-        ["2026-10-17-validation-ux", preparation_key, asdict(params), asdict(model)]
+        ["2026-10-17-uncertainty-aware-sar", preparation_key, asdict(params), asdict(model)]
     )
     split_error = None
     try:
@@ -852,6 +956,28 @@ def show_field_result(result: FieldQsarResult, key: str) -> None:
         "extremely negative R² and inflate its SD. They are not interchangeable. "
         "Definitions also accompany statistics.csv in the evidence download."
     )
+    baseline = interpretation_review(result)["baseline"]
+    if baseline:
+        st.markdown("**Keep the simpler 2D model in view**")
+        controls = st.columns(3)
+        for control, label, name in zip(
+            controls,
+            ["3D field PLS · test RMSE", "2D ECFP4 RF · test RMSE", "Training mean · test RMSE"],
+            ["field_rmse", "rf_rmse", "mean_rmse"],
+            strict=True,
+        ):
+            control.metric(label, f"{baseline[name]:.3f}" if baseline[name] is not None else "—")
+        difference = baseline["field_minus_rf_rmse"]
+        if difference is not None:
+            st.caption(
+                (
+                    "The 2D baseline has lower test error on this split. "
+                    if difference > 0
+                    else "The 3D model has no higher test error on this split. "
+                )
+                + "Same-split point estimates are not a test of superiority. "
+                "Do not choose settings repeatedly from these held-out scores."
+            )
     test = result.predictions[result.predictions["split"] == "held_out"]
     plot = test.melt(
         id_vars=["molecule_id", "pactivity"],
@@ -984,6 +1110,24 @@ def show_field_result(result: FieldQsarResult, key: str) -> None:
             "A molecule can lie inside the PCA box because its missing terms were replaced "
             "with averages; domain membership does not remove that uncertainty."
         )
+    show_training_stability(result, key)
+    review = interpretation_review(result)
+    st.markdown("**Contours · exploratory spatial associations**")
+    if review["pose_status"] != "within_tested_limits":
+        st.warning(review["pose_message"])
+    st.caption(
+        "Even a passing prediction-sensitivity check does not establish stable contour "
+        "locations. These maps are not protein contacts or instructions guaranteed to "
+        "improve potency. Inspect competing SAR explanations and measured pairs."
+    )
+    if review["dominant_field"]:
+        dominant = review["dominant_field"]
+        st.warning(
+            f"Field imbalance: {dominant['field']} accounts for {dominant['percent']:.1f}% "
+            "of absolute contour contribution. Review the scaling assumptions; this does "
+            "not mean other molecular properties are biologically irrelevant. "
+            "The 95% warning is an interpretation flag, not a validation criterion."
+        )
     field_warning = unmodelled_field_warning(result.contours.summary)
     if field_warning:
         st.warning(field_warning)
@@ -1058,7 +1202,6 @@ def show_field_result(result: FieldQsarResult, key: str) -> None:
             "can shorten the search. This final inner-selection table is not the outer "
             "nested-CV performance estimate. " + getattr(model, "selection_stop_reason_", "")
         )
-    show_training_stability(result, key)
     if st.button("Prepare 3D-QSAR evidence download", key=f"{key}_export"):
         st.session_state[f"{key}_archive"] = (
             _signature(result.provenance),
@@ -1077,7 +1220,8 @@ def show_field_result(result: FieldQsarResult, key: str) -> None:
 
 def show_training_stability(result: FieldQsarResult, key: str) -> None:
     """Explicit bounded diagnostic; never starts on first render or uses test labels."""
-    with st.expander("Training-only stability · alignment, charges and grid"):
+    st.markdown("**Alignment sensitivity · check before interpreting 3D SAR**")
+    with st.expander("Training-only stability · alignment, charges and grid", expanded=True):
         st.caption(
             "Refits nested CV on fitting compounds only: two charge models, four half-step "
             "grid offsets, three 0.25 Å / 5° relative pose perturbations, and a common-frame "
@@ -1089,6 +1233,7 @@ def show_training_stability(result: FieldQsarResult, key: str) -> None:
             st.info("This diagnostic currently supports Gaussian fields with random nested CV.")
             return
         if st.button("Check training-only stability", key=f"{key}_stability"):
+            from sarscope.field_design import field_model_signature
             from sarscope.field_sensitivity import run_sensitivity, training_dataset
 
             try:
@@ -1101,31 +1246,46 @@ def show_training_stability(result: FieldQsarResult, key: str) -> None:
                         seed=model_record["seed"],
                     )
                     stability = run_sensitivity(data, result.prepared.params, model)
+                fit_signature = field_model_signature(result)
+                stability_record = {**stability.provenance, "fitted_model_signature": fit_signature}
                 result.training_stability = {
+                    "fitted_model_signature": fit_signature,
                     "summary": stability.summary,
                     "predictions": stability.predictions,
                     "contributions": stability.contributions,
-                    "provenance": stability.provenance,
+                    "provenance": stability_record,
                 }
-                result.provenance["training_stability"] = stability.provenance
+                result.provenance["training_stability"] = stability_record
+                result.provenance.pop("training_stability_attempt_error", None)
                 st.session_state.pop(f"{key}_archive", None)
                 st.session_state.pop("report_zip", None)
             except Exception as exc:
+                result.provenance["training_stability_attempt_error"] = str(exc)
+                st.session_state.pop(f"{key}_archive", None)
+                st.session_state.pop("report_zip", None)
                 st.error(f"Stability diagnostics could not complete: {exc}")
         if result.training_stability is None:
+            st.info(interpretation_review(result)["pose_message"])
             return
         summary = result.training_stability["summary"]
         st.dataframe(summary.round(4), hide_index=True, width="stretch")
-        if not summary.engineering_stability_flag.all():
+        if (
+            "engineering_stability_flag" not in summary
+            or not summary.engineering_stability_flag.all()
+        ):
             st.warning(
                 "Some stability flags failed. Review the affected variants; a small charge "
                 "or pose change may materially change this model's conclusions. "
                 "This does not by itself identify a coding error."
             )
-        plotted = summary[summary.completed & summary.kind.ne("baseline")].copy()
-        plotted["variant_label"] = plotted.variant.str.replace("_", " ").str.capitalize()
-        plotted["oof_change_p95"] = plotted.oof_change_p95.round(8)
-        if not plotted.empty:
+        plotted = (
+            summary[summary.completed & summary.kind.ne("baseline")].copy()
+            if {"completed", "kind"} <= set(summary)
+            else pd.DataFrame()
+        )
+        if not plotted.empty and {"oof_change_p95", "oof_change_max"} <= set(plotted):
+            plotted["variant_label"] = plotted.variant.str.replace("_", " ").str.capitalize()
+            plotted["oof_change_p95"] = plotted.oof_change_p95.round(8)
             st.altair_chart(
                 alt.Chart(plotted)
                 .mark_point(filled=True, size=100)
@@ -1151,3 +1311,46 @@ def show_training_stability(result: FieldQsarResult, key: str) -> None:
             "All stability evidence is included when you prepare the 3D-QSAR download. "
             "No alternative is automatically selected and failed models are not certified."
         )
+        ranges = training_pose_ranges(result)
+        if not ranges.empty:
+            st.markdown("**Training compounds · variation across pose stress tests**")
+            displayed = ranges.head(20)
+            st.altair_chart(
+                alt.Chart(displayed)
+                .mark_rule(color="#dc7c35", strokeWidth=5)
+                .encode(
+                    y=alt.Y(
+                        "molecule_id:N",
+                        sort=displayed.molecule_id.tolist(),
+                        title="Training compound",
+                        axis=alt.Axis(labelLimit=180),
+                    ),
+                    x=alt.X(
+                        "minimum_pose_oof:Q",
+                        title="Training-only perturbed OOF prediction",
+                        scale=alt.Scale(zero=False),
+                    ),
+                    x2="maximum_pose_oof:Q",
+                    tooltip=[
+                        "molecule_id",
+                        "minimum_pose_oof",
+                        "maximum_pose_oof",
+                        "pose_oof_range",
+                        "completed_pose_checks",
+                    ],
+                )
+                .properties(height=max(160, 22 * len(displayed))),
+                width="stretch",
+            )
+            st.dataframe(ranges.round(3), hide_index=True, width="stretch")
+            st.caption(
+                "Plot: up to 20 largest training-only ranges; table: all fitting compounds. "
+                "Minimum/maximum across the completed perturbed, refitted training OOF models. "
+                "These are not new-compound prediction intervals or uncertainty in potency "
+                "gains. Held-out compounds are excluded."
+            )
+        review = interpretation_review(result)
+        if review["pose_status"] == "within_tested_limits":
+            st.info(review["pose_message"])
+        else:
+            st.warning(review["pose_message"])

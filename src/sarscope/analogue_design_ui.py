@@ -40,6 +40,7 @@ def _show_result(
     archive: bytes | None = None,
 ) -> None:
     frame = result.candidates
+    scope_label = result.provenance.get("known_compound_scope_label", "selected assay")
     st.subheader("Proposed experiments, not confirmed improvements")
     st.caption(
         "Observed ΔpActivity describes supporting measured pairs in other substitution "
@@ -67,13 +68,13 @@ def _show_result(
         unmeasured = int(frame.known_ids.eq("").sum())
         st.caption(
             f"{unmeasured} unmeasured combinations · "
-            f"{len(frame) - unmeasured} known assay controls."
+            f"{len(frame) - unmeasured} known controls in the {scope_label}."
         )
         if unmeasured == 0:
             st.info(
-                "All reconstructable swaps here are already measured in this assay. These are "
-                "reference controls, not new designs. A series with additional combinable "
-                "R-positions is needed to propose unmeasured combinations."
+                f"All reconstructable swaps here are already measured in the {scope_label}. "
+                "These are reference controls, not new designs. A series with additional "
+                "combinable R-positions is needed to propose unmeasured combinations."
             )
         overview = [
             "molecule_id",
@@ -93,14 +94,22 @@ def _show_result(
             "predicted_delta_vs_parent",
             "prediction_pair_conflict",
             "pair_evidence_warning",
+            "model_pose_status",
             "prediction_status",
         ]
+        displayed = frame[[name for name in overview if name in frame]].copy()
+        if "model_pose_status" in displayed:
+            from sarscope.field_interpretation import POSE_STATUS_LABELS
+
+            displayed["model_pose_status"] = displayed.model_pose_status.map(
+                POSE_STATUS_LABELS
+            ).fillna("Unknown · review required")
         st.dataframe(
-            frame[[name for name in overview if name in frame]],
+            displayed,
             column_config={
                 "molecule_id": "Proposed analogue",
                 "position": "Changed position",
-                "known_ids": "Known in selected assay",
+                "known_ids": f"Known in {scope_label}",
                 "supporting_pairs": "Measured pairs",
                 "disjoint_pairs": "Disjoint measured pairs",
                 "observed_median_delta": st.column_config.NumberColumn(
@@ -120,6 +129,10 @@ def _show_result(
                 "unresolved_stereo": "Stereo review needed",
                 "nearest_measured_similarity": "Nearest measured Tanimoto",
                 "prediction_status": "Prediction status",
+                "model_pose_status": st.column_config.TextColumn(
+                    "3D pose evidence",
+                    help="Training-only model sensitivity, not candidate-specific uncertainty.",
+                ),
             },
             hide_index=True,
             width="stretch",
@@ -173,8 +186,7 @@ def _show_result(
         with columns[1]:
             _structure(candidate.smiles, f"Proposed · {identifier} · {candidate.position}")
         st.write(
-            f"{candidate.prediction_status}. "
-            f"Known in selected assay: {candidate.known_ids or 'no'}."
+            f"{candidate.prediction_status}. Known in {scope_label}: {candidate.known_ids or 'no'}."
         )
         if (
             "model_parent_prediction" in candidate

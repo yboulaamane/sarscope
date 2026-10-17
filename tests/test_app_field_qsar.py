@@ -340,3 +340,112 @@ show_field_result(st.session_state.fixture, 'test_empty_fields')
     assert "electrostatic" not in choices.options
     with zipfile.ZipFile(io.BytesIO(field_qsar_archive(changed))) as archive:
         assert b"Filtering retained no columns for" in archive.read("report.html")
+
+
+def test_baseline_and_unassessed_pose_warning_are_visible_without_running_diagnostics(
+    field_result, monkeypatch
+):
+    from dataclasses import replace
+
+    import sarscope.field_sensitivity as sensitivity
+
+    monkeypatch.setattr(
+        sensitivity, "run_sensitivity", lambda *a, **k: pytest.fail("User-triggered only")
+    )
+    result = replace(
+        field_result, training_stability=None, provenance=dict(field_result.provenance)
+    )
+    app = AppTest.from_string(
+        "import streamlit as st\nfrom sarscope.field_qsar_ui import show_field_result\n"
+        "show_field_result(st.session_state.fixture, 'pose_context')",
+        default_timeout=30,
+    )
+    app.session_state["fixture"] = result
+    app.run()
+    assert not app.exception
+    assert any(m.label == "2D ECFP4 RF · test RMSE" for m in app.metric)
+    assert any("has not been assessed" in w.value for w in app.warning)
+    headings = [m.value for m in app.markdown]
+    assert headings.index(
+        "**Alignment sensitivity · check before interpreting 3D SAR**"
+    ) < headings.index("**Contours · exploratory spatial associations**")
+
+
+def test_complete_training_only_stress_check_shows_ranges_but_never_claims_candidate_intervals(
+    field_result, monkeypatch
+):
+    from dataclasses import replace
+    from types import SimpleNamespace
+
+    from test_field_interpretation import passing_evidence
+
+    import sarscope.field_sensitivity as sensitivity
+    from sarscope.field_interpretation import interpretation_review
+
+    result = replace(
+        field_result, training_stability=None, provenance=dict(field_result.provenance)
+    )
+    calls = []
+
+    def fake(data, settings, model):
+        calls.append(True)
+        assert set(data.table.molecule_id) == set(
+            result.prepared.dataset.table.iloc[result.regression.train_index].molecule_id
+        )
+        evidence = passing_evidence(result)
+        return SimpleNamespace(
+            **{k: evidence[k] for k in ("summary", "predictions", "contributions", "provenance")}
+        )
+
+    monkeypatch.setattr(sensitivity, "run_sensitivity", fake)
+    app = AppTest.from_string(
+        "import streamlit as st\nfrom sarscope.field_qsar_ui import show_training_stability\n"
+        "show_training_stability(st.session_state.fixture, 'pose_ranges')",
+        default_timeout=30,
+    )
+    app.session_state["fixture"] = result
+    app.run()
+    assert not calls and not app.exception
+    app.button(key="pose_ranges_stability").click().run()
+    assert calls == [True] and not app.exception
+    saved = app.session_state["fixture"]
+    assert interpretation_review(saved)["pose_status"] == "within_tested_limits"
+    assert any("not new-compound prediction intervals" in c.value for c in app.caption)
+    assert any("does not validate" in item.value for item in app.info)
+    assert any("pose_oof_range" in table.value.columns for table in app.dataframe)
+
+
+def test_all_failed_sensitivity_variants_remain_visible_without_a_chart_keyerror(field_result):
+    from dataclasses import replace
+
+    import pandas as pd
+
+    result = replace(
+        field_result,
+        provenance=dict(field_result.provenance),
+        training_stability={
+            "summary": pd.DataFrame(
+                [
+                    {
+                        "variant": "baseline",
+                        "kind": "baseline",
+                        "completed": False,
+                        "engineering_stability_flag": False,
+                        "error": "budget exceeded",
+                    }
+                ]
+            ),
+            "predictions": pd.DataFrame(),
+            "contributions": pd.DataFrame(),
+            "provenance": {},
+        },
+    )
+    app = AppTest.from_string(
+        "import streamlit as st\nfrom sarscope.field_qsar_ui import show_training_stability\n"
+        "show_training_stability(st.session_state.fixture, 'failed_ranges')",
+        default_timeout=30,
+    )
+    app.session_state["fixture"] = result
+    app.run()
+    assert not app.exception
+    assert any("incomplete" in w.value for w in app.warning)

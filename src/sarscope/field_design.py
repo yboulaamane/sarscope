@@ -20,6 +20,7 @@ from sarscope.analysis.align3d import _AlignmentGenerator, best_mapping, prepara
 from sarscope.analysis.fields import compute_fields, coordinates
 from sarscope.analysis.rgroups import ScaffoldSar
 from sarscope.conformers import validate_conformer_stereo
+from sarscope.field_interpretation import interpretation_review, interpretation_signature
 from sarscope.field_qsar import FieldQsarResult
 from sarscope.params import AnalogueDesignParams
 
@@ -108,9 +109,19 @@ def generate_field_analogues(
     positions: list[str],
     *,
     max_candidates: int = 5,
+    comparable_series_confirmed: bool = False,
 ) -> AnalogueDesign:
     if not 1 <= max_candidates <= 10:
         raise ValueError("Generate at most 10 analogues per 3D scoring batch.")
+    if (
+        result.prepared.dataset.source.get("design_comparability_review_required")
+        and not comparable_series_confirmed
+    ):
+        raise ValueError(
+            "Review and explicitly confirm experimental comparability before transferring "
+            "matched-pair effects from this historical benchmark cohort. "
+            "It is not independently verified single-assay evidence."
+        )
     table, evidence = field_design_inputs(result)
     design = generate_analogues(
         series,
@@ -125,6 +136,12 @@ def generate_field_analogues(
     design.provenance["scoring_model"] = (
         "Same displayed training-fitted 3D field PLS; no refit or 2D fallback"
     )
+    design.provenance["source_assay_comparability"] = result.prepared.dataset.source.get(
+        "assay_comparability", "See source measurements"
+    )
+    design.provenance["benchmark_comparability_confirmed_by_user"] = comparable_series_confirmed
+    if result.prepared.dataset.source.get("design_comparability_review_required"):
+        design.provenance["known_compound_scope_label"] = "supplied series"
     return design
 
 
@@ -219,6 +236,9 @@ def predict_field_analogues(
         frame[name] = np.nan
     frame["in_applicability_domain"] = False
     frame["prediction_status"] = "not attempted"
+    review = interpretation_review(result)
+    frame["model_pose_status"] = review["pose_status"]
+    frame["interpretation_warning"] = review["interpretation_message"]
     scored_design = replace(design, candidates=frame, provenance={**design.provenance})
     audit = {
         "model_signature": signature,
@@ -231,6 +251,8 @@ def predict_field_analogues(
         "model_checks": json.loads(result.checks.to_json(orient="records")),
         "model_status": result.status,
         "exploratory_consent": allow_exploratory,
+        "interpretation_signature": interpretation_signature(result),
+        "interpretation_review": review,
         "reference_id": result.prepared.dataset.table.iloc[
             result.prepared.alignment.reference_index
         ].molecule_id,
@@ -242,9 +264,10 @@ def predict_field_analogues(
     }
     output = FieldDesignResult(scored_design, [], pd.DataFrame(), pd.DataFrame(), audit)
     scored_design.provenance["3d_prediction"] = audit
-    if not result.checks.passed.all() and not allow_exploratory:
+    if review["requires_exploratory_consent"] and not allow_exploratory:
         frame["prediction_status"] = (
-            "withheld: 3D validation checks unmet; exploratory consent required"
+            "withheld: 3D validation checks unmet or pose sensitivity unqualified; "
+            "exploratory consent required"
         )
         return output
     table = result.prepared.dataset.table
@@ -396,7 +419,8 @@ def predict_field_analogues(
                     ]
                 frame.loc[index, "in_applicability_domain"] = True
                 frame.loc[index, "prediction_status"] = (
-                    "Exploratory 3D field-PLS prediction; not a confirmed improvement"
+                    "Exploratory 3D field-PLS prediction; not a confirmed improvement; "
+                    f"pose evidence: {review['pose_status']}"
                 )
                 aligned.SetProp("_Name", row.molecule_id)
                 output.aligned.append(aligned)
@@ -438,6 +462,10 @@ def predict_field_analogues(
 def field_design_archive(prediction: FieldDesignResult, result: FieldQsarResult) -> bytes:
     if prediction.audit["model_signature"] != field_model_signature(result):
         raise ValueError("The fitted 3D model changed; old predictions cannot be exported with it.")
+    if prediction.audit.get("interpretation_signature") != interpretation_signature(result):
+        raise ValueError(
+            "Stability evidence changed; rerun candidate prediction before exporting its labels."
+        )
     with zipfile.ZipFile(io.BytesIO(design_archive(prediction.design))) as original:
         files = {
             name: original.read(name)
@@ -457,6 +485,18 @@ def field_design_archive(prediction: FieldDesignResult, result: FieldQsarResult)
     files["3d_scoring_audit.json"] = json.dumps(
         prediction.audit, indent=2, allow_nan=False
     ).encode()
+    if result.training_stability is not None:
+        files["model_pose_sensitivity.csv"] = (
+            result.training_stability["summary"].to_csv(index=False).encode()
+        )
+        files["model_pose_sensitivity_provenance.json"] = json.dumps(
+            {
+                **result.training_stability["provenance"],
+                "fitted_model_signature": result.training_stability.get("fitted_model_signature"),
+            },
+            indent=2,
+            allow_nan=False,
+        ).encode()
     from sarscope.field_qsar_report import aligned_sdf
 
     files["fitted_reference.sdf"] = aligned_sdf(result.prepared, reference_only=True).encode()

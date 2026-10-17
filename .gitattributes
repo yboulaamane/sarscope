@@ -1,0 +1,8 @@
+# RDKit's SDF property headers contain trailing spaces. Preserve the exact
+# serialized, checksummed molecular data instead of formatting it as code.
+src/sarscope/data/field_example/*.sdf -whitespace
+src/sarscope/data/field_ccr5_example/*.sdf -whitespace
+
+# Preserve raw pytest tracebacks in the dated validation records.
+benchmarks/field_qsar/ccr5-demo-tests-20261017.xml -whitespace
+benchmarks/field_qsar/ccr5-offline-tests-bounded-20261017.xml -whitespace
