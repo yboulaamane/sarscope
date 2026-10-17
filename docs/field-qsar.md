@@ -227,6 +227,64 @@ correctly ordered. Fresh external data are needed for a final evaluation.
 See the [benchmark source audit](field-qsar-benchmark-status.md) for the actual
 dataset investigation, hash and unresolved permissions/protocol requirements.
 
+## Reading validation results and preparing a series
+
+The scaffold selector defaults to **All compounds**, without silently reducing
+the upload to its largest scaffold. The selection count and model-size gate
+are explicit; **Select all available compounds** restores a manually edited
+selection within the current filter (up to 100). Alignment/model controls need
+20–100 selected compounds. A scaffold filter can leave too few compounds;
+restore All compounds or add comparable measurements rather than interpreting
+the absent controls as a running calculation.
+
+Split feasibility is checked before field computation, including the minimum
+15 training/3 held-out rows and the scaffold groups needed by nested CV. The
+held-out scaffold partition uses approximately `1 / test_fraction` groups of
+folds; its count is distinct from the requested CV fold count. A single
+scaffold cannot support scaffold validation. Random splitting is offered as
+within-series interpolation, not a substitute for scaffold extrapolation.
+
+Strict CoMFA checks every fitting-derived retained mask against its validation
+partition before any PLS/RF fitting. An overlap error names **Missing
+electrostatic descriptors**, now visible above the advanced settings. Explicit
+fitting-mean replacement remains opt-in for native SARscope fields; it is not
+silently enabled to make a failed model run. Error messages replace the
+previous run prompt and persist until the settings change or the model is retried.
+
+`cv_pooled_q2` pools out-of-fold squared errors and divides by the full
+training-set SST. `cv_fold_mean_r2` and `cv_fold_sd_r2` describe the unweighted
+mean and sample SD of the fold-specific predictive R² scores, each with its
+own fold mean/SST. Narrow-potency folds can have tiny denominators and very
+negative R², even when pooled q² is only moderately negative. The legacy
+`cv_r2`/`cv_r2_sd` columns remain aliases for compatibility. Definitions ship
+in `metric_definitions.csv`. Pearson r² in the calibration check is separately
+labelled; it is not predictive R². The grid check reports the number of
+held-out compounds with **heavy atoms outside** the training grid, so zero is
+a pass. Alignment checks display their coverage/RMSD criteria.
+
+The charge-audit rows are **compounds**, with identifiers and zero-based
+aligned-series row numbers, not PLS components. A blank fallback reason is
+displayed as “Not needed (no fallback)”. Component selection has a separate
+table: its requested maximum is a ceiling, not a promise to test every count.
+The smallest fitting-fold n/5 cap, feature rank/count and early stopping can
+shorten that search; the fitted model retains the actual cap/stop explanation.
+
+After 3D analogue scoring, **Opposes measured pair(s)** flags predictions
+whose direction contradicts any supporting measured pair for that directed
+swap. Duplicate pair records count once. The observed median and opposing
+pair count are exported with each scored candidate. This is a warning about
+context-dependent evidence, not a claim that pair effects transfer perfectly:
+neither scores nor model fits are changed to force agreement. Unscored rows
+have no agreement verdict. The proposed-experiments result table opens only
+after alignment/prediction has been requested for the current design.
+
+Viewers use a larger canvas and a molecule-oriented camera, with Reset view.
+Only the camera changes: aligned coordinates and contour grids retain the
+same reference frame. Tiny/absent contour regions are not artificially
+inflated or presented as stronger evidence. Startup displays a loading notice
+before the scientific imports, and report plotting imports are deferred until
+export; shared-host cold-start latency is still outside the model workflow.
+
 ## Contours and export
 
 Contours are **raw-field coefficient × raw training standard deviation**,

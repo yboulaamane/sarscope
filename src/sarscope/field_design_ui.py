@@ -138,7 +138,11 @@ def show_field_design(result: FieldQsarResult, key: str) -> None:
             st.error(f"3D prediction needs review: {exc}")
     predicted = st.session_state.get(f"{scope_key}_predictions")
     if predicted is None or predicted[0] != prediction_key:
-        _show_result(design, None, scope_key)
+        st.info(
+            f"{len(design.candidates)} proposals prepared. "
+            "Run alignment and prediction above to open the proposed-experiments results. "
+            "No potency predictions have been made for these settings."
+        )
         return
     prediction = predicted[1]
     st.caption("Prediction engine: the displayed 3D field PLS. No RF fit, scoring or fallback.")
@@ -158,7 +162,7 @@ def show_field_design(result: FieldQsarResult, key: str) -> None:
                     *[Chem.MolToMolBlock(mol) for mol in prediction.aligned[:5]],
                 ]
             ),
-            height=460,
+            height=640,
         )
     if not prediction.contributions.empty:
         st.markdown("**Why does this model predict a change?**")

@@ -134,6 +134,8 @@ class FieldColumnFilter(BaseEstimator, TransformerMixin):
                 raise ValueError(
                     "CoMFA electrostatic overlap in held-out molecules: retained fields are "
                     "undefined. This split is not scorable; use CoMSIA or reviewed alignments. "
+                    "Alternatively, explicitly set 'Missing electrostatic descriptors' to "
+                    "'fitting-column means' and review the reported replacement fractions. "
                     "No test-derived mask or imputation was applied."
                 )
         return selected / self.column_scale_[self.support_]

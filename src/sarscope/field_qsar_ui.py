@@ -10,6 +10,7 @@ from pathlib import Path
 from typing import Any, Literal, cast
 
 import altair as alt
+import numpy as np
 import pandas as pd
 import streamlit as st
 import streamlit.components.v1 as components
@@ -25,10 +26,17 @@ from sarscope.field_qsar import (
     assay_contexts,
     dataset_from_assay,
     dataset_from_upload,
+    field_split_plan,
     subset_dataset,
     upload_table,
 )
-from sarscope.field_qsar_report import aligned_sdf, field_qsar_archive, unmodelled_field_warning
+from sarscope.field_qsar_report import (
+    METRIC_DEFINITIONS,
+    aligned_sdf,
+    charge_audit,
+    field_qsar_archive,
+    unmodelled_field_warning,
+)
 from sarscope.params import FieldQsarParams, ModelParams
 from sarscope.pipeline import prepare_field_qsar_stage, run_field_qsar_stage
 
@@ -44,9 +52,29 @@ def _discard_active(key: str) -> None:
 
 def viewer_html(blocks: list[str], surfaces: list[dict[str, Any]] | None = None) -> str:
     """JSON-escape uploaded text; the browser fetches 3Dmol.js, not compound URLs."""
-    payload = json.dumps({"blocks": blocks, "surfaces": surfaces or []}).replace("<", "\\u003c")
+    orientation = None
+    if blocks:
+        from scipy.spatial.transform import Rotation
+
+        mol = Chem.MolFromMolBlock(blocks[0], sanitize=False, removeHs=True)
+        if mol is not None and mol.GetNumConformers() and mol.GetNumAtoms() >= 3:
+            xyz = mol.GetConformer().GetPositions()
+            _, _, axes = np.linalg.svd(xyz - xyz.mean(axis=0), full_matrices=False)
+            if np.linalg.det(axes) < 0:
+                axes[2] *= -1
+            # Camera only: face the molecule's broad plane with a slight 3D tilt.
+            # Never rotate model/contour coordinates or change the alignment.
+            orientation = (
+                (Rotation.from_euler("xy", [18, -15], degrees=True) * Rotation.from_matrix(axes))
+                .as_quat()
+                .tolist()
+            )
+    payload = json.dumps(
+        {"blocks": blocks, "surfaces": surfaces or [], "orientation": orientation}
+    ).replace("<", "\\u003c")
     return """<!doctype html><html><body style="margin:0;background:#19222a">
-<div id="view" style="height:450px;width:100%;position:relative"></div>
+<div id="view" style="height:600px;width:100%;position:relative"></div>
+<button id="reset" style="position:absolute;top:12px;left:12px;z-index:2">Reset view</button>
 <script src="https://3Dmol.org/build/3Dmol-min.js"></script><script>
 const data = PAYLOAD;
 if (typeof $3Dmol === 'undefined') {
@@ -60,7 +88,13 @@ viewer.setStyle({model:i},{stick:{radius:0.13,opacity:i===0?1:0.45}});
 });
 data.surfaces.forEach(s=>viewer.addVolumetricData(s.dx,'dx',
 {isoval:s.level,color:s.color,opacity:0.55}));
-viewer.zoomTo();viewer.render();
+function resetView(){
+viewer.zoomTo({model:0});
+if(data.orientation){const view=viewer.getView();
+view.splice(4,4,...data.orientation);viewer.setView(view);}
+viewer.zoom(1.25);viewer.render();
+}
+resetView();document.getElementById('reset').onclick=resetView;
 }
 </script></body></html>""".replace("PAYLOAD", payload)
 
@@ -276,7 +310,7 @@ def show_field_qsar(
     scaffold = st.selectbox(
         "Focus the series by scaffold",
         choices,
-        index=1 if len(choices) > 1 else 0,
+        index=0,
         format_func=lambda value: (
             f"{value} ({counts[value]} compounds)" if value in counts else value
         ),
@@ -288,6 +322,11 @@ def show_field_qsar(
         else scaffold_table[scaffold_table["murcko"].fillna("Acyclic") == scaffold]
     )
     available_ids = available["molecule_id"].astype(str).tolist()
+    if scaffold != "All compounds":
+        st.caption(
+            f"Scaffold filter: {len(available_ids)} of {len(dataset.table)} compounds remain. "
+            "Choose All compounds above to restore the full uploaded/assay series."
+        )
     selection_scope = _signature(
         {
             "source": dataset.source,
@@ -302,6 +341,17 @@ def show_field_qsar(
         st.session_state[f"{key}_compounds"] = available_ids if len(available_ids) <= 100 else []
         st.session_state[f"{key}_selection_scope"] = selection_scope
         _discard_active(key)
+
+    def select_all() -> None:
+        st.session_state[f"{key}_compounds"] = available_ids
+
+    st.button(
+        "Select all available compounds",
+        on_click=select_all,
+        key=f"{key}_select_all",
+        disabled=len(available_ids) > 100,
+        help="Selects all compounds within the current scaffold filter (maximum 100).",
+    )
     identifiers = st.multiselect(
         "Compounds in this 3D-QSAR series",
         available_ids,
@@ -321,7 +371,9 @@ def show_field_qsar(
     if not 20 <= len(dataset.table) <= 100:
         st.info(
             f"{len(dataset.table)} unique compounds selected. Nested modelling needs 20–100; "
-            "a very small series supports descriptive SAR, not reliable predictive claims."
+            "alignment and modelling controls appear once 20–100 are selected. "
+            "Restore All compounds in the scaffold filter and select all available compounds, "
+            "or add comparable measurements. A smaller series supports descriptive SAR only."
         )
         _discard_active(key)
         return
@@ -446,7 +498,7 @@ def show_field_qsar(
                 if mol.GetProp("_Name") in inspect_ids
             ]
         ),
-        height=460,
+        height=640,
     )
     st.caption(
         "Interactive viewer loads 3Dmol.js from its public host; "
@@ -494,18 +546,43 @@ def show_field_qsar(
             "the opt-in SYBYL-documented fitting-mean policy reports replaced terms explicitly."
         )
     spacing = controls[2].selectbox(
-        "Grid spacing (Å)", [2.0, 2.5, 3.0, 1.5, 1.0], key=f"{key}_spacing"
+        "Grid spacing (Å)", [1.0, 1.5, 2.0, 2.5, 3.0], index=2, key=f"{key}_spacing"
     )
     st.caption(
-        "Explicit method variant: RDKit radii, UFF LJ well depths, Crippen atomic logP and "
-        "atom-centred donor/acceptor features. "
-        "Not a replica of proprietary Tripos parameter tables."
+        (
+            "CoMSIA-style Gaussian fields: RDKit radii, partial charges, Crippen atomic logP "
+            "and atom-centred donor/acceptor features. "
+            if method == "comsia"
+            else "CoMFA-style fields: Lennard–Jones steric energy using RDKit radii/UFF "
+            "well depths and Coulomb electrostatics. No hydrophobic or H-bond fields. "
+        )
+        + "Not a replica of proprietary Tripos parameter tables."
         if definition == "sarscope"
-        else "Reference components: public Tripos-5.2 R/K parameters "
-        "and explicit-H environment rules. "
+        else (
+            "CoMSIA-style Gaussian SE fields: "
+            if method == "comsia"
+            else "CoMFA-style LJ/Coulomb SE fields: "
+        )
+        + "public Tripos-5.2 R/K parameters and explicit-H environment rules. "
         "Block scaling is SARscope's training-only implementation; full SYBYL preprocessing "
         "and atom-typing equivalence have not been established."
     )
+    missing_policy = "refuse"
+    if method == "comfa":
+        missing_policy = st.selectbox(
+            "Missing electrostatic descriptors",
+            ["refuse", "training_mean"],
+            index=1 if definition == "tripos52_se" else 0,
+            format_func=lambda value: (
+                "Refuse scoring (strict)"
+                if value == "refuse"
+                else "SYBYL-documented policy · fitting-column means, with counts"
+            ),
+            key=f"{key}_missing_{definition}",
+            help="A retained Coulomb descriptor can be undefined at steric overlaps. "
+            "Strict mode refuses that prediction. Mean filling uses fitting rows only "
+            "and adds uncertainty; it does not validate the model.",
+        )
     with st.expander("Field and model settings"):
         field_choices = ["steric", "electrostatic"]
         if method == "comsia" and definition == "sarscope":
@@ -560,7 +637,13 @@ def show_field_qsar(
             "Grid margin (Å)", 2.0, 8.0, 4.0, 0.5, key=f"{key}_margin"
         )
         alpha = controls[1].number_input(
-            "Gaussian attenuation α (Å⁻²)", 0.1, 0.8, 0.3, 0.05, key=f"{key}_alpha"
+            "Gaussian attenuation α (Å⁻²)",
+            0.1,
+            0.8,
+            0.3,
+            0.05,
+            disabled=method != "comsia",
+            key=f"{key}_alpha",
         )
         seed = controls[2].number_input("Random seed", 1, 2147483647, 42, key=f"{key}_seed")
         phase = st.selectbox(
@@ -587,24 +670,12 @@ def show_field_qsar(
             disabled=filter_mode != "absolute",
             key=f"{key}_sd",
         )
-        missing_policy, electrostatic_cutoff, dielectric_model, max_filled = (
-            "refuse",
+        electrostatic_cutoff, dielectric_model, max_filled = (
             None,
             "constant",
             0.1,
         )
         if method == "comfa":
-            missing_policy = st.selectbox(
-                "Missing electrostatic descriptors",
-                ["refuse", "training_mean"],
-                index=1 if definition == "tripos52_se" else 0,
-                format_func=lambda value: (
-                    "Refuse scoring (strict)"
-                    if value == "refuse"
-                    else "SYBYL-documented policy · fitting-column means, with counts"
-                ),
-                key=f"{key}_missing_{definition}",
-            )
             controls = st.columns(3)
             electrostatic_cutoff = controls[0].selectbox(
                 "Electrostatic plateau (± kcal/mol)",
@@ -682,11 +753,26 @@ def show_field_qsar(
         cv_folds=folds,
         seed=int(seed),
     )
-    model_key = _signature([preparation_key, asdict(params), asdict(model)])
+    # Do not redisplay pre-update session results with the old check/metric schema.
+    model_key = _signature(
+        ["2026-10-17-validation-ux", preparation_key, asdict(params), asdict(model)]
+    )
+    split_error = None
+    try:
+        field_split_plan(dataset.table, model)
+    except ValueError as exc:
+        split_error = str(exc)
+        st.warning(split_error)
+    if not reviewed:
+        st.info("To enable Run, tick 'I reviewed the overlay and alignment assumptions' above.")
     if st.button(
-        "Run experimental 3D QSAR", type="primary", disabled=not reviewed, key=f"{key}_run"
+        "Run experimental 3D QSAR",
+        type="primary",
+        disabled=not reviewed or split_error is not None,
+        key=f"{key}_run",
     ):
         st.session_state.pop(f"{key}_result", None)
+        st.session_state.pop(f"{key}_model_error", None)
         _discard_active(key)
         st.session_state.pop("report_zip", None)
         try:
@@ -698,11 +784,19 @@ def show_field_qsar(
                 result = run_field_qsar_stage(replace(prepared, params=params), model)
             st.session_state[f"{key}_result"] = model_key, result
         except Exception as exc:
-            st.error(f"3D QSAR could not be scored: {exc}")
+            st.session_state[f"{key}_model_error"] = (model_key, str(exc))
+    error = st.session_state.get(f"{key}_model_error")
+    if error is not None and error[0] == model_key:
+        _discard_active(key)
+        st.error(f"3D QSAR could not be scored: {error[1]}")
+        return
     cached = st.session_state.get(f"{key}_result")
     if cached is None or cached[0] != model_key:
         _discard_active(key)
-        st.info("Run the model for these settings. Earlier results are hidden when inputs change.")
+        if reviewed and split_error is None:
+            st.info(
+                "Run the model for these settings. Earlier results are hidden when inputs change."
+            )
         return
     result = cached[1]
     st.session_state[f"{key}_active_result"] = result
@@ -716,10 +810,17 @@ def show_field_result(result: FieldQsarResult, key: str) -> None:
     st.markdown("**3 · Evaluate predictions and explore associations**")
     st.warning(result.status)
     st.dataframe(result.checks, hide_index=True, width="stretch")
+    st.caption(
+        "A check mark means its stated criterion passed, not that a larger value is better. "
+        "For the outside-grid count, zero means no held-out compound extends beyond the grid. "
+        "Calibration's value is Pearson r²; it is not held-out predictive R²."
+    )
     columns = [
         "algorithm",
         "train_r2",
         "cv_pooled_q2",
+        "cv_fold_mean_r2",
+        "cv_fold_sd_r2",
         "test_r2",
         "test_rmse",
         "test_mae",
@@ -728,7 +829,29 @@ def show_field_result(result: FieldQsarResult, key: str) -> None:
         "selected_components",
         "permutation_pvalue",
     ]
-    st.dataframe(result.statistics[columns], hide_index=True, width="stretch")
+    st.dataframe(
+        result.statistics[[name for name in columns if name in result.statistics]],
+        column_config={
+            name: st.column_config.NumberColumn(
+                {
+                    "cv_pooled_q2": "Pooled outer-CV q²",
+                    "cv_fold_mean_r2": "Mean fold R²",
+                    "cv_fold_sd_r2": "Fold R² SD",
+                }.get(name, name),
+                help=description,
+                format="%.3f",
+            )
+            for name, description in METRIC_DEFINITIONS.items()
+        },
+        hide_index=True,
+        width="stretch",
+    )
+    st.caption(
+        "Pooled q² uses all out-of-fold errors and the full training-set SST. Mean fold R² "
+        "averages scores with each fold's own SST: small, narrow-potency folds can have "
+        "extremely negative R² and inflate its SD. They are not interchangeable. "
+        "Definitions also accompany statistics.csv in the evidence download."
+    )
     test = result.predictions[result.predictions["split"] == "held_out"]
     plot = test.melt(
         id_vars=["molecule_id", "pactivity"],
@@ -736,23 +859,72 @@ def show_field_result(result: FieldQsarResult, key: str) -> None:
         var_name="model",
         value_name="predicted",
     )
+    plot["model"] = plot["model"].map(
+        {"prediction": "3D field PLS", "baseline_prediction": "2D ECFP4 RF baseline"}
+    )
+    limits = [
+        float(plot[["pactivity", "predicted"]].min().min()),
+        float(plot[["pactivity", "predicted"]].max().max()),
+    ]
+    padding = max(0.1, (limits[1] - limits[0]) * 0.05)
+    limits = [limits[0] - padding, limits[1] + padding]
+    scale = alt.Scale(domain=limits, zero=False)
     scatter = (
         alt.Chart(plot)
-        .mark_circle(size=75)
+        .mark_point(size=75, filled=True)
         .encode(
-            x=alt.X("pactivity:Q", title="Observed pActivity", scale=alt.Scale(zero=False)),
-            y=alt.Y("predicted:Q", title="Held-out prediction", scale=alt.Scale(zero=False)),
-            color="model:N",
+            x=alt.X(
+                "pactivity:Q",
+                title="Observed pActivity",
+                scale=scale,
+                axis=alt.Axis(tickCount=6, format=".2f"),
+            ),
+            y=alt.Y(
+                "predicted:Q",
+                title="Held-out prediction",
+                scale=scale,
+                axis=alt.Axis(tickCount=6, format=".2f"),
+            ),
+            color=alt.Color(
+                "model:N",
+                title="Model",
+                scale=alt.Scale(
+                    domain=["3D field PLS", "2D ECFP4 RF baseline"], range=["#26ad88", "#dc7c35"]
+                ),
+            ),
+            shape=alt.Shape("model:N", legend=None),
             tooltip=["molecule_id", "pactivity", "predicted", "model"],
         )
     )
-    st.altair_chart(scatter, width="stretch")
+    diagonal = (
+        alt.Chart(pd.DataFrame({"value": limits}))
+        .mark_line(color="#929ba6", strokeDash=[6, 4])
+        .encode(
+            x=alt.X(
+                "value:Q",
+                title="Observed pActivity",
+                scale=scale,
+                axis=alt.Axis(tickCount=6, format=".2f"),
+            ),
+            y=alt.Y(
+                "value:Q",
+                title="Held-out prediction",
+                scale=scale,
+                axis=alt.Axis(tickCount=6, format=".2f"),
+            ),
+        )
+    )
+    st.altair_chart((diagonal + scatter).properties(height=400), width="stretch")
+    st.caption("Dashed y = x line: perfect prediction. Teal: 3D PLS; orange: 2D RF baseline.")
     st.altair_chart(
         alt.Chart(test)
         .mark_circle(size=65)
         .encode(
             x=alt.X(
-                "prediction:Q", title="Held-out predicted pActivity", scale=alt.Scale(zero=False)
+                "prediction:Q",
+                title="Held-out predicted pActivity",
+                scale=alt.Scale(zero=False),
+                axis=alt.Axis(tickCount=6, format=".2f"),
             ),
             y=alt.Y("residual:Q", title="Observed − predicted"),
             tooltip=["molecule_id", "residual"],
@@ -774,6 +946,10 @@ def show_field_result(result: FieldQsarResult, key: str) -> None:
             .encode(x="q2:Q")
         )
         st.altair_chart(histogram + line, width="stretch")
+        st.caption(
+            f"Green vertical line: observed pooled outer-CV q² = "
+            f"{result.statistics.iloc[0].cv_pooled_q2:.3f}; bars: permuted-label q²."
+        )
     st.caption(
         "Permutation testing repeats component selection on training labels only. A small p-value "
         "does not establish assay validity, correct alignment or prospective utility. "
@@ -826,8 +1002,37 @@ def show_field_result(result: FieldQsarResult, key: str) -> None:
         if level is not None
     ]
     reference = result.prepared.alignment.molecules[result.prepared.params.reference_index]
-    components.html(viewer_html([Chem.MolToMolBlock(reference)], surfaces), height=460)
-    st.dataframe(result.contours.summary, hide_index=True, width="stretch")
+    components.html(viewer_html([Chem.MolToMolBlock(reference)], surfaces), height=640)
+    summary = result.contours.summary
+    st.dataframe(
+        summary[
+            [
+                "field",
+                "absolute_contribution_percent",
+                "retained_columns",
+                "positive_level",
+                "negative_level",
+            ]
+        ],
+        column_config={
+            "absolute_contribution_percent": st.column_config.NumberColumn(
+                "Contribution (%)", format="%.1f"
+            ),
+            "retained_columns": "Retained columns",
+            "positive_level": st.column_config.NumberColumn("Positive level", format="%.3g"),
+            "negative_level": st.column_config.NumberColumn("Negative level", format="%.3g"),
+        },
+        hide_index=True,
+        width="stretch",
+    )
+    interpretation = summary[summary.field.eq(field)].iloc[0]
+    st.caption(
+        f"{field.replace('_', ' ').title()} · {interpretation.positive_color}: "
+        f"{interpretation.positive_interpretation}. {interpretation.negative_color}: "
+        f"{interpretation.negative_interpretation}."
+    )
+    with st.expander("Full contour definitions and colours"):
+        st.dataframe(summary.T, width="stretch")
     st.caption(
         "Contours show coefficient × training standard deviation "
         "at the chosen per-sign percentile. "
@@ -835,10 +1040,23 @@ def show_field_result(result: FieldQsarResult, key: str) -> None:
         "model's absolute contributions—not binding energy or independent explained variance."
     )
     with st.expander("Charge model and component-selection audit"):
-        st.dataframe(pd.DataFrame(result.fields.charges), hide_index=True)
-        st.dataframe(result.regression.fitted_model.selection_table_, hide_index=True)
+        st.markdown("**Charges per compound**")
+        audit = charge_audit(result)
+        st.dataframe(audit, hide_index=True, width="stretch")
         st.caption(
-            "This final inner-selection table is not the outer nested-CV performance estimate."
+            "row is the zero-based index in the aligned series (0 is the first compound). "
+            "Requested/used identify charge methods; reason describes fallback only. "
+            "These rows are compounds, not PLS components."
+        )
+        st.markdown("**PLS component-selection search**")
+        model = result.regression.fitted_model
+        st.dataframe(model.selection_table_, hide_index=True, width="stretch")
+        st.caption(
+            f"Requested maximum: {result.prepared.params.component_cap}; selected: "
+            f"{model.selected_components_}. The maximum is not a requirement to try every count. "
+            "The smallest inner fitting fold's n/5, feature count/rank and early-stop rule "
+            "can shorten the search. This final inner-selection table is not the outer "
+            "nested-CV performance estimate. " + getattr(model, "selection_stop_reason_", "")
         )
     show_training_stability(result, key)
     if st.button("Prepare 3D-QSAR evidence download", key=f"{key}_export"):
@@ -897,30 +1115,39 @@ def show_training_stability(result: FieldQsarResult, key: str) -> None:
         if result.training_stability is None:
             return
         summary = result.training_stability["summary"]
-        st.dataframe(summary, hide_index=True, width="stretch")
+        st.dataframe(summary.round(4), hide_index=True, width="stretch")
         if not summary.engineering_stability_flag.all():
             st.warning(
                 "Some stability flags failed. Review the affected variants; a small charge "
                 "or pose change may materially change this model's conclusions. "
                 "This does not by itself identify a coding error."
             )
-        plotted = summary[summary.completed & summary.kind.ne("baseline")]
+        plotted = summary[summary.completed & summary.kind.ne("baseline")].copy()
+        plotted["variant_label"] = plotted.variant.str.replace("_", " ").str.capitalize()
+        plotted["oof_change_p95"] = plotted.oof_change_p95.round(8)
         if not plotted.empty:
             st.altair_chart(
                 alt.Chart(plotted)
-                .mark_bar()
+                .mark_point(filled=True, size=100)
                 .encode(
-                    y=alt.Y("variant:N", title="Training-only perturbation"),
+                    y=alt.Y(
+                        "variant_label:N",
+                        title="Training-only perturbation",
+                        axis=alt.Axis(labelLimit=280),
+                    ),
                     x=alt.X(
                         "oof_change_p95:Q",
                         title="95th percentile OOF prediction change (log units)",
                     ),
                     color="kind:N",
                     tooltip=["variant", "oof_change_p95", "oof_change_max"],
-                ),
+                )
+                .properties(height=max(220, 30 * len(plotted))),
                 width="stretch",
             )
         st.caption(
+            "A point at zero (including common translation) means no measurable prediction "
+            "change at display precision; it is not missing data. "
             "All stability evidence is included when you prepare the 3D-QSAR download. "
             "No alternative is automatically selected and failed models are not certified."
         )

@@ -191,6 +191,8 @@ def _fit_field_pls(
             ]
         )
         model.selected_components_ = settings.fixed_components
+        model.effective_component_cap_ = int(cap)
+        model.selection_stop_reason_ = "Component count was fixed before evaluation; no search."
         return filt, model
     labels = np.full(len(y), "series", dtype=object) if labels is None else labels
     folds = list(_regression_folds(labels, groups, params, years))
@@ -206,6 +208,11 @@ def _fit_field_pls(
     if cap < 1:
         raise ValueError("Too few independent training rows/features for capped, nested PLS.")
     rows, previous, chosen = [], -math.inf, 1
+    row_limit = f"n/{ratio}" if ratio is not None else "n−1"
+    stop_reason = (
+        f"Effective search cap: {cap} (requested {settings.component_cap}); "
+        f"limited by smallest fitting-fold {row_limit}, feature count/rank."
+    )
     for components in range(1, cap + 1):
         prediction = np.full(len(y), np.nan)
         for train, validation, a, b in filtered:
@@ -232,12 +239,19 @@ def _fit_field_pls(
         if components > 1 and q2 - previous <= settings.component_improvement * max(
             abs(previous), 1e-12
         ):
+            stop_reason += (
+                f" Early stopping at {components} tested components: CV q² improvement "
+                f"did not exceed {settings.component_improvement:.0%} of |previous q²|."
+            )
             break
         chosen, previous = components, q2
     filt = FieldColumnFilter(settings).fit(X)
     model = estimator(chosen).fit(filt.transform(X), y)
     model.selection_table_ = pd.DataFrame(rows)
+    model.selection_table_["selected"] = model.selection_table_.components.eq(chosen)
     model.selected_components_ = chosen
+    model.effective_component_cap_ = int(cap)
+    model.selection_stop_reason_ = stop_reason
     return filt, model
 
 

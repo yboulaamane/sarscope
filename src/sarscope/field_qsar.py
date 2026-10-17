@@ -18,9 +18,11 @@ from sarscope.analysis.align3d import AlignmentResult, align_series
 from sarscope.analysis.contours import ContourResult, contribution_maps
 from sarscope.analysis.domain import DomainResult, pca_bounding_box
 from sarscope.analysis.features import fingerprint_matrix
+from sarscope.analysis.field_filter import FieldColumnFilter
 from sarscope.analysis.fields import FieldResult, GridSpec, compute_fields
 from sarscope.analysis.regression import (
     RegressionResult,
+    _regression_folds,
     evaluate_regression,
     regression_cv_predictions,
     regression_split,
@@ -369,6 +371,89 @@ def calibration_diagnostics(truth: np.ndarray, prediction: np.ndarray) -> dict[s
     }
 
 
+def field_split_plan(
+    table: pd.DataFrame,
+    model: ModelParams,
+    split_indices: tuple[list[int], list[int]] | None = None,
+) -> tuple[np.ndarray, np.ndarray, list[tuple[np.ndarray, np.ndarray]]]:
+    """Validate the hold-out and every nested fitting partition before fields/PLS.
+
+    Fold indices in the returned list are relative to the full input table.
+    No labels, geometry or test scores are used to choose a different split.
+    """
+    table = add_scaffolds(table)
+    groups = np.array(
+        [g if g is not None else f"acyclic_{i}" for i, g in enumerate(table["murcko"])]
+    )
+    labels = np.full(len(table), "series", dtype=object)
+    if model.split == "scaffold":
+        count = len(np.unique(groups))
+        if count == 1:
+            raise ValueError("All compounds share one scaffold. Use a random split.")
+        holdout_folds = max(2, round(1 / model.test_fraction))
+        if split_indices is None and count < holdout_folds:
+            raise ValueError(
+                f"The {model.test_fraction:.0%} held-out scaffold split needs at least "
+                f"{holdout_folds} scaffolds; found {count}. This is separate from the "
+                f"{model.cv_folds} CV folds. Use a random split or a larger multi-scaffold series."
+            )
+    train, test = regression_split(
+        np.zeros((len(table), 1)), labels, groups, model, split_indices=split_indices
+    )
+    if len(train) < 15 or len(test) < 3:
+        raise ValueError(
+            f"This split leaves {len(train)} training and {len(test)} held-out compounds. "
+            "At least 15 training and 3 held-out compounds are needed. "
+            "Reduce the held-out fraction to keep more training compounds, "
+            "add comparable compounds, or use a random split for an uneven scaffold series."
+        )
+
+    def folds(indices: np.ndarray, context: str) -> list[tuple[np.ndarray, np.ndarray]]:
+        n = len(np.unique(groups[indices])) if model.split == "scaffold" else len(indices)
+        if model.regression_cv != "loo" and n < model.cv_folds:
+            noun = "scaffolds" if model.split == "scaffold" else "compounds"
+            raise ValueError(
+                f"{context} has {n} {noun}, fewer than the {model.cv_folds} CV folds. "
+                "Use fewer CV folds, a random split, or a larger comparable series."
+            )
+        return [
+            (indices[a], indices[b])
+            for a, b in _regression_folds(labels[indices], groups[indices], model)
+        ]
+
+    partitions = [(train, test)]
+    outer = folds(train, "The training partition")
+    partitions.extend(outer)
+    # Final component selection uses these same folds of the full training set.
+    for number, (fitting, _) in enumerate(outer, 1):
+        inner = folds(fitting, f"Outer CV fold {number}'s component-selection partition")
+        if any(len(a) < 5 for a, _ in inner):
+            raise ValueError(
+                "Nested CV leaves fewer than 5 fitting compounds in an inner fold. "
+                "Add comparable compounds or reduce the held-out fraction; "
+                "the n/5 PLS component cap cannot be bypassed."
+            )
+        partitions.extend(inner)
+    return train, test, partitions
+
+
+def _check_field_partitions(
+    matrix: np.ndarray,
+    partitions: list[tuple[np.ndarray, np.ndarray]],
+    params: FieldQsarParams,
+) -> None:
+    """Fail before fitting any model, using each fitting partition's own mask."""
+    if params.method != "comfa" or params.missing_field_policy != "refuse":
+        return
+    for number, (fit, validation) in enumerate(partitions):
+        filt = FieldColumnFilter(params).fit(matrix[fit])
+        try:
+            filt.transform(matrix[validation])
+        except ValueError as exc:
+            context = "held-out partition" if number == 0 else "nested CV partition"
+            raise ValueError(f"Early CoMFA check failed in the {context}: {exc}") from exc
+
+
 def run_field_qsar(
     prepared: PreparedFieldSeries,
     model: ModelParams,
@@ -408,13 +493,12 @@ def run_field_qsar(
     groups = np.array(
         [g if g is not None else f"acyclic_{i}" for i, g in enumerate(table["murcko"])]
     )
-    train, test = regression_split(
-        np.zeros((len(table), 1)), labels, groups, model, split_indices=split_indices
-    )
-    if len(train) < 15 or len(test) < 3:
-        raise ValueError("This split needs at least 15 training and three held-out compounds.")
+    train, test, partitions = field_split_plan(table, model, split_indices)
     grid = GridSpec.around([prepared.alignment.molecules[int(i)] for i in train], params)
     fields = compute_fields(prepared.alignment.molecules, grid, params)
+    _check_field_partitions(fields.matrix, partitions, params)
+    for index, charge in enumerate(fields.charges):
+        charge["molecule_id"] = str(table.iloc[index].molecule_id)
     result = evaluate_regression(
         fields.matrix, y, groups.tolist(), labels.tolist(), model, split_indices=split_indices
     )
@@ -493,8 +577,8 @@ def run_field_qsar(
     grid_high = grid_low + (np.array(grid.shape) - 1) * grid.spacing
     predictions["outside_training_grid"] = [
         bool(
-            np.any(mol.GetConformer().GetPositions() < grid_low - 1e-8)
-            or np.any(mol.GetConformer().GetPositions() > grid_high + 1e-8)
+            np.any(Chem.RemoveHs(mol).GetConformer().GetPositions() < grid_low - 1e-8)
+            or np.any(Chem.RemoveHs(mol).GetConformer().GetPositions() > grid_high + 1e-8)
         )
         for mol in prepared.alignment.molecules
     ]
@@ -519,14 +603,24 @@ def run_field_qsar(
                 "value": float(field_stats.iloc[0].test_r2),
             },
             {
-                "check": "Origin calibration (GT-style heuristic)",
+                "check": "Origin calibration (GT-style heuristic; value = Pearson r²)",
                 "passed": bool(diagnostics["origin_calibration_heuristic"]),
                 "value": diagnostics["pearson_r2"],
+                "criterion": (
+                    "Pearson r² > 0.6 AND an origin fit: relative gap < 0.1, slope 0.85–1.15"
+                ),
+                "details": (
+                    f"k={diagnostics['k']:.3g}; k′={diagnostics['k_prime']:.3g}; "
+                    f"R₀²={diagnostics['r0_squared']:.3g}; "
+                    f"R₀′²={diagnostics['r0_prime_squared']:.3g}. "
+                    "Pearson r² is not predictive R²."
+                ),
             },
             {
                 "check": "Full-pipeline permutation test",
                 "passed": bool(pvalue <= params.permutation_alpha),
                 "value": pvalue,
+                "criterion": f"Training-label permutation p ≤ {params.permutation_alpha:g}",
             },
             {
                 "check": "At least five held-out compounds",
@@ -538,11 +632,17 @@ def run_field_qsar(
                 "passed": not prepared.alignment.report["warning"].astype(bool).any()
                 and prepared.alignment.common_core_coverage >= params.min_core_coverage,
                 "value": prepared.alignment.common_core_coverage,
+                "criterion": (
+                    f"Common-core coverage ≥ {params.min_core_coverage:.0%}; "
+                    f"core RMSD ≤ {params.max_alignment_rmsd:g} Å; no alignment warnings"
+                ),
+                "details": "Value is the whole-series common heavy-atom core coverage.",
             },
             {
-                "check": "Held-out heavy atoms inside field grid",
+                "check": "Held-out compounds with heavy atoms outside field grid",
                 "passed": not predictions.loc[test, "outside_training_grid"].any(),
                 "value": int(predictions.loc[test, "outside_training_grid"].sum()),
+                "criterion": "0 compounds outside (zero is a pass)",
             },
             {
                 "check": "Native end-to-end 3D-QSAR validation",
@@ -559,9 +659,12 @@ def run_field_qsar(
                     .max()
                     .max()
                 ),
+                "criterion": f"Both missing-field fractions ≤ {params.max_imputed_fraction:.0%}",
             },
         ]
     )
+    checks["criterion"] = checks["criterion"].fillna("See check label/configured settings")
+    checks["details"] = checks["details"].fillna("")
     failures = checks.loc[~checks["passed"], "check"].tolist()
     status = "Experimental — not validated. Unmet checks: " + "; ".join(failures)
     record = provenance.collect(RunParams(model=model), prepared.dataset.source)
@@ -583,6 +686,12 @@ def run_field_qsar(
             ),
             "vendor_compatibility": "Public method components only; full SYBYL parity not verified",
             "cv": "nested component selection; pooled q2 = 1 - PRESS / training SST",
+            "component_selection_audit": {
+                "requested_cap": params.component_cap,
+                "effective_cap": result.fitted_model.effective_component_cap_,
+                "selected": result.fitted_model.selected_components_,
+                "stop_reason": result.fitted_model.selection_stop_reason_,
+            },
             "split_interpretation": "prespecified external benchmark partition"
             if split_indices
             else "within-series interpolation"
@@ -608,13 +717,16 @@ def run_field_qsar(
             },
         }
     )
+    statistics = pd.concat([field_stats, base_stats], ignore_index=True)
+    statistics["cv_fold_mean_r2"] = statistics["cv_r2"]
+    statistics["cv_fold_sd_r2"] = statistics["cv_r2_sd"]
     return FieldQsarResult(
         prepared,
         fields,
         result,
         baseline,
         predictions,
-        pd.concat([field_stats, base_stats], ignore_index=True),
+        statistics,
         checks,
         pd.DataFrame(scrambled, columns=["permutation", "q2"]),
         contribution_maps(fields, filt, result.fitted_model, params),

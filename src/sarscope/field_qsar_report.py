@@ -17,6 +17,37 @@ from rdkit import Chem
 from sarscope.analysis.contours import open_dx, pymol_script
 from sarscope.field_qsar import FieldQsarResult, PreparedFieldSeries
 
+METRIC_DEFINITIONS = {
+    "cv_pooled_q2": (
+        "Pooled nested outer-CV q²: 1 − sum of out-of-fold squared errors / "
+        "sum of squared deviations from the training-set mean. Each training compound "
+        "is predicted without fitting to its activity. This is the primary CV score."
+    ),
+    "cv_fold_mean_r2": (
+        "Unweighted mean of predictive R² across outer CV folds. Each fold uses its own "
+        "observed mean and SST. Small or narrow-potency folds can have tiny SST and "
+        "very negative R²; this need not match pooled q². Not Pearson correlation squared."
+    ),
+    "cv_fold_sd_r2": "Sample standard deviation of the finite per-fold predictive R² values.",
+    "cv_r2": "Legacy alias for cv_fold_mean_r2; not pooled q².",
+    "cv_r2_sd": "Legacy alias for cv_fold_sd_r2.",
+    "test_r2": "Held-out predictive R² = 1 − held-out SSE / held-out SST; can be negative.",
+    "pearson_r2": (
+        "Squared held-out Pearson correlation. Measures association, not predictive R² "
+        "or absolute calibration. Origin-fit diagnostics also inspect k, k_prime and R0 values."
+    ),
+}
+
+
+def charge_audit(result: FieldQsarResult) -> pd.DataFrame:
+    """Link zero-based computational row indices to the visible molecule identifiers."""
+    audit = pd.DataFrame(result.fields.charges).copy()
+    if "molecule_id" not in audit:
+        audit.insert(0, "molecule_id", result.prepared.dataset.table.molecule_id.to_numpy())
+    if "reason" in audit:
+        audit["reason"] = audit["reason"].replace("", "Not needed (no fallback)")
+    return audit
+
 
 def unmodelled_field_warning(summary: pd.DataFrame) -> str:
     """A zero-field contribution can reflect feature removal, not chemistry."""
@@ -100,11 +131,16 @@ def field_qsar_files(result: FieldQsarResult) -> dict[str, bytes]:
         "alignment": result.prepared.alignment.report,
         "measurements": result.prepared.dataset.measurements,
         "input_accounting": result.prepared.dataset.accounting,
-        "charges": pd.DataFrame(result.fields.charges),
+        "charges": charge_audit(result),
         "component_selection": result.regression.fitted_model.selection_table_,
     }
     for name, table in tables.items():
         files[f"{name}.csv"] = table.to_csv(index=False).encode()
+    files["metric_definitions.csv"] = (
+        pd.DataFrame(METRIC_DEFINITIONS.items(), columns=["metric", "definition"])
+        .to_csv(index=False)
+        .encode()
+    )
     files["aligned.sdf"] = aligned_sdf(result.prepared).encode()
     files["reference.sdf"] = aligned_sdf(result.prepared, reference_only=True).encode()
     files["contours.pml"] = pymol_script(result.contours).encode()
@@ -145,6 +181,11 @@ def field_qsar_files(result: FieldQsarResult) -> dict[str, bytes]:
         "No published q² reproduction or superiority over existing software is claimed.</p>",
         f"<p>{html.escape(result.prepared.alignment.assumption)}</p>",
         f"<p>{html.escape(result.fields.convention)}</p>",
+        "<p><b>CV metrics:</b> pooled nested-CV q² uses one training-wide SST; "
+        "cv_fold_mean_r2 (legacy cv_r2) averages fold-specific predictive R², "
+        "each with its own SST. Narrow/small folds can produce very negative fold R². "
+        "These are different statistics, not conflicting estimates of the same quantity. "
+        "See metric_definitions.csv. Pearson r² is a separate association diagnostic.</p>",
     ]
     field_warning = unmodelled_field_warning(result.contours.summary)
     if field_warning:

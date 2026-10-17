@@ -128,6 +128,49 @@ def generate_field_analogues(
     return design
 
 
+def flag_pair_conflicts(frame: pd.DataFrame, evidence: pd.DataFrame) -> pd.DataFrame:
+    """Describe disagreement with directed measured pairs; never correct model scores.
+
+    Supporting effects are for the same swap at the same R-position in other
+    measured contexts, not experimental truth for an unmeasured combination.
+    Duplicate assay rows for the same pair count only once.
+    """
+    frame = frame.copy()
+    frame["prediction_pair_conflict"] = pd.Series(pd.NA, index=frame.index, dtype="boolean")
+    frame["opposing_measured_pairs"] = 0
+    frame["pair_evidence_warning"] = "Not assessed (no numeric prediction)"
+    for index, row in frame.iterrows():
+        delta = row.predicted_delta_vs_parent
+        if not np.isfinite(delta):
+            continue
+        pairs = (
+            evidence[evidence.candidate_id.eq(row.molecule_id)] if not evidence.empty else evidence
+        )
+        if pairs.empty:
+            frame.loc[index, "pair_evidence_warning"] = "No measured-pair effects available"
+            continue
+        effects = pairs.groupby(["id_from", "id_to"]).delta_pactivity.median().to_numpy()
+        effects = effects[np.isfinite(effects)]
+        if not len(effects):
+            continue
+        opposing = int(
+            np.count_nonzero(
+                ((delta > 1e-8) & (effects < -1e-8)) | ((delta < -1e-8) & (effects > 1e-8))
+            )
+        )
+        conflict = opposing > 0
+        frame.loc[index, "prediction_pair_conflict"] = conflict
+        frame.loc[index, "opposing_measured_pairs"] = opposing
+        frame.loc[index, "pair_evidence_warning"] = (
+            f"Conflict: model Δ {delta:+.2f}; {opposing}/{len(effects)} measured pair(s) "
+            f"oppose its direction (median Δ {np.median(effects):+.2f}). "
+            "Other substitution contexts; do not prioritise on the model alone."
+            if conflict
+            else "No opposite-direction measured pair found; this does not validate the prediction."
+        )
+    return frame
+
+
 def predict_field_analogues(
     result: FieldQsarResult,
     design: AnalogueDesign,
@@ -381,6 +424,14 @@ def predict_field_analogues(
                 frame.loc[index, "prediction_status"] = f"withheld: {exc}"
     output.contributions = pd.DataFrame(contributions)
     output.charges = pd.DataFrame(charge_rows)
+    scored_design.candidates = flag_pair_conflicts(frame, design.evidence_pairs)
+    audit["measured_pair_conflicts"] = int(
+        scored_design.candidates.prediction_pair_conflict.fillna(False).sum()
+    )
+    audit["pair_conflict_policy"] = (
+        "Flag any directed measured-pair effect opposing the predicted delta; "
+        "deduplicate id_from/id_to pairs. Descriptive evidence only; no refit or score adjustment."
+    )
     return output
 
 
