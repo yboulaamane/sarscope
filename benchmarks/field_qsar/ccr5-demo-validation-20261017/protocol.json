@@ -1,0 +1,78 @@
+{
+  "schema": 1,
+  "date": "2026-10-17",
+  "scope": "Retrospective qualification of the neutral-parent CCR5 tutorial, not independent validation",
+  "prior_exposure": "All 75 public compounds and the historical 63/12 partition have already been inspected. None is a fresh external validation set.",
+  "fields": {
+    "method": "comsia",
+    "field_definition": "sarscope",
+    "field_subset": [
+      "steric",
+      "electrostatic",
+      "hydrophobic",
+      "hbond_donor",
+      "hbond_acceptor"
+    ],
+    "alignment": "prealigned",
+    "charge_model": "gasteiger",
+    "spacing": 2.0,
+    "margin": 4.0,
+    "alpha": 0.3,
+    "field_scaling": "raw",
+    "field_screen": "per_field",
+    "keep_fraction": 0.3,
+    "max_features": 2000,
+    "component_cap": 4,
+    "component_sample_ratio": 5,
+    "permutations": 199,
+    "permutation_timeout": 900,
+    "seed": 42
+  },
+  "reference_policy": "Fewest heavy atoms, identifier tie-break; do not move supplied coordinates",
+  "model": {
+    "split": "random",
+    "test_fraction": 0.25,
+    "cv_folds": 3,
+    "seed": 42
+  },
+  "additional_split_seeds": [
+    11,
+    29,
+    47,
+    83,
+    131
+  ],
+  "historical_partition": {
+    "training_records": 63,
+    "test_records": 12,
+    "permutations": 99
+  },
+  "scaffold_diagnostic": true,
+  "bootstrap": {
+    "repeats": 2000,
+    "seed": 20261017,
+    "method": "paired held-out scaffold-block percentile bootstrap"
+  },
+  "leakage_controls": {
+    "held_out_label_offset": 20.0,
+    "held_out_translation_A": [
+      100.0,
+      -80.0,
+      60.0
+    ],
+    "tolerance": 1e-10
+  },
+  "stability": {
+    "variants": "Existing ten predeclared sensitivity_variants",
+    "max_seconds": 600
+  },
+  "criteria": {
+    "nested_q2_gt": 0.5,
+    "test_r2_gt": 0.6,
+    "permutation_p_le": 0.05,
+    "bootstrap_rmse_gain_lower_gt": 0.0,
+    "all_training_stability_flags": true,
+    "independent_validation_required_for_predictive_release": true
+  },
+  "interpretation": "Existing score gates remain unchanged. Added bootstrap/stability criteria are declared engineering release checks, not universal QSAR validity standards. No replacement preset, seed, charge state or model is selected from these results. A passing retrospective diagnostic cannot establish prospective lead optimisation."
+}

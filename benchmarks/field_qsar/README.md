@@ -1,5 +1,11 @@
 # Field-QSAR reference reproduction
 
+The latest [CCR5 demo validation attempt](../../docs/ccr5-demo-validation.md)
+retains both the positive random-split tutorial and failed historical/scaffold
+evaluation. Run `validate_ccr5_demo.py` with a new `--out` directory to reproduce
+the frozen retrospective protocol. It does not certify independent validation
+or replace the older benchmark records below.
+
 **Status: SARscope now independently reproduces the SEH steroid training/LOO
 benchmark, without calling the author's modelling API.** See the
 [independent implementation and evidence](INDEPENDENT.md) first. The older

@@ -93,9 +93,11 @@ def best_mapping(
     right = reference.GetSubstructMatches(
         core, uniquify=False, useChirality=True, maxMatches=params.max_mappings + 1
     )
-    if len(left) * len(right) > params.max_mappings:
+    if len(left) > params.max_mappings or len(right) > params.max_mappings:
         raise ValueError(
-            "Too many symmetry mappings; use pre-aligned input or a tighter reference."
+            "Symmetry-match enumeration exceeded its limit; use a tighter reference. "
+            "For reviewed pre-aligned coordinates, common-core QC may explicitly be "
+            "marked unassessed; this does not pass alignment validation."
         )
     best: tuple[list[tuple[int, int]], float, Any] | None = None
     seen = set()
@@ -105,6 +107,14 @@ def best_mapping(
             if mapping in seen:
                 continue
             seen.add(mapping)
+            # Paired query automorphisms often describe the SAME atom mapping.
+            # Count distinct maps, not the Cartesian product before deduplication.
+            # Still refuse a genuinely truncated search, even after finding a good map.
+            if len(seen) > params.max_mappings:
+                raise ValueError(
+                    "Too many distinct symmetry mappings; use a tighter reference. "
+                    "No truncated mapping search is accepted."
+                )
             if any(
                 mol.GetAtomWithIdx(i).GetIsAromatic() != reference.GetAtomWithIdx(j).GetIsAromatic()
                 or mol.GetAtomWithIdx(i).GetHybridization()

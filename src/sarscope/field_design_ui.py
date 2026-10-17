@@ -20,11 +20,12 @@ from sarscope.field_design import (
     generate_field_analogues,
     predict_field_analogues,
 )
+from sarscope.field_interpretation import interpretation_review, interpretation_signature
 from sarscope.field_qsar import FieldQsarResult
 
 
 def show_field_design(result: FieldQsarResult, key: str) -> None:
-    st.markdown("**4 · Design analogues and predict with this 3D model**")
+    st.markdown("**4 · Design experiments · exploratory 3D predictions**")
     if getattr(result.domain, "fitted_pca", None) is None:
         st.info("Rerun this 3D model after the update to retain its original domain transform.")
         return
@@ -34,6 +35,31 @@ def show_field_design(result: FieldQsarResult, key: str) -> None:
         "mask/scaling—not the 2D baseline. Nothing is refitted. Contours and per-field "
         "changes explain model associations, not protein interactions or proven improvements."
     )
+    review = interpretation_review(result)
+    st.warning(review["interpretation_message"])
+    st.caption(
+        "The same-split 2D baseline remains above for comparison. Small-pose training "
+        "sensitivity is not a candidate-specific confidence interval, and no proposed "
+        "potency gain is a confirmed improvement."
+    )
+    comparable_series_confirmed = False
+    if result.prepared.dataset.source.get("design_comparability_review_required"):
+        st.warning(
+            "This historical CCR5 benchmark has not been independently adjudicated to a "
+            "single comparable assay. The model tutorial does not establish that its "
+            "matched-pair effects can be transferred between compounds. Review the source "
+            "experiments before using them as design evidence."
+        )
+        comparable_series_confirmed = st.checkbox(
+            "I reviewed the source experiments and confirm comparability for matched-pair design",
+            key=f"{key}_field_design_comparability",
+        )
+        if not comparable_series_confirmed:
+            st.info(
+                "The 3D model and contours remain available above. Analogue-design evidence "
+                "requires this separate comparability declaration."
+            )
+            return
     signature = field_model_signature(result)
     table, _ = field_design_inputs(result)
     table = add_scaffolds(table)
@@ -83,7 +109,12 @@ def show_field_design(result: FieldQsarResult, key: str) -> None:
     ):
         try:
             design = generate_field_analogues(
-                result, series, parent, positions, max_candidates=maximum
+                result,
+                series,
+                parent,
+                positions,
+                max_candidates=maximum,
+                comparable_series_confirmed=comparable_series_confirmed,
             )
             st.session_state[f"{scope_key}_design"] = (design_key, design)
             st.session_state.pop(f"{scope_key}_predictions", None)
@@ -106,9 +137,10 @@ def show_field_design(result: FieldQsarResult, key: str) -> None:
             "conformation aligned to its fixed reference; this adds an explicit pose assumption."
         )
     consent = False
-    if not result.checks.passed.all():
+    if review["requires_exploratory_consent"]:
         st.warning(
-            "This 3D model has unmet validation checks. Default potency scoring is withheld. "
+            "This 3D model has unmet validation checks or unqualified sensitivity evidence. "
+            "Default potency scoring is withheld. "
             "You may explicitly inspect exploratory predictions; geometry/domain failures "
             "remain withheld and no candidate is certified as improved."
         )
@@ -116,11 +148,12 @@ def show_field_design(result: FieldQsarResult, key: str) -> None:
             "I understand: show exploratory predictions from this unvalidated 3D model",
             key=f"{scope_key}_exploratory",
         )
-    prediction_key = json.dumps([design_key, route, consent])
+    prediction_key = json.dumps([design_key, route, consent, interpretation_signature(result)])
     if st.button(
         "Align and predict with this 3D model",
         key=f"{scope_key}_predict",
-        disabled=design.candidates.empty or (not result.checks.passed.all() and not consent),
+        disabled=design.candidates.empty
+        or (review["requires_exploratory_consent"] and not consent),
     ):
         try:
             with st.spinner(

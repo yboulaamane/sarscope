@@ -15,6 +15,7 @@ import pandas as pd
 from rdkit import Chem
 
 from sarscope.analysis.contours import open_dx, pymol_script
+from sarscope.field_interpretation import interpretation_review
 from sarscope.field_qsar import FieldQsarResult, PreparedFieldSeries
 
 METRIC_DEFINITIONS = {
@@ -158,7 +159,13 @@ def field_qsar_files(result: FieldQsarResult) -> dict[str, bytes]:
         training_column_means=result.regression.fitted_filter.column_mean_,
     )
     files["fields.npz"] = matrix.getvalue()
-    record: dict[str, Any] = {**result.provenance, "status": result.status}
+    review = interpretation_review(result)
+    files["interpretation.json"] = json.dumps(review, indent=2, allow_nan=False).encode()
+    record: dict[str, Any] = {
+        **result.provenance,
+        "status": result.status,
+        "interpretation_review": review,
+    }
     files["provenance.json"] = json.dumps(record, indent=2, allow_nan=False).encode()
     if result.training_stability is not None:
         for name in ("summary", "predictions", "contributions"):
@@ -166,7 +173,12 @@ def field_qsar_files(result: FieldQsarResult) -> dict[str, bytes]:
                 result.training_stability[name].to_csv(index=False).encode()
             )
         files["training_stability/provenance.json"] = json.dumps(
-            result.training_stability["provenance"], indent=2, allow_nan=False
+            {
+                **result.training_stability["provenance"],
+                "fitted_model_signature": result.training_stability.get("fitted_model_signature"),
+            },
+            indent=2,
+            allow_nan=False,
         ).encode()
     images = _plots(result)
     sections = [
@@ -175,8 +187,13 @@ def field_qsar_files(result: FieldQsarResult) -> dict[str, bytes]:
         "table{border-collapse:collapse;display:block;overflow:auto;font-size:12px}"
         "td,th{padding:6px;border:1px solid #ddd}img{max-width:100%}"
         ".warning{border-left:4px solid #c76b22;padding:12px;background:#fff2df}</style>",
-        "<h1>SARscope · experimental field QSAR</h1>",
+        "<h1>SARscope · uncertainty-aware, experimental 3D SAR</h1>",
         f"<p class='warning'>{html.escape(result.status)}</p>",
+        f"<p class='warning'>{html.escape(review['interpretation_message'])}</p>",
+        "<p>Use a closely related measured series with reviewed alignment. These are "
+        "interactive hypotheses, not automatic lead optimisation. Small-pose stress tests "
+        "measure training OOF prediction sensitivity, not stable contour locations "
+        "or new-compound confidence intervals.</p>",
         "<p>Model associations, not binding energies, observed contacts or proof of mechanism. "
         "No published q² reproduction or superiority over existing software is claimed.</p>",
         f"<p>{html.escape(result.prepared.alignment.assumption)}</p>",
@@ -190,6 +207,20 @@ def field_qsar_files(result: FieldQsarResult) -> dict[str, bytes]:
     field_warning = unmodelled_field_warning(result.contours.summary)
     if field_warning:
         sections.append(f"<p class='warning'>{html.escape(field_warning)}</p>")
+    if review["dominant_field"]:
+        dominant = review["dominant_field"]
+        sections.append(
+            f"<p class='warning'>Field imbalance: {html.escape(dominant['field'])} accounts "
+            f"for {dominant['percent']:.1f}% of absolute contour contributions. "
+            "Inspect field scaling; other properties are not thereby biologically irrelevant. "
+            "The 95% warning is an interpretation flag, not a validity criterion.</p>"
+        )
+    sections.append(
+        "<h2>Same-split 2D baseline comparison</h2>"
+        "<p>Compare 3D field PLS, 2D ECFP4 RF and training-mean errors in Statistics below. "
+        "Point estimates on one split are not a test of superiority. "
+        "Do not select a replacement preset from held-out results.</p>"
+    )
     for name in (
         "validation_checks",
         "statistics",

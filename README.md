@@ -1,6 +1,10 @@
 # SARscope
 
 **New, experimental:** optional small-series [field-based 3D QSAR](docs/field-qsar.md).
+The interface emphasises **uncertainty-aware 3D SAR**: reviewed related series,
+an always-visible same-split 2D baseline, user-triggered pose stress tests before
+contour interpretation, and exploratory candidate labels that follow the
+model's sensitivity evidence. This does not make a failed model validated.
 Use **10 · 3D QSAR** after ChEMBL curation to select one assay/endpoint and a
 chemical series, or **3D QSAR · own compounds** in the sidebar for SDF/CSV/TSV.
 Review alignment before running CoMFA-/CoMSIA-style fields, nested PLS,
@@ -13,6 +17,9 @@ incomplete; the UI and exports retain the experimental label.
 The [own-method qualification record](docs/3d-qsar-validation.md) now includes
 native three-family evaluation, independent numerical controls and explicit
 release blockers—not just a matching historical training score.
+The [CCR5 tutorial validation attempt](docs/ccr5-demo-validation.md) reproduces
+the favourable default split but fails historical/scaffold prediction and
+two pose-stability checks. It is not a validated lead-optimisation model.
 The new [SYBYL-reference work](docs/sybyl-reference.md) separates public Tripos-5.2
 SE parameters and documented missing-descriptor handling from full vendor
 equivalence. It does not relabel the existing five-field approximation as SYBYL.
@@ -249,11 +256,20 @@ estimator, reference frame, grid, field mask/scaling and charge method—never t
 model-parent prediction. Unvalidated-model outputs require exploratory consent;
 stereo/alignment/grid/field-domain failures still withhold potency.
 
-That **3D** upload workflow includes a real
-[50-compound EGFR CSV](src/sarscope/data/field_example/egfr_3d.csv) and an
-aligned SDF with a [walkthrough and separate CC BY-SA 3.0 data licence](src/sarscope/data/field_example/README.md).
-The measured example has weak 3D validation; earlier favourable scores from
-the legacy 106-compound **2D** example do not apply. Software remains MIT.
+That **3D** upload workflow now offers a measured
+[75-compound CCR5 CSV](src/sarscope/data/field_ccr5_example/ccr5_3d.csv) and
+[aligned SDF](src/sarscope/data/field_ccr5_example/ccr5_3d_aligned.sdf), with a
+[walkthrough, preparation audit and separate CC BY-SA 4.0 data licence](src/sarscope/data/field_ccr5_example/README.md).
+The actual native default 3D run has held-out R² **0.642**, RMSE **0.521**, and
+pooled nested-CV q² **0.499**. That borderline q² check remains failed. This
+is a public, within-series tutorial, not independent validation; all four
+additional split diagnostics are retained. Use the supplied SDF to reproduce
+the alignment—CSV alone contains no coordinates. The former 50-compound EGFR
+example remains selectable as a weak-model limitation case. Earlier 2D RF
+scores do not apply to either 3D model. Software remains MIT.
+The [stronger retrospective evaluation](docs/ccr5-demo-validation.md) retains
+all additional splits, uncertainty intervals and adverse results alongside
+the positive tutorial; the historical 63/12 test R² is **−0.683**.
 
 Target discovery accepts a **ChEMBL ID**, **gene/protein name**, or **disease**.
 Name search uses ChEMBL and defaults to human targets; each candidate displays

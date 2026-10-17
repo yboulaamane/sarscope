@@ -1,0 +1,14 @@
+{
+  "source_files_sha256": {
+    "CCR5_train.sdf": "afa97e9a19c65c8d19523233016f3f065ab72cd4a51030b6ce79196290d489f5",
+    "CCR5_test.sdf": "ed0d0e29e7d933034f97025780efb2be5e3ac9ef6578f4cd2a18247fe1825ce9"
+  },
+  "prepared_sdf_sha256": "dfcc2653fea305776932ec0eeded421279807444ab6f2c00d002b3deee874388",
+  "runner_sha256": "92551a594f71599bcc77e49baff7b3e9bd8aa2a5fda87f8fce28f06b2b5a7d02",
+  "records_checked": 75,
+  "activities_unchanged": true,
+  "heavy_atom_elements_bonds_and_coordinates_identical": true,
+  "formal_charge_changed_records": 75,
+  "method": "Exact heavy-atom coordinate correspondence, independently of producer flags",
+  "experimental_assay_or_pose_validation": false
+}

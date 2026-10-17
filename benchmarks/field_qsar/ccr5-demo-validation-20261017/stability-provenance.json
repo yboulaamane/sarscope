@@ -1,0 +1,331 @@
+{
+  "settings": {
+    "method": "comsia",
+    "field_definition": "sarscope",
+    "field_subset": [
+      "steric",
+      "electrostatic",
+      "hydrophobic",
+      "hbond_donor",
+      "hbond_acceptor"
+    ],
+    "field_scaling": "raw",
+    "grid_convention": "enclosing",
+    "grid_phase": [
+      0.0,
+      0.0,
+      0.0
+    ],
+    "spacing": 2.0,
+    "margin": 4.0,
+    "charge_model": "gasteiger",
+    "allow_charge_fallback": false,
+    "alpha": 0.3,
+    "dielectric": 1.0,
+    "dielectric_model": "constant",
+    "electrostatic_cutoff": null,
+    "missing_field_policy": "refuse",
+    "max_imputed_fraction": 0.1,
+    "steric_cutoff": 30.0,
+    "minimum_distance": 0.3,
+    "probe_radius": 1.7,
+    "probe_epsilon": 0.107,
+    "filter_mode": "percentile",
+    "field_screen": "per_field",
+    "minimum_sd": 2.0,
+    "keep_fraction": 0.3,
+    "max_features": 2000,
+    "component_cap": 4,
+    "fixed_components": null,
+    "component_improvement": 0.05,
+    "component_selection": "relative_improvement",
+    "component_sample_ratio": 5,
+    "pls_max_iter": 500,
+    "pls_tolerance": 1e-06,
+    "alignment": "prealigned",
+    "assess_prealigned_core": false,
+    "preserve_input_hydrogens": true,
+    "reference_index": 0,
+    "min_core_coverage": 0.5,
+    "max_alignment_rmsd": 1.0,
+    "mcs_timeout": 5,
+    "max_mappings": 256,
+    "conformers": 8,
+    "molecule_timeout": 30,
+    "alignment_timeout": 180,
+    "permutation_timeout": 900,
+    "max_molecules": 100,
+    "max_grid_points": 12000,
+    "max_memory_mb": 256,
+    "chunk_points": 512,
+    "permutations": 0,
+    "permutation_alpha": 0.05,
+    "contour_percentile": 80.0,
+    "seed": 42
+  },
+  "model": {
+    "features": {
+      "fingerprint": "ecfp4",
+      "ecfp_bits": 2048,
+      "variance_threshold": 0.1,
+      "correlation_threshold": 0.95,
+      "representation": "fingerprint",
+      "descriptor_names": []
+    },
+    "algorithms": [
+      "extra_trees",
+      "random_forest",
+      "gradient_boosting",
+      "nearest_neighbors"
+    ],
+    "regression_algorithms": [
+      "extra_trees",
+      "random_forest",
+      "gradient_boosting",
+      "nearest_neighbors",
+      "svr"
+    ],
+    "test_fraction": 0.25,
+    "cv_folds": 3,
+    "regression_cv": "default",
+    "split": "random",
+    "time_cutoff": 2019,
+    "source_test_id": null,
+    "oversample": true,
+    "leakage_audit": true,
+    "seed": 42,
+    "field_qsar": null
+  },
+  "variants": [
+    {
+      "name": "baseline",
+      "settings": {},
+      "kind": "baseline"
+    },
+    {
+      "name": "mmff94",
+      "settings": {
+        "charge_model": "mmff94"
+      },
+      "kind": "charge"
+    },
+    {
+      "name": "phase_x",
+      "settings": {
+        "grid_phase": [
+          0.5,
+          0,
+          0
+        ]
+      },
+      "kind": "grid_phase"
+    },
+    {
+      "name": "phase_y",
+      "settings": {
+        "grid_phase": [
+          0,
+          0.5,
+          0
+        ]
+      },
+      "kind": "grid_phase"
+    },
+    {
+      "name": "phase_z",
+      "settings": {
+        "grid_phase": [
+          0,
+          0,
+          0.5
+        ]
+      },
+      "kind": "grid_phase"
+    },
+    {
+      "name": "phase_xyz",
+      "settings": {
+        "grid_phase": [
+          0.5,
+          0.5,
+          0.5
+        ]
+      },
+      "kind": "grid_phase"
+    },
+    {
+      "name": "pose_1101",
+      "settings": {},
+      "kind": "relative_pose",
+      "seed": 1101
+    },
+    {
+      "name": "pose_1102",
+      "settings": {},
+      "kind": "relative_pose",
+      "seed": 1102
+    },
+    {
+      "name": "pose_1103",
+      "settings": {},
+      "kind": "relative_pose",
+      "seed": 1103
+    },
+    {
+      "name": "common_translation",
+      "settings": {},
+      "kind": "numerical_control"
+    }
+  ],
+  "source": {
+    "kind": "training-only sensitivity",
+    "scope": "training_only",
+    "training_rows": [
+      0,
+      3,
+      4,
+      5,
+      6,
+      7,
+      8,
+      9,
+      10,
+      12,
+      13,
+      15,
+      16,
+      17,
+      18,
+      19,
+      22,
+      24,
+      25,
+      26,
+      27,
+      28,
+      30,
+      31,
+      33,
+      34,
+      35,
+      36,
+      38,
+      39,
+      40,
+      41,
+      42,
+      43,
+      44,
+      45,
+      46,
+      47,
+      48,
+      49,
+      50,
+      53,
+      54,
+      55,
+      56,
+      58,
+      61,
+      62,
+      63,
+      64,
+      66,
+      68,
+      69,
+      72,
+      73,
+      74
+    ],
+    "source": {
+      "kind": "bundled_measured_3d_example",
+      "example_id": "ccr5",
+      "target_name": "CCR5",
+      "compounds": 75,
+      "endpoint": "CCR5 deposited log activity",
+      "conversion": "Deposited Activity values unchanged; no new IC50/Ki conversion or imputation.",
+      "assay_comparability": "Historical benchmark endpoint; not independently assay-adjudicated",
+      "design_comparability_review_required": true,
+      "reference_id": "CCR5_01",
+      "reference_policy": "Fewest heavy atoms, ID tie-break, independent of activities. A smaller fixed reference bounds the MCS QC search; no supplied coordinates are realigned.",
+      "repository": "https://github.com/clhaga/pycomsia",
+      "commit": "0b30179ecc20aac5a003577b4437399a8fb20bca",
+      "publication": "https://doi.org/10.3390/ph18030440",
+      "original_publication": "https://doi.org/10.1007/s00894-007-0173-z",
+      "attribution": "Aher et al. (2007); aligned data deposited by Haga et al. (2025), clhaga/pycomsia.",
+      "license": "CC-BY-SA-4.0",
+      "license_url": "https://creativecommons.org/licenses/by-sa/4.0/",
+      "source_files_sha256": {
+        "CCR5_train.sdf": "afa97e9a19c65c8d19523233016f3f065ab72cd4a51030b6ce79196290d489f5",
+        "CCR5_test.sdf": "ed0d0e29e7d933034f97025780efb2be5e3ac9ef6578f4cd2a18247fe1825ce9"
+      },
+      "source_license_sha256": "7abe19ec9bb73b36141b999b861d24ad855e808bafe0f81e84cce28556f6c297",
+      "source_urls": {
+        "CCR5_train.sdf": "https://raw.githubusercontent.com/clhaga/pycomsia/0b30179ecc20aac5a003577b4437399a8fb20bca/sdfs/CCR5_train.sdf",
+        "CCR5_test.sdf": "https://raw.githubusercontent.com/clhaga/pycomsia/0b30179ecc20aac5a003577b4437399a8fb20bca/sdfs/CCR5_test.sdf"
+      },
+      "selection": "All 63 original training and 12 original test records; none removed by potency or prediction.",
+      "tutorial_split": "New default seed-42 random 56/19 split of the full public cohort; not the historical 63/12 partition.",
+      "independent_validation": false,
+      "preparation": "Existing neutral-parent standardisation, no canonical tautomer pass; heavy-atom elements, bonds and coordinates verified unchanged by atom provenance. Source protonation/redundant stereo representation changes recorded per compound. Hydrogens regenerated by normal field preparation. No measured activity changed.",
+      "coordinate_assumption": "Publisher-deposited pre-alignment; not crystallographic binding poses or a validated protonation state.",
+      "builder_sha256": "ea7660e35af48d8e3bbb0fb87f755280b4eb18954225e039a3c95726ed99e119",
+      "files_sha256": {
+        "ccr5_3d.csv": "c7b5f574e541812c9a1eea296b0a7c2e704cbd3e95b578f5d2d07f5f79a28761",
+        "ccr5_3d_aligned.sdf": "dfcc2653fea305776932ec0eeded421279807444ab6f2c00d002b3deee874388",
+        "measurements.csv": "8eff963bf6b87ca00a86ae0cced230c2b3f5b1abbdc8106d159fee2d52a098e8",
+        "preparation.csv": "0bfb88b660c113e2f048c148244f5a3db42f518fb09e05c0a9a08466d8d844be",
+        "alignment.csv": "a4d431d6d2cfd0054779f92de257d8b0ec7d0a5d0a5f3b36b5b1eca07af18975",
+        "predictions.csv": "356db1b25066d0a98bf4c7351615776cc48fd6496e6c70d1ba077993ce02bf22",
+        "verification.json": "718c8d83fac15bbf4a21f00ea5e4f5a72955b9aab108f9df0b21f6007bc90841",
+        "LICENSE.txt": "7abe19ec9bb73b36141b999b861d24ad855e808bafe0f81e84cce28556f6c297"
+      }
+    }
+  },
+  "training_rows": 56,
+  "held_out_rows_used": 0,
+  "held_out_labels_used": false,
+  "decision": "diagnostic only; no automatic preset/charge selection or certification",
+  "thresholds": {
+    "prediction_change_p95": 0.5,
+    "prediction_change_max": 1.0,
+    "common_translation_max": 1e-08
+  },
+  "pose_perturbation": {
+    "translation_A": 0.25,
+    "rotation_degrees": 5,
+    "reference": "first training row held fixed"
+  },
+  "versions": {
+    "sorbent": "0.1.1",
+    "rdkit": "2026.9.1",
+    "numpy": "2.5.4",
+    "pandas": "3.0.6",
+    "scipy": "1.18.1",
+    "scikit-learn": "1.9.1",
+    "joblib": "1.6.0",
+    "scikit-fingerprints": null,
+    "molfeat": null,
+    "shap": null,
+    "umap-learn": null,
+    "gemmi": "0.7.5",
+    "meeko": "0.8.0",
+    "threadpoolctl": "3.7.0"
+  },
+  "runner_sha256": "2994c9a0f088fd147354929401fa5f29fa075197ca21da2a745d229a9ff4abdf",
+  "workflow_sha256": {
+    "params.py": "2bd5541eadb69982332ae943bcdc060dcdcd48f21ff82080524d78c0624e190a",
+    "field_qsar.py": "007d2360d33b27f11d2c9ef41042588e387600d1a617662a43d53b45dd48b654",
+    "field_campaign.py": "b8cad0050d9b546b0e14bdf1729dce21031fdd17e7a37af7864342546e02e3b3",
+    "field_qualification.py": "13e43de0192bf417bbbfbfa306c9d383650abab644c66dde5892b4814a5685b5",
+    "field_sensitivity.py": "2994c9a0f088fd147354929401fa5f29fa075197ca21da2a745d229a9ff4abdf",
+    "analysis/fields.py": "58cd02f59bbed6985d01811ee4d7d09d7708f002368c008097b2a8c6f1bf6399",
+    "analysis/align3d.py": "6e3dc0bb3e666055add61f1a0c83f481f9158c9e3b1a322e1cd7ed014c722f5b",
+    "analysis/field_filter.py": "2f427b9ebdc552aecfd6c128e4cdd935927fe53ded1873b6e9470e75c2e9e793",
+    "analysis/regression.py": "1b09af9ceb50151ae10b89cb36fbd05a0d121ded4b15fb6a434908a86c8c9dc6",
+    "analysis/contours.py": "7ef563755456a681a6553723db5d9d835a34f9e1e3721fc4e09b1c4f5d0c96f7",
+    "analysis/tripos_reference.py": "9923675fcdc4da762afa9c5904959f3fbf85fd74df2eedc3a6a627c6baab5f55"
+  },
+  "elapsed_seconds": 7.511801378997916
+}

@@ -1,17 +1,96 @@
 # Experimental field-based 3D QSAR
 
+## Uncertainty-aware 3D SAR, not automatic lead optimisation
+
+Use a closely related series with comparable measured endpoints and a reviewed
+alignment. A pre-aligned SDF is preferred; CSV/SMILES and generated alignment
+remain available with an explicit pose-assumption warning. A shared scaffold
+does not establish a common binding mode. Nothing fits or stress-tests itself
+when the page opens.
+
+After the user-triggered fit, the same-split **3D PLS, 2D ECFP4 RF and training-mean
+RMSE** remain visible. They are point estimates, not a significance test or
+permission to choose a preset from held-out performance.
+
+The existing training-only stability check now appears **before contours**,
+with an explicit button. It retains the same ten declared charge/grid/pose/control
+variants; it is not a new modelling engine. Three deterministic relative-pose
+stress tests use 0.25 Å translations and 5° rotations, refitting training-only
+nested CV. The per-compound table and range plot describe fitting-set OOF
+variation, **not candidate confidence intervals**. Held-out rows are excluded.
+
+Pose evidence is labelled separately from predictive score checks:
+
+- `not_assessed`: no pose test was run; missing evidence is not a pass.
+- `incomplete`: missing/failed computation, missing controls, legacy/unbound
+  results, or a latest failed attempt; rerun for this fitted model.
+- `sensitive`: completed, model-bound pose checks exceed a declared prediction-change
+  limit. Contours and predicted gains remain unstable hypotheses.
+- `within_tested_limits`: the three declared pose checks and numerical controls
+  completed within limits for this model. This does **not** validate binding
+  poses, spatial contour agreement, generated conformers or prospective predictions.
+
+The fixed engineering limits remain p95 prediction change ≤ 0.5 and maximum
+≤ 1.0 log units, with common-translation error ≤ 1e−8. They are not universal
+QSAR-validity standards. No alternative is selected automatically. A separate
+95% single-field contribution warning prompts review of scaling; coefficient ×
+training-SD contributions are not causal fractions of biological activity.
+
+Contours always carry exploratory interpretation. Candidate scoring requires
+explicit exploratory consent whenever model checks fail **or pose evidence is
+unqualified**, even if the displayed score checks are green. Stereo, grid,
+alignment, missing-field and domain failures cannot be bypassed by that consent.
+Each candidate CSV carries `model_pose_status` and `interpretation_warning`;
+the display includes the pose-evidence status. Training-only stress ranges are
+never substituted for candidate uncertainty bands.
+
+The field evidence package now includes `interpretation.json`; candidate packages
+record the same interpretation and available model-sensitivity summary/provenance.
+Diagnostics are bound to the fitted model identity. New stability evidence
+invalidates old candidate-result displays/downloads without changing coefficients
+or refitting PLS. A failed recheck retains earlier raw evidence but removes its
+successful status. These UI/report changes do not repair the earlier predictive
+validation failures or the separately documented intermittent MCS timeout.
+
 ## Design and predict with the fitted 3D model
 
-In **3D QSAR · own compounds**, the optional measured example now contains
-50 related EGFR compounds, a [CSV](../src/sarscope/data/field_example/egfr_3d.csv),
-an aligned SDF, original activity records, licence and
-[walkthrough](../src/sarscope/data/field_example/README.md). Its activities are
-real; its conformations are generated alignment hypotheses, not bound crystal
-poses. The first fixed-default 3D validation was weak. The previous 2D demo's
-RF R² does not describe this model and is not reused as a 3D success claim.
+In **3D QSAR · own compounds**, the main measured example is now **75 CCR5
+antagonists**, with a [CSV](../src/sarscope/data/field_ccr5_example/ccr5_3d.csv),
+[aligned SDF](../src/sarscope/data/field_ccr5_example/ccr5_3d_aligned.sdf),
+preparation audit, unchanged source activities, licence and
+[walkthrough](../src/sarscope/data/field_ccr5_example/README.md). The native
+default 3D run gives held-out R² **0.642**, RMSE **0.521**, pooled nested-CV
+q² **0.499**, with a 56/19 random split. The q² > 0.5 check remains failed;
+there is no rounding-based pass or package-certification claim. Four fixed
+repeat splits have test R² 0.395–0.649, and every outcome is retained. The
+primary seed remains 42, not a selected best seed. The same-split RF baseline
+performs better and is not relabelled as a 3D result.
+
+**Stricter validation attempt:** the [full retrospective report](ccr5-demo-validation.md)
+finds historical test R² **−0.683**, scaffold test R² **−3.184**, wide uncertainty
+and two failed relative-pose stability checks. Five further fixed random
+splits give R² 0.162–0.689. The positive default tutorial therefore does not
+qualify the workflow for predictive lead optimisation. No preset is selected
+from these diagnostic results.
+
+This is a tutorial on an already inspected public cohort, not a new external
+benchmark or a reproduction of its original 63/12 partition. Source charged
+amines are explicitly prepared using the app's existing neutral-parent
+standardisation, with heavy-atom elements/bonds/coordinates verified unchanged.
+The source protonation and supplied alignment are not established binding
+states. Use the SDF to reproduce the recorded result; generating fresh poses
+from the CSV changes the input geometry. The old **50-compound EGFR** example
+remains selectable as a weak-model limitation case, with its original negative
+scores intact. Neither case uses the previous 2D demo's RF scores.
+
+**Restore example model defaults** is an explicit reset, not an automatic fit.
+It restores the native field/split settings and dataset reference, clears old
+results, and requires preparation and alignment review again. Historical CCR5
+matched-pair design requires a separate experimental-comparability declaration;
+the dataset does not supply independently adjudicated ChEMBL assay records.
 
 After preparing/reviewing alignment and fitting the field model, **4 · Design
-analogues and predict with this 3D model** appears below the results. Prepare
+experiments · exploratory 3D predictions** appears below the results. Prepare
 R-positions, choose a parent/editable positions and generate up to ten
 one-position substitutions supported by measured positional pairs. The
 fixed mapped core is reconstructed using existing SARscope chemistry; no
@@ -126,6 +205,9 @@ Every molecule must have resolved absolute stereochemistry and a valid 3D
 geometry. A failure blocks the series and identifies the molecule; the user
 can review/exclude it explicitly. The MCS search is bounded, and an excessive
 symmetry count refuses alignment instead of silently taking one arbitrary map.
+The budget counts **distinct atom maps**, not duplicate query-automorphism
+pairs: for example, 12 × 12 benzene embeddings describe only 12 distinct maps.
+Match enumeration and distinct-map limits still refuse truncated searches.
 Generated jobs use **one serial, killable worker per preparation run**, rather
 than reloading Python/RDKit in a new process for every compound. There is no
 parallel burst of workers. Each conformer/MCS job has a 30-second default

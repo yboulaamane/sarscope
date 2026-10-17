@@ -32,6 +32,18 @@ data/
 !/src/sarscope/data/field_example/source.json
 !/src/sarscope/data/field_example/verification.json
 !/src/sarscope/data/field_example/alignment.csv
+!/src/sarscope/data/field_ccr5_example/
+/src/sarscope/data/field_ccr5_example/*
+!/src/sarscope/data/field_ccr5_example/README.md
+!/src/sarscope/data/field_ccr5_example/LICENSE.txt
+!/src/sarscope/data/field_ccr5_example/ccr5_3d.csv
+!/src/sarscope/data/field_ccr5_example/ccr5_3d_aligned.sdf
+!/src/sarscope/data/field_ccr5_example/measurements.csv
+!/src/sarscope/data/field_ccr5_example/preparation.csv
+!/src/sarscope/data/field_ccr5_example/alignment.csv
+!/src/sarscope/data/field_ccr5_example/predictions.csv
+!/src/sarscope/data/field_ccr5_example/source.json
+!/src/sarscope/data/field_ccr5_example/verification.json
 
 # ChEMBL response cache and run outputs
 .sarscope-cache/

@@ -149,6 +149,26 @@ def test_prealigned_symmetry_uses_fixed_frame_not_a_hidden_rotation():
     assert result.report.iloc[1].core_rmsd_A < 1e-6
 
 
+@pytest.mark.parametrize("fixed_frame", [False, True])
+def test_symmetry_budget_counts_distinct_maps_not_duplicate_query_automorphisms(fixed_frame):
+    # Benzene has twelve query embeddings on each side: 144 pairs, but only
+    # twelve distinct atom maps. All fit within a sixteen-map budget.
+    reference = Chem.RemoveHs(molecule("c1ccccc1"))
+    query = Chem.RenumberAtoms(reference, [3, 4, 5, 0, 1, 2])
+    before = query.ToBinary()
+    mapping, rmsd, _ = best_mapping(
+        query, reference, FieldQsarParams(max_mappings=16), fixed_frame=fixed_frame
+    )
+    assert len(mapping) == 6 and rmsd < 1e-6
+    assert query.ToBinary() == before
+
+
+def test_truncated_symmetry_enumeration_still_refuses_instead_of_picking_first_map():
+    reference = Chem.RemoveHs(molecule("c1ccccc1"))
+    with pytest.raises(ValueError, match="enumeration exceeded its limit"):
+        best_mapping(reference, reference, FieldQsarParams(max_mappings=8), fixed_frame=True)
+
+
 def test_global_raw_screen_ranks_on_magnitude_across_blocks():
     """The documented global_raw behaviour: whichever block carries the larger
     numbers wins, which is only meaningful when the blocks share units."""

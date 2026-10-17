@@ -4,6 +4,12 @@ For the **3D-field-model design workflow**, see
 [3D design and prediction](field-qsar.md#design-and-predict-with-the-fitted-3d-model).
 The separate 2D workflow described below is explicitly labelled **2D** in the
 app; it is not the scoring engine used after a 3D-QSAR fit.
+For 3D design, unassessed/incomplete/sensitive pose evidence follows every
+candidate as an exploratory interpretation warning. Score checks alone cannot
+remove the explicit consent requirement. New model-stability evidence hides
+stale candidate predictions and requires rescoring before export. Training-only
+pose-stress ranges are not candidate confidence intervals. The simpler 2D
+baseline remains visible above the 3D design step.
 
 SARscope can propose small, traceable experiments around a selected parent.
 This is **experimental lead-optimisation decision support**, not a validated
@@ -32,9 +38,14 @@ limits hides incompatible previous results until you regenerate.
 
 ### Measured example location
 
-The app's measured example is in **3D QSAR · own compounds**, with a focused
-50-compound CSV and aligned SDF. See its
-[source and walkthrough](../src/sarscope/data/field_example/README.md).
+The app's main measured example is in **3D QSAR · own compounds**, with 75
+CCR5 compounds, CSV and aligned SDF. See its
+[source, preparation audit and walkthrough](../src/sarscope/data/field_ccr5_example/README.md).
+Its native default 3D test R² is 0.642, with q² 0.499 (still below the check).
+The earlier 50-compound EGFR data remain selectable as a weak-model example.
+For historical CCR5 data, confirm original experimental comparability before
+transferring matched-pair effects as design evidence; this is not verified
+single-assay ChEMBL evidence.
 The previous 106-compound 2D data files remain as an attributed historical
 example, but are no longer offered as the UI's demo. Their RF scores must not
 be used to claim performance of the 3D workflow.

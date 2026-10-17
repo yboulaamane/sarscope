@@ -1,0 +1,24 @@
+{
+  "held_out_labels": {
+    "grid": true,
+    "training_fields": true,
+    "training_support": true,
+    "training_column_means": true,
+    "training_column_scales": true,
+    "selected_components": true,
+    "coefficients": true,
+    "training_oof": true,
+    "held_out_predictions": true
+  },
+  "held_out_coordinates_after_alignment": {
+    "grid": true,
+    "training_fields": true,
+    "training_support": true,
+    "training_column_means": true,
+    "training_column_scales": true,
+    "selected_components": true,
+    "coefficients": true,
+    "training_oof": true
+  },
+  "scope": "Post-alignment model path only; common-core alignment QC uses all structures. CV grid bounds use all outer-training geometry, while masks/scaling/components are fold-local."
+}
