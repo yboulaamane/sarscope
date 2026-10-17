@@ -13,6 +13,17 @@ htmlcov/
 .env
 data/
 
+# Deliberate, separately licensed small example; keep caches/other data ignored.
+!/src/sarscope/data/
+/src/sarscope/data/*
+!/src/sarscope/data/analogue_design/
+/src/sarscope/data/analogue_design/*
+!/src/sarscope/data/analogue_design/README.md
+!/src/sarscope/data/analogue_design/egfr_ic50.csv
+!/src/sarscope/data/analogue_design/measurements.csv
+!/src/sarscope/data/analogue_design/source.json
+!/src/sarscope/data/analogue_design/verification.json
+
 # ChEMBL response cache and run outputs
 .sarscope-cache/
 runs/

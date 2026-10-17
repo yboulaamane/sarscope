@@ -231,6 +231,22 @@ the nearest measured training analogue and a fingerprint-similarity domain flag.
 The 90% residual band is an empirical training-CV diagnostic, not a guaranteed
 prediction interval; held-out coverage and error versus novelty are displayed.
 
+**11 · Design analogues** adds experimental, assay-scoped proposals around a
+selected parent: choose editable R-positions, generate bounded one-position
+swaps supported by measured positional pairs, inspect contradictory effects,
+property changes and cliff-neighbour flags, and export CSV/SDF with evidence
+and provenance. A separate **Design analogues · own compounds** sidebar route
+accepts your measured CSV/TSV/SDF series. Optional ECFP4 potency scoring uses an
+explicitly fitted assay-scoped 2D model and withholds weak/out-of-domain
+predictions; measured pair effects are never assigned as candidate potencies.
+This is decision support, not a validated lead optimiser. See the
+[analogue-design guide](docs/analogue-design.md) for scope, gates and limitations.
+An optional [measured EGFR example CSV](src/sarscope/data/analogue_design/egfr_ic50.csv)
+and guided walkthrough are available in that upload workflow. The example data
+have a separate [CC BY-SA 3.0 licence and source record](src/sarscope/data/analogue_design/README.md);
+SARscope software remains MIT. This selected teaching example is not independent
+validation or a guaranteed-performance dataset for 3D QSAR.
+
 Target discovery accepts a **ChEMBL ID**, **gene/protein name**, or **disease**.
 Name search uses ChEMBL and defaults to human targets; each candidate displays
 its ID, organism, and target type for explicit confirmation. Disease search

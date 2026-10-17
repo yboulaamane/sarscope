@@ -153,6 +153,45 @@ class MatchedPairParams:
 
 
 @dataclass(frozen=True)
+class AnalogueDesignParams:
+    """Bounded one-position proposals; gates are engineering policy, not certification."""
+
+    max_candidates: int = 50
+    max_attempts: int = 500
+    max_fragment_heavy_atoms: int = 10
+    max_pairs: int = 20_000
+    max_scope_compounds: int = 500
+    cliff_similarity: float = 0.85
+    cliff_activity: float = 1.0
+    minimum_test_compounds: int = 10
+    minimum_test_r2: float = 0.5
+    minimum_cv_q2: float = 0.3
+
+    def __post_init__(self) -> None:
+        import math
+
+        for name, maximum in (
+            ("max_candidates", 100),
+            ("max_attempts", 2000),
+            ("max_fragment_heavy_atoms", 20),
+            ("max_pairs", 20_000),
+            ("max_scope_compounds", 500),
+            ("minimum_test_compounds", 100),
+        ):
+            if type(getattr(self, name)) is not int or not 1 <= getattr(self, name) <= maximum:
+                raise ValueError(f"{name} must be an integer between 1 and {maximum}.")
+        if (
+            not 0 < self.cliff_similarity <= 1
+            or not math.isfinite(self.cliff_activity)
+            or self.cliff_activity <= 0
+        ):
+            raise ValueError("Choose finite positive cliff thresholds; similarity is at most 1.")
+        for value in (self.minimum_test_r2, self.minimum_cv_q2):
+            if not math.isfinite(value) or not 0 <= value < 1:
+                raise ValueError("Model R²/q² gate thresholds must be finite and in [0, 1).")
+
+
+@dataclass(frozen=True)
 class FieldQsarParams:
     """Bounded, experimental field QSAR; not a claim of Tripos equivalence.
 

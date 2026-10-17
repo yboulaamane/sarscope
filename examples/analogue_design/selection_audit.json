@@ -1,0 +1,21 @@
+{
+  "purpose": "Select a useful teaching example, not estimate generalisation performance",
+  "target": "CHEMBL203 (EGFR)",
+  "discovery": "Reviewed scaffold coverage among the first 4000 exact IC50 activity records in the public API, then fetched the complete candidate assays. No potency values were edited and no potency-based subset was selected.",
+  "fixed_model": {
+    "regression_algorithm": "random_forest",
+    "fingerprint": "ecfp4",
+    "split": "random",
+    "test_fraction": 0.25,
+    "cv_folds": 3,
+    "seed": 42,
+    "quality_gates_changed": false
+  },
+  "trials": [
+    {"assay": "CHEMBL679944", "compounds": 42, "test_r2_approx": 0.173054, "pooled_cv_q2_approx": 0.202978, "passes": false},
+    {"assay": "CHEMBL680017", "compounds": 51, "test_r2_approx": 0.269601, "pooled_cv_q2_approx": 0.316771, "passes": false},
+    {"assay": "CHEMBL873338", "compounds": 82, "assay_type": "F", "test_r2_approx": -0.371364, "pooled_cv_q2_approx": -0.308341, "passes": false},
+    {"assay": "CHEMBL944276", "compounds": 106, "test_r2_approx": 0.917621, "pooled_cv_q2_approx": 0.586344, "passes": true, "selected": true}
+  ],
+  "qualification": "Rounded exploratory results, not a frozen evaluation benchmark. The selected serialized CSV is re-evaluated by build_example.py and exact output/version metadata are bundled in verification.json. Assay selection after looking at model performance introduces selection bias. The two largest scaffold series in the selected assay generated known controls only; the recommended nine-member scaffold was chosen for six unmeasured combinations, not high predicted potency."
+}

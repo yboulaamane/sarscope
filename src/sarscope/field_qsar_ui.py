@@ -70,11 +70,19 @@ def _read_upload(data: bytes, suffix: str) -> tuple[pd.DataFrame, list[Any]]:
     return upload_table(data, suffix)
 
 
-def _upload_dataset(key: str) -> FieldDataset | None:
+def _upload_dataset(key: str, *, needs_alignment: bool = True) -> FieldDataset | None:
     st.caption(
-        "Upload one comparable experimental endpoint. SDF may contain pre-aligned 3D coordinates "
-        "and activity properties; CSV/TSV requires SMILES and subsequent alignment. "
-        "No docking or target structure is required."
+        (
+            "Upload one comparable experimental endpoint. SDF may contain pre-aligned 3D "
+            "coordinates and activity properties; CSV/TSV requires SMILES and subsequent "
+            "alignment. No docking or target structure is required."
+        )
+        if needs_alignment
+        else (
+            "Upload measured activities for one comparable target, assay, endpoint and variant. "
+            "CSV/TSV needs SMILES; SDF needs activity properties. No 3D alignment, docking or "
+            "target structure is required. Assay comparability is your declaration."
+        )
     )
     file = st.file_uploader(
         "Compounds and measured activities", type=["sdf", "csv", "tsv"], key=f"{key}_file"
