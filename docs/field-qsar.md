@@ -1,5 +1,55 @@
 # Experimental field-based 3D QSAR
 
+## Design and predict with the fitted 3D model
+
+In **3D QSAR · own compounds**, the optional measured example now contains
+50 related EGFR compounds, a [CSV](../src/sarscope/data/field_example/egfr_3d.csv),
+an aligned SDF, original activity records, licence and
+[walkthrough](../src/sarscope/data/field_example/README.md). Its activities are
+real; its conformations are generated alignment hypotheses, not bound crystal
+poses. The first fixed-default 3D validation was weak. The previous 2D demo's
+RF R² does not describe this model and is not reused as a 3D success claim.
+
+After preparing/reviewing alignment and fitting the field model, **4 · Design
+analogues and predict with this 3D model** appears below the results. Prepare
+R-positions, choose a parent/editable positions and generate up to ten
+one-position substitutions supported by measured positional pairs. The
+fixed mapped core is reconstructed using existing SARscope chemistry; no
+unobserved measured potency is assigned. This post-evaluation exploration may
+inspect the full measured series, including test rows; it is not another
+independent validation or an optimisation-success benchmark.
+
+Predictions use the **same displayed training-fitted PLS estimator**, not a
+new all-data refit or the RF baseline. The original training grid, field
+definition, charge settings, column ordering, retained mask, mean-imputation
+contract, scaling and reference coordinates are reused. Known structures reuse
+their exact stored pose/fields. Novel candidates use bounded stereo-checked
+generation to that fixed reference; a pre-aligned model requires an explicit
+choice of candidate alignment route. Model/geometry signatures hide or refuse
+stale proposals and predictions after a change.
+
+No numerical potency is shown by default for an unvalidated model. Explicit
+exploratory consent permits inspection without passing/changing any validation
+checks. Candidate and parent stereo/alignment/grid/missing-field/domain failures
+still withhold values. Applicability is the original fitting-field two-component
+PCA box, a weak heuristic rather than proof of reliable prediction. Batches
+are capped at ten, with a total preparation budget of at most 120 seconds;
+failed rows and reasons are retained. New conformations require the existing
+preparation extra; no docking is run and no 2D fallback exists.
+
+Predicted delta is candidate prediction minus the **same model's parent
+prediction**. Each field's contribution is the sum of
+`(candidate_filtered_field - parent_filtered_field) * fitted_coefficient` for
+that field's retained columns. Their sum is checked against the model's delta.
+These are model associations, not physical interaction energies or biological
+causes. Approximate training-CV residual bands describe activity levels, not
+gain intervals or probabilities that a compound is better.
+
+The evidence ZIP includes candidate CSV, aligned scored poses, fitted reference,
+per-field delta contributions, charges, unchanged model checks/settings, source
+evidence and hashes. This is experimental decision support, not validated lead
+optimisation. Native 3D validation remains incomplete.
+
 For the current published-method reference direction, see
 [SYBYL reference: implemented components and remaining parity gaps](sybyl-reference.md).
 The default SARscope variant is retained; the separate public Tripos-5.2 SE

@@ -23,7 +23,7 @@ from sarscope.analysis.descriptors import CORE_DESCRIPTORS
 from sarscope.analysis.rgroups import ScaffoldSar, decompose_scaffold
 from sarscope.analysis.sar_map import fragment_label
 from sarscope.analysis.scaffolds import add_scaffolds
-from sarscope.field_qsar import FieldDataset, assay_contexts, dataset_from_assay
+from sarscope.field_qsar import assay_contexts, dataset_from_assay
 from sarscope.params import AnalogueDesignParams, ModelParams
 from sarscope.sar_ui import _structure
 
@@ -32,7 +32,13 @@ def _signature(*items: Any) -> str:
     return hashlib.sha256(json.dumps(items, sort_keys=True, default=str).encode()).hexdigest()
 
 
-def _show_result(result: AnalogueDesign, model: DesignModel | None, key: str) -> None:
+def _show_result(
+    result: AnalogueDesign,
+    model: DesignModel | None,
+    key: str,
+    *,
+    archive: bytes | None = None,
+) -> None:
     frame = result.candidates
     st.subheader("Proposed experiments, not confirmed improvements")
     st.caption(
@@ -210,7 +216,7 @@ def _show_result(result: AnalogueDesign, model: DesignModel | None, key: str) ->
     )
     st.download_button(
         "Download evidence package · CSV + SDF + provenance",
-        design_archive(result, model),
+        archive if archive is not None else design_archive(result, model),
         file_name="analogue_design.zip",
         mime="application/zip",
         key=f"{key}_download",
@@ -428,72 +434,22 @@ def show_analogue_design(
         _show_result(result, model, key)
 
 
-@st.cache_data(show_spinner=False, max_entries=1)
-def _example_dataset(source_sha256: str) -> FieldDataset:
-    """Key the cache by frozen metadata, so replacing an example invalidates it."""
-    from sarscope.analogue_example import example_dataset
-
-    return example_dataset()
-
-
 def show_design_upload(*, key: str = "upload_analogue_design") -> None:
-    from sarscope.analogue_example import example_archive, example_files
     from sarscope.field_qsar_ui import _upload_dataset
 
-    st.title("SARscope · Design next analogues")
-    example_contents = example_files()
-    with st.expander("Try a measured EGFR example · optional"):
-        st.caption(
-            "106 literature-reported IC50 values from ChEMBL assay CHEMBL944276. "
-            "The suggested nine-member series produces six unmeasured combinations. "
-            "Selected for teaching after reviewing four datasets—not an independent benchmark. "
-            "The source is a retrospective computational study; identical underlying "
-            "experimental conditions have not been independently verified."
-        )
-        st.download_button(
-            "Download example CSV",
-            example_contents["egfr_ic50.csv"],
-            file_name="egfr_ic50.csv",
-            mime="text/csv",
-            key=f"{key}_example_csv",
-        )
-        st.download_button(
-            "Download example source, license and walkthrough",
-            example_archive(),
-            file_name="egfr_example_with_source.zip",
-            mime="application/zip",
-            key=f"{key}_example_source",
-        )
-        use_example = st.checkbox("Use measured EGFR example", key=f"{key}_example")
-        st.caption(
-            "Data: ChEMBL/EMBL-EBI, CC BY-SA 3.0; La Motta et al. (2009), "
-            "doi:10.1021/jm800829v. No example or model runs automatically."
-        )
-    dataset = (
-        _example_dataset(hashlib.sha256(example_contents["source.json"]).hexdigest())
-        if use_example
-        else _upload_dataset(key, needs_alignment=False)
-    )
+    st.title("SARscope · 2D analogue design")
+    st.info("For field-model design and the measured 3D demo, choose 3D QSAR · own compounds.")
+    dataset = _upload_dataset(key, needs_alignment=False)
     if dataset is None:
         return
     table = add_scaffolds(dataset.table)
-    if use_example:
-        evidence = dataset.measurements
-        source = dataset.source
-        st.info(
-            "Example loaded. Click Prepare design series, then Generate analogue proposals. "
-            "For optional scoring, keep Random Forest, random split, 25% holdout and 3-fold CV; "
-            "click Fit scoped 2D model, then Score generated analogues. "
-            "These settings demonstrate the workflow, not external validation."
-        )
-    else:
-        evidence = dataset.measurements.assign(
-            assay_chembl_id="USER_DECLARED_UPLOAD",
-            standard_type=dataset.source["endpoint"],
-            standard_relation="=",
-            assay_variant_mutation=None,
-        )
-        source = {**dataset.source, "user_declared_context": True}
+    evidence = dataset.measurements.assign(
+        assay_chembl_id="USER_DECLARED_UPLOAD",
+        standard_type=dataset.source["endpoint"],
+        standard_relation="=",
+        assay_variant_mutation=None,
+    )
+    source = {**dataset.source, "user_declared_context": True}
     options = [s for s, n in table.murcko.value_counts().items() if s and n >= 2]
     if not options:
         st.info("At least two compounds must share a ring scaffold for position-based proposals.")

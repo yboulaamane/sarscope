@@ -231,21 +231,29 @@ the nearest measured training analogue and a fingerprint-similarity domain flag.
 The 90% residual band is an empirical training-CV diagnostic, not a guaranteed
 prediction interval; held-out coverage and error versus novelty are displayed.
 
-**11 · Design analogues** adds experimental, assay-scoped proposals around a
+**11 · 2D analogue design** adds experimental, assay-scoped proposals around a
 selected parent: choose editable R-positions, generate bounded one-position
 swaps supported by measured positional pairs, inspect contradictory effects,
 property changes and cliff-neighbour flags, and export CSV/SDF with evidence
-and provenance. A separate **Design analogues · own compounds** sidebar route
+and provenance. A separate **2D analogue design · own compounds** sidebar route
 accepts your measured CSV/TSV/SDF series. Optional ECFP4 potency scoring uses an
 explicitly fitted assay-scoped 2D model and withholds weak/out-of-domain
 predictions; measured pair effects are never assigned as candidate potencies.
 This is decision support, not a validated lead optimiser. See the
 [analogue-design guide](docs/analogue-design.md) for scope, gates and limitations.
-An optional [measured EGFR example CSV](src/sarscope/data/analogue_design/egfr_ic50.csv)
-and guided walkthrough are available in that upload workflow. The example data
-have a separate [CC BY-SA 3.0 licence and source record](src/sarscope/data/analogue_design/README.md);
-SARscope software remains MIT. This selected teaching example is not independent
-validation or a guaranteed-performance dataset for 3D QSAR.
+For **3D-model-based** analogue design, use **3D QSAR · own compounds** (or the
+3D-QSAR tab): fit/evaluate the field model, then use **4 · Design analogues and
+predict with this 3D model** below its results. This uses the unchanged PLS
+estimator, reference frame, grid, field mask/scaling and charge method—never the
+2D baseline. Per-field contributions explain each predicted change versus the
+model-parent prediction. Unvalidated-model outputs require exploratory consent;
+stereo/alignment/grid/field-domain failures still withhold potency.
+
+That **3D** upload workflow includes a real
+[50-compound EGFR CSV](src/sarscope/data/field_example/egfr_3d.csv) and an
+aligned SDF with a [walkthrough and separate CC BY-SA 3.0 data licence](src/sarscope/data/field_example/README.md).
+The measured example has weak 3D validation; earlier favourable scores from
+the legacy 106-compound **2D** example do not apply. Software remains MIT.
 
 Target discovery accepts a **ChEMBL ID**, **gene/protein name**, or **disease**.
 Name search uses ChEMBL and defaults to human targets; each candidate displays

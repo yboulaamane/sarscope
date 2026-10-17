@@ -34,3 +34,18 @@ def test_shapes():
 def test_empty_query_has_nan_coverage():
     result = pca_bounding_box(np.random.default_rng(3).normal(size=(20, 4)), np.empty((0, 4)))
     assert np.isnan(result.coverage)
+
+
+def test_new_queries_use_the_original_fitted_pca_without_refitting(monkeypatch):
+    rng = np.random.default_rng(13)
+    train, query = rng.normal(size=(30, 8)), rng.normal(size=(5, 8))
+    original = pca_bounding_box(train, query)
+
+    def forbidden(*args, **kwargs):
+        pytest.fail("The fitted applicability domain must not be refitted for predictions")
+
+    monkeypatch.setattr(original.fitted_pca, "fit", forbidden)
+    monkeypatch.setattr(original.fitted_pca, "fit_transform", forbidden)
+    applied = original.classify(query)
+    np.testing.assert_array_equal(applied.in_domain, original.in_domain)
+    np.testing.assert_allclose(applied.query_scores, original.query_scores)
