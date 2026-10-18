@@ -1,0 +1,36 @@
+{
+  "schema": 2,
+  "purpose": "Matched published-style LOO reproduction on source-flagged THR inputs; not native predictive validation",
+  "prior_exposure": "The THR historical split and nested-CV scores have been inspected. This is a retrospective diagnostic, not fresh validation or a passing demo.",
+  "method_source": "Haga et al. 2025, doi:10.3390/ph18030440, Methods4.4-4.7 and Table3",
+  "implementation": "Own SARscope field calculation, historical standardisation, capped-by-rank LOO component search and genuine predictions; external executable serves only as an isolated comparator",
+  "data": {
+    "base_url": "https://raw.githubusercontent.com/clhaga/pycomsia/0b30179ecc20aac5a003577b4437399a8fb20bca/sdfs/",
+    "train": {"file": "THR_train.sdf", "sha256": "eceefa5dd935bae97d14be521714a2d8641703a768fe21743e02f1071f6a540f", "valid": 59, "invalid": 0},
+    "test": {"file": "THR_test.sdf", "sha256": "b649d942f899dd09177516e8fed9f28ae5f0c23ae55fc2020118e1d94e473128", "valid": 29, "invalid": 0},
+    "activity": "Activity",
+    "source_quality": "59/59 training graphs encode a radical electron, versus0/29 test. This is a source-format concern, not evidence of actual experimental radicals. No graph repair or exclusion is permitted in this historical reproduction.",
+    "coordinate_policy": "Retain deposited frame and explicit hydrogens; no embedding, minimisation or tautomer/protonation repair"
+  },
+  "fields": {
+    "method": "comsia", "field_subset": ["steric", "electrostatic", "hydrophobic", "hbond_donor", "hbond_acceptor"],
+    "charge_model": "gasteiger", "spacing": 1.0, "margin": 4.0,
+    "grid_convention": "rounded_extent", "alpha": 0.3,
+    "preserve_input_hydrogens": true, "assess_prealigned_core": false,
+    "field_scaling": "raw", "keep_fraction": 1.0, "max_features": 200000,
+    "component_cap": 12, "component_sample_ratio": null,
+    "component_selection": "max_q2", "pls_max_iter": 100, "pls_tolerance": 0.0001,
+    "permutations": 0, "max_grid_points": 80000, "max_memory_mb": 512
+  },
+  "historical_preprocessing": {
+    "column_filter": 0.0,
+    "scaling": "One population SD over each full field block across train and test, followed by separate train/test column centres; transductive benchmark-only representation",
+    "component_selection": "Maximum LOO q2 over the complete1-12 count search; LOO score conditional on this historical representation, not nested CV",
+    "test_prediction": "Never add measured test mean to the genuine own prediction; any oracle-adjusted quantity remains a separately labelled diagnostic",
+    "negative_control": "Shift only held-out labels by+10. Any resulting change to fitted predictions disqualifies the reference export as prospective prediction."
+  },
+  "targets": {"q2": 0.66, "train_r2": 0.84, "test_r2_as_published": 0.51, "components": 3},
+  "absolute_tolerances": {"q2": 0.01, "train_r2": 0.01},
+  "tolerance_rationale": "Published THR metrics have two decimal places. These reproduction tolerances are fixed before this matched-LOO run, not predictive qualification criteria.",
+  "scope": "Five-field own approximation compared to published-style reference execution; H-bond field definitions differ and no exact five-field parity is asserted. Poor or mismatched outcomes remain recorded. Source chemistry must be adjudicated before any app-demo or model-qualification claim."
+}

@@ -1,0 +1,5 @@
+{
+  "max_abs_difference": 8.881784197001252e-15,
+  "scope": "Own five-field historical implementation versus reference estimator on own fields, restoring only the training target mean",
+  "not_native_predictive_validation": true
+}

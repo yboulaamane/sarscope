@@ -135,6 +135,8 @@ def field_qsar_files(result: FieldQsarResult) -> dict[str, bytes]:
         "charges": charge_audit(result),
         "component_selection": result.regression.fitted_model.selection_table_,
     }
+    if "source_graph_audit" in result.provenance:
+        tables["source_graph_audit"] = pd.DataFrame(result.provenance["source_graph_audit"])
     for name, table in tables.items():
         files[f"{name}.csv"] = table.to_csv(index=False).encode()
     files["metric_definitions.csv"] = (

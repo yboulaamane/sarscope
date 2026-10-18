@@ -463,6 +463,10 @@ def test_archive_records_failures_and_hashes(synthetic_result):
             assert hashlib.sha256(archive.read(name)).hexdigest() == expected
         assert b"not validated" in archive.read("report.html")
         assert b"Native end-to-end 3D-QSAR validation" in archive.read("validation_checks.csv")
+        source_audit = pd.read_csv(io.BytesIO(archive.read("source_graph_audit.csv")))
+        assert len(source_audit) == len(synthetic_result.predictions)
+        assert source_audit.radical_electrons.eq(0).all()
+        assert not source_audit.source_graph_review_required.any()
         assert "steric.dx" in archive.namelist()
         assert "contours.pml" in archive.namelist()
     read, mols = upload_table(aligned_sdf(synthetic_result.prepared).encode(), "sdf")

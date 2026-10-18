@@ -1,0 +1,42 @@
+{
+  "manifests": {
+    "THR": {
+      "path": "runs/3dqsar-validation-20261018/primary-thrombin-native-v2",
+      "files_verified": 22
+    },
+    "AChE": {
+      "path": "runs/3dqsar-validation-20261018/primary-ache-reproducible-driver",
+      "files_verified": 17
+    },
+    "reference": {
+      "path": "runs/3dqsar-validation-20261018/thrombin-reference-matched-loo-v2/verified-exports",
+      "files_verified": 10
+    },
+    "reference_repeat": {
+      "path": "runs/3dqsar-validation-20261018/thrombin-reference-reproducible-driver",
+      "files_verified": 51
+    },
+    "THR_ZIP": {
+      "files_verified": 31,
+      "closed_shell_rows": 88
+    }
+  },
+  "tests": {
+    "tests": 177,
+    "errors": 0,
+    "failures": 0,
+    "skipped": 0
+  },
+  "offline_tests": {
+    "tests": 626,
+    "errors": 0,
+    "failures": 0,
+    "skipped": 6
+  },
+  "reference_reusable_driver_metrics_reproduced": true,
+  "native_row_metrics_recomputed": true,
+  "no_model_refitting": true,
+  "package_fully_validated": false,
+  "prospective_or_blinded": false,
+  "generator_sha256": "45e6c7f8b4c2f758032a51d6462739e23b0710d793763c62c9dc2823508cbf1b"
+}

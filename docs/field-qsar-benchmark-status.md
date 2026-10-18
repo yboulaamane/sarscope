@@ -1,5 +1,15 @@
 # Literature benchmark status — 16 October 2026
 
+**Latest evidence, 18 October:** see the
+[matched-LOO and primary-source validation update](3d-qsar-validation-20261018.md).
+The reference five-field THR q² now reproduces (0.659934 versus 0.66), whereas
+SARscope's own five-field result differs (0.680827, two rather than three
+components). SEH predictions agree under historical preprocessing. Original,
+radical-free supporting data resolve a later THR graph discrepancy and give
+native nested q²/test R² of 0.607/0.507; primary AChE gives 0.052/0.489. These
+are retrospective characterisations, not a new independent validation cohort
+or a pass of all model checks. The older evidence below is retained unchanged.
+
 The [own-method qualification record](3d-qsar-validation.md) adds a frozen
 native three-family evaluation. Native Gaussian test R²: AChE 0.277, CCR5
 −0.692, thrombin 0.548, with 99 nested training-label permutations each.

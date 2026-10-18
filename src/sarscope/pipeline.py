@@ -105,11 +105,16 @@ def prepare_field_qsar_stage(dataset: FieldDataset, params: FieldQsarParams) -> 
     return prepare_field_series(dataset, params)
 
 
-def run_field_qsar_stage(prepared: PreparedFieldSeries, model: ModelParams) -> FieldQsarResult:
+def run_field_qsar_stage(
+    prepared: PreparedFieldSeries,
+    model: ModelParams,
+    *,
+    split_indices: tuple[list[int], list[int]] | None = None,
+) -> FieldQsarResult:
     """Run optional field modelling without changing the ordinary 2D workflow."""
     from sarscope.field_qsar import run_field_qsar
 
-    return run_field_qsar(prepared, model)
+    return run_field_qsar(prepared, model, split_indices=split_indices)
 
 
 def analyse(curation: CurationResult, params: RunParams) -> RunResults:

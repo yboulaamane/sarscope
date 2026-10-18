@@ -1,0 +1,6 @@
+{
+  "test_label_shift": 10.0,
+  "prediction_max_abs_change": 0.0,
+  "cv_prediction_max_abs_change": 0.0,
+  "passed": true
+}

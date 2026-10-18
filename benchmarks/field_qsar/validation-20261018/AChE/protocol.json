@@ -1,0 +1,118 @@
+{
+  "schema": 1,
+  "purpose": "Additional primary-source family; unchanged THR primary numerical profile",
+  "source": {
+    "doi": "10.1021/jm0497141",
+    "supplement_doi": "10.1021/jm0497141.s002",
+    "archive_sha256": "e69edbb64048a243db5bce8700b198ce9a60b6f8fe5c87f30d863d1f99790ecf",
+    "source_sdf_sha256": "218ff88d34ab638a949c5b5863116c146c376396ec6b174be929f77954425965",
+    "license": "CC-BY-NC-4.0, publisher Figshare metadata",
+    "download_url": "https://ndownloader.figshare.com/files/5158327",
+    "coordinate_policy": "All original coordinates/activities and SET membership retained"
+  },
+  "selection": "Retrospective, not blinded: previous AChE results were already known. Current numerical profile fixed before its scores; no test-driven replacement.",
+  "resource_retry": "Recorded first run stopped before fitting at a conservative 573 MB estimate. Memory ceiling alone increased from 512 to 768 MB. 111 compounds evaluated offline; browser limits unchanged.",
+  "metadata_correction": "The first run used the broad family label carboxylesterase; this driver labels AChE cholinesterase. No numerical change.",
+  "datasets": [
+    {
+      "name": "AChE",
+      "family": "cholinesterase",
+      "activity": "Activity",
+      "endpoint": "Historical acetylcholinesterase log activity; values unchanged; assay homogeneity not independently established",
+      "train": {
+        "sha256": "c337b4157012068237180385cde0a862f65b7bd50db8a33dff5e262b4242b455",
+        "bytes": 366008,
+        "valid": 74,
+        "invalid": 0
+      },
+      "test": {
+        "sha256": "52657689197b0e9c8a1cf9bbfc251199093de09b35638f6e662f8e3d365039a4",
+        "bytes": 183523,
+        "valid": 37,
+        "invalid": 0
+      }
+    }
+  ],
+  "fields": {
+    "method": "comsia",
+    "field_definition": "sarscope",
+    "field_subset": [
+      "steric",
+      "electrostatic",
+      "hydrophobic",
+      "hbond_donor",
+      "hbond_acceptor"
+    ],
+    "field_scaling": "block_std",
+    "grid_convention": "enclosing",
+    "grid_phase": [
+      0.0,
+      0.0,
+      0.0
+    ],
+    "spacing": 1.0,
+    "margin": 4.0,
+    "charge_model": "gasteiger",
+    "allow_charge_fallback": false,
+    "alpha": 0.3,
+    "dielectric": 1.0,
+    "dielectric_model": "constant",
+    "electrostatic_cutoff": null,
+    "missing_field_policy": "refuse",
+    "max_imputed_fraction": 0.1,
+    "steric_cutoff": 30.0,
+    "minimum_distance": 0.3,
+    "probe_radius": 1.7,
+    "probe_epsilon": 0.107,
+    "filter_mode": "percentile",
+    "field_screen": "per_field",
+    "minimum_sd": 2.0,
+    "keep_fraction": 0.3,
+    "max_features": 2000,
+    "component_cap": 4,
+    "fixed_components": null,
+    "component_improvement": 0.05,
+    "component_selection": "max_q2",
+    "component_sample_ratio": 5,
+    "pls_max_iter": 500,
+    "pls_tolerance": 1e-06,
+    "alignment": "prealigned",
+    "assess_prealigned_core": false,
+    "preserve_input_hydrogens": true,
+    "reference_index": 0,
+    "min_core_coverage": 0.5,
+    "max_alignment_rmsd": 1.0,
+    "mcs_timeout": 5,
+    "max_mappings": 256,
+    "conformers": 8,
+    "molecule_timeout": 30,
+    "alignment_timeout": 180,
+    "permutation_timeout": 600,
+    "max_molecules": 150,
+    "max_grid_points": 80000,
+    "max_memory_mb": 768,
+    "chunk_points": 512,
+    "permutations": 99,
+    "permutation_alpha": 0.05,
+    "contour_percentile": 80.0,
+    "seed": 42
+  },
+  "methods": [
+    {
+      "name": "gaussian_fivefield_primary",
+      "method": "comsia",
+      "filter_mode": "percentile"
+    }
+  ],
+  "model": {
+    "split": "random",
+    "cv_folds": 3,
+    "regression_cv": "default",
+    "seed": 42
+  },
+  "bootstrap_repeats": 1000,
+  "interpretation": {
+    "scope": "Historical family characterisation, not prospective or universal validation",
+    "browser_limit": "Offline memory/compound ceilings differ; no source rows sampled"
+  }
+}

@@ -29,6 +29,7 @@ from sarscope.analysis.regression import (
 )
 from sarscope.analysis.scaffolds import add_scaffolds
 from sarscope.curate import curate_table
+from sarscope.field_source_quality import require_closed_shell
 from sarscope.params import CurationParams, FeatureParams, FieldQsarParams, ModelParams, RunParams
 from sarscope.units import to_pactivity
 from sarscope.variants import normalize_variant
@@ -139,6 +140,7 @@ def dataset_from_assay(
     molecules = [Chem.MolFromSmiles(smi) for smi in scoped["smiles"]]
     if any(mol is None for mol in molecules):
         raise ValueError("An assay structure could not be parsed.")
+    require_closed_shell(molecules, scoped["molecule_id"].astype(str).tolist())
     return FieldDataset(
         scoped,
         molecules,
@@ -208,12 +210,18 @@ def dataset_from_upload(
     unit: str,
     endpoint: str,
     source_sha256: str,
+    preserve_input_states: bool = False,
+    split_col: str | None = None,
+    train_value: str = "train",
+    test_value: str = "held_out",
 ) -> FieldDataset:
     """Use existing curation; refuse silent geometry-changing standardisation.
 
     Uploaded endpoints must be homogeneous. Pre-aligned poses survive only
     if curation leaves their isomeric molecular graph unchanged. Multiple
-    poses of the same compound are not independent QSAR observations.
+    poses of the same compound are not independent QSAR observations. Explicit
+    reviewed-state mode requires one single-component, closed-shell SDF pose
+    per unique compound; it does not neutralise, aggregate or infer states.
     """
     required = [id_col, smiles_col, value_col]
     if raw.empty or not set(required) <= set(raw):
@@ -249,9 +257,56 @@ def dataset_from_upload(
     parsed = [Chem.MolFromSmiles(smi) for smi in measurements["smiles"]]
     if any(mol is None for mol in parsed):
         raise ValueError("At least one SMILES is invalid; no rows were discarded.")
-    curated = curate_table(
-        measurements, RunParams(curation=CurationParams(canonical_tautomer=False))
-    )
+    require_closed_shell(parsed, measurements["molecule_id"].tolist())
+    if preserve_input_states:
+        if len(molecules) != len(parsed):
+            raise ValueError("Reviewed-state mode requires one coordinate-bearing SDF per row.")
+        if any(len(Chem.GetMolFrags(mol)) != 1 for mol in parsed):
+            raise ValueError("Reviewed-state mode needs single-component structures, not salts.")
+        graphs = [Chem.MolToSmiles(mol) for mol in parsed]
+        if len(set(graphs)) != len(graphs) or measurements.molecule_id.duplicated().any():
+            raise ValueError(
+                "Reviewed-state mode needs unique structures and identifiers; "
+                "adjudicate replicates/poses before upload. No aggregation was performed."
+            )
+        # Reuse ordinary curation solely as a SHADOW identity check: multiple
+        # protonation/tautomer representations are not independent compounds.
+        # Never transfer its changed graphs or aggregated labels to the poses.
+        identity = curate_table(
+            measurements, RunParams(curation=CurationParams(canonical_tautomer=True))
+        )
+        if not identity.rejected.empty or len(identity.table) != len(measurements):
+            raise ValueError(
+                "Reviewed-state parent identity needs adjudication: rows may be alternate "
+                "states/replicates of one compound, or parent curation failed. "
+                "No source graph, coordinate or activity was changed or merged."
+            )
+        from sarscope.analysis.fields import coordinates
+        from sarscope.curate import CurationResult, CurationStep
+
+        for mol in molecules:
+            coordinates(mol)  # Require real finite 3D input, not a mode that skips preparation.
+        require_closed_shell(molecules, measurements.molecule_id.tolist())
+        kept = measurements.drop(columns="record_id").assign(
+            smiles=graphs, n_measurements=1, pactivity_range=0.0
+        )
+        curated = CurationResult(
+            kept,
+            [
+                CurationStep(
+                    "reviewed_input_states",
+                    len(kept),
+                    len(kept),
+                    len(kept),
+                    "Input protonation/tautomer/graphs and pose retained; "
+                    "no state inference or merging",
+                )
+            ],
+        )
+    else:
+        curated = curate_table(
+            measurements, RunParams(curation=CurationParams(canonical_tautomer=False))
+        )
     if not curated.rejected.empty:
         raise ValueError(
             "Curation rejected structures; review them in the main curation workflow first."
@@ -284,6 +339,29 @@ def dataset_from_upload(
                 "coordinates were not transferred to a different structure."
             )
         output.append(Chem.Mol(by_smiles[row.smiles]))
+    prescribed = {}
+    if split_col is not None:
+        if not preserve_input_states:
+            raise ValueError("A supplied partition requires unique, reviewed input-state mode.")
+        if split_col not in raw or train_value == test_value:
+            raise ValueError("Choose a present partition column and distinct train/test values.")
+        membership = raw[split_col].astype(str).str.strip()
+        if raw[split_col].isna().any() or not membership.isin([train_value, test_value]).all():
+            raise ValueError("Every partition value must be explicitly training or held-out.")
+        prescribed = {
+            "train_ids": measurements.loc[
+                membership.eq(train_value).to_numpy(), "molecule_id"
+            ].tolist(),
+            "test_ids": measurements.loc[
+                membership.eq(test_value).to_numpy(), "molecule_id"
+            ].tolist(),
+            "column": split_col,
+            "train_value": train_value,
+            "test_value": test_value,
+            "policy": "Supplied membership, not independently validated or selected by scores",
+        }
+        if not prescribed["train_ids"] or not prescribed["test_ids"]:
+            raise ValueError("The supplied partition needs both training and held-out compounds.")
     return FieldDataset(
         curated.table,
         output,
@@ -299,8 +377,29 @@ def dataset_from_upload(
             else f"-log10(value in {unit} converted to M)",
             "assay_comparability": "asserted by uploader, not independently verified",
             "canonical_tautomer": False,
+            "preserve_input_states": preserve_input_states,
+            **({"prescribed_split": prescribed} if prescribed else {}),
         },
     )
+
+
+def prescribed_split_indices(dataset: FieldDataset) -> tuple[list[int], list[int]]:
+    """Map declared IDs, preserving order; refuse silent removal from a frozen partition."""
+    membership = dataset.source.get("prescribed_split")
+    if not isinstance(membership, dict):
+        raise ValueError("This dataset has no supplied training/test partition.")
+    train = list(map(str, membership.get("train_ids", [])))
+    test = list(map(str, membership.get("test_ids", [])))
+    ids = dataset.table.molecule_id.astype(str).tolist()
+    if not train or not test or len(set(train + test)) != len(train + test):
+        raise ValueError("Supplied partition IDs must be non-empty, unique and non-overlapping.")
+    if len(set(ids)) != len(ids) or set(ids) != set(train + test):
+        raise ValueError(
+            "The supplied partition needs the complete declared compound set. "
+            "Restore All compounds/select all, or explicitly choose a new random/scaffold split."
+        )
+    position = {identifier: index for index, identifier in enumerate(ids)}
+    return [position[i] for i in train], [position[i] for i in test]
 
 
 def subset_dataset(dataset: FieldDataset, identifiers: list[str]) -> FieldDataset:
@@ -472,6 +571,10 @@ def run_field_qsar(
             "Native field validation requires the n/5 component cap. "
             "Uncapped historical reproduction is benchmark-only, not a validated app model."
         )
+    source_quality = require_closed_shell(
+        prepared.alignment.molecules,
+        prepared.dataset.table["molecule_id"].astype(str).tolist(),
+    )
     table = add_scaffolds(prepared.dataset.table)
     if len(table) < 20 or len(table) > params.max_molecules:
         raise ValueError(f"Use 20–{params.max_molecules} unique compounds for nested field QSAR.")
@@ -671,6 +774,7 @@ def run_field_qsar(
     record.update(
         {
             "field_qsar": asdict(params),
+            "source_graph_audit": source_quality.to_dict(orient="records"),
             "model": asdict(model),
             "grid": asdict(grid),
             "field_convention": fields.convention,
@@ -692,12 +796,14 @@ def run_field_qsar(
                 "selected": result.fitted_model.selected_components_,
                 "stop_reason": result.fitted_model.selection_stop_reason_,
             },
-            "split_interpretation": "prespecified external benchmark partition"
+            "split_interpretation": "supplied/prespecified partition; independence not established"
             if split_indices
             else "within-series interpolation"
             if model.split == "random"
             else "held-out Murcko scaffold groups",
             "split_indices": {"train": train.tolist(), "test": test.tolist()},
+            "grid_policy": "Fixed from the complete training cohort; not regenerated per CV "
+            "fold. Masks/scales/component selection refitted inside fitting partitions.",
             "permutation_test": "training labels only; repeats nested selection; (1+C)/(1+B)",
             "input_measurements_sha256": hashlib.sha256(
                 prepared.dataset.measurements.to_csv(index=False).encode()

@@ -45,7 +45,7 @@ def show_field_design(result: FieldQsarResult, key: str) -> None:
     comparable_series_confirmed = False
     if result.prepared.dataset.source.get("design_comparability_review_required"):
         st.warning(
-            "This historical CCR5 benchmark has not been independently adjudicated to a "
+            "This historical benchmark has not been independently adjudicated to a "
             "single comparable assay. The model tutorial does not establish that its "
             "matched-pair effects can be transferred between compounds. Review the source "
             "experiments before using them as design evidence."

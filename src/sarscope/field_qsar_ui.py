@@ -28,6 +28,7 @@ from sarscope.field_qsar import (
     dataset_from_assay,
     dataset_from_upload,
     field_split_plan,
+    prescribed_split_indices,
     subset_dataset,
     upload_table,
 )
@@ -173,6 +174,33 @@ def _upload_dataset(key: str, *, needs_alignment: bool = True) -> FieldDataset |
                 "Active/inactive calls are not potencies."
             )
             return None
+        preserve_states = False
+        split_col, train_value, test_value = None, "train", "held_out"
+        if needs_alignment and molecules:
+            preserve_states = st.checkbox(
+                "Keep my reviewed SDF protonation and tautomer states",
+                key=f"{key}_preserve_states",
+                help="Opt-in: one finite 3D pose per unique, single-component closed-shell "
+                "structure. No neutralisation, tautomerisation or replicate aggregation. "
+                "This is your state choice, not proof of a bound state.",
+            )
+            if preserve_states:
+                split_col = st.selectbox(
+                    "Optional supplied train/test column",
+                    [None, *candidates],
+                    format_func=lambda value: "No supplied partition" if value is None else value,
+                    key=f"{key}_split_column",
+                )
+                if split_col is not None:
+                    choices = raw[split_col].dropna().astype(str).str.strip().unique().tolist()
+                    if len(choices) != 2:
+                        st.error("The partition column needs exactly two non-missing labels.")
+                        return None
+                    train_value = st.selectbox("Training label", choices, key=f"{key}_train_label")
+                    test_value = next(value for value in choices if value != train_value)
+                    st.caption(
+                        f"Held-out label: {test_value}. Membership is never inferred from potency."
+                    )
         return dataset_from_upload(
             raw,
             molecules,
@@ -182,6 +210,10 @@ def _upload_dataset(key: str, *, needs_alignment: bool = True) -> FieldDataset |
             unit=unit,
             endpoint=endpoint,
             source_sha256=hashlib.sha256(data).hexdigest(),
+            preserve_input_states=preserve_states,
+            split_col=split_col,
+            train_value=train_value,
+            test_value=test_value,
         )
     except Exception as exc:
         st.error(f"Input needs review: {exc}")
@@ -255,6 +287,7 @@ def _restore_example_settings(key: str, reference: str) -> None:
         "alpha": 0.3,
         "seed": 42,
         "grid_phase": (0.0, 0.0, 0.0),
+        "larger_workspace": False,
         "reviewed": False,
     }
     st.session_state.update({f"{key}_{suffix}": value for suffix, value in defaults.items()})
@@ -263,16 +296,131 @@ def _restore_example_settings(key: str, reference: str) -> None:
     _discard_active(key)
 
 
+@st.cache_data(show_spinner=False, max_entries=1, ttl=86400)
+def _fetch_primary_example(source_hash: str) -> bytes:
+    from sarscope.field_primary_example import fetch_primary_archive
+
+    return fetch_primary_archive()
+
+
+def _restore_primary_settings(key: str, reference: str) -> None:
+    _restore_example_settings(key, reference)
+    st.session_state.update(
+        {
+            f"{key}_{suffix}": value
+            for suffix, value in {
+                "assess_core": False,
+                "keep_h": True,
+                "spacing": 1.0,
+                "scaling_sarscope": "block_std",
+                "selection": "max_q2",
+                "permutations": 99,
+                "split": "supplied",
+                "test_fraction": 0.33,
+                "larger_workspace": True,
+            }.items()
+        }
+    )
+
+
+def _primary_example_controls(key: str) -> FieldDataset | None:
+    from sarscope.field_primary_example import (
+        ARCHIVE_SHA256,
+        RECORDED_SCORES,
+        primary_thrombin_dataset,
+        primary_thrombin_sdf,
+    )
+
+    st.caption(
+        "88 original, pre-aligned thrombin compounds: Böhm et al. (1999), deposited by "
+        "Sutherland et al. (2004). Original closed-shell graphs, explicit hydrogens and "
+        "log activities retained. No guessed repairs or potency-selected subset. "
+        "Source poses are not verified crystal binding modes."
+    )
+    st.markdown(
+        "[Primary publication](https://doi.org/10.1021/jm0497141) · "
+        "[Original series](https://doi.org/10.1021/jm981062r)"
+    )
+    allowed = st.checkbox(
+        "I have reviewed the primary data's CC BY-NC 4.0 terms for my intended use",
+        key=f"{key}_primary_terms",
+    )
+    st.caption(
+        "Separately licensed supporting data, not bundled or relicensed under MIT. "
+        "Source: publisher Figshare archive, 3.3 MB; fetched only on request."
+    )
+    if not allowed:
+        return None
+    if st.button("Fetch original thrombin example", key=f"{key}_fetch_primary"):
+        try:
+            with st.spinner("Fetching and checking the original supporting-data hash…"):
+                payload = _fetch_primary_example(ARCHIVE_SHA256)
+                dataset = primary_thrombin_dataset(payload)
+            st.session_state[f"{key}_primary_example"] = payload, dataset
+        except Exception as exc:
+            st.session_state.pop(f"{key}_primary_example", None)
+            st.error(f"Primary example was not loaded: {exc}")
+    cached = st.session_state.get(f"{key}_primary_example")
+    if cached is None:
+        st.info("Fetch the source above; page loading alone never downloads data or fits a model.")
+        return None
+    payload, dataset = cached
+    st.caption(
+        "Recorded source-partition profile (59 training / 29 held-out): "
+        f"nested q² {RECORDED_SCORES['cv_pooled_q2']:.3f}; "
+        f"test R² {RECORDED_SCORES['test_r2']:.3f}; "
+        f"RMSE {RECORDED_SCORES['test_rmse']:.3f}. These are recorded benchmarks, "
+        "not results calculated in your session; current settings must be run separately."
+    )
+    st.warning(
+        "Retrospective worked example, not independent validation. Strict test R² "
+        "and alignment qualification remain failed/unassessed; one recorded pose "
+        "sensitivity flag fails. Do not select a different split to obtain a pass."
+    )
+    st.download_button(
+        "Download original-state example SDF",
+        primary_thrombin_sdf(payload),
+        "primary_thrombin_88.sdf",
+        "chemical/x-mdl-sdfile",
+        key=f"{key}_primary_sdf",
+    )
+    csv = dataset.table[["molecule_id", "smiles", "pactivity"]].copy()
+    csv["source_split"] = ["train"] * 59 + ["held_out"] * 29
+    st.download_button(
+        "Download primary example CSV",
+        csv.to_csv(index=False),
+        "primary_thrombin_88.csv",
+        "text/csv",
+        key=f"{key}_primary_csv",
+    )
+    st.button(
+        "Apply recorded thrombin profile (offline recommended)",
+        on_click=_restore_primary_settings,
+        args=(key, dataset.source["reference_id"]),
+        key=f"{key}_primary_reset",
+        help="Changes settings only. Requires overlay review "
+        "and a separate Run click; raises the bounded workspace to 20,000 points/512 MB.",
+    )
+    selected = st.checkbox("Use original thrombin example", key=f"{key}_use_primary")
+    return dataset if selected else None
+
+
 def _field_example_controls(key: str) -> FieldDataset | None:
     from sarscope.field_example import FIELD_EXAMPLES, field_example_archive, field_example_files
 
     with st.expander("Try a measured 3D-QSAR example"):
         name = st.selectbox(
             "Measured 3D example",
-            list(FIELD_EXAMPLES),
-            format_func=lambda value: FIELD_EXAMPLES[value].label,
+            [*FIELD_EXAMPLES, "primary_thrombin"],
+            format_func=lambda value: (
+                "Thrombin · 88 primary-source compounds · fixed-partition worked example"
+                if value == "primary_thrombin"
+                else FIELD_EXAMPLES[value].label
+            ),
             key=f"{key}_example_name",
         )
+        if name == "primary_thrombin":
+            return _primary_example_controls(key)
         spec = FIELD_EXAMPLES[name]
         contents = field_example_files(name)
         source = json.loads(contents["source.json"])
@@ -399,6 +547,8 @@ def show_field_qsar(
     scaffold_table = add_scaffolds(dataset.table)
     counts = scaffold_table["murcko"].fillna("Acyclic").value_counts()
     choices = ["All compounds", *counts.index.tolist()]
+    if st.session_state.get(f"{key}_scaffold", "All compounds") not in choices:
+        st.session_state.pop(f"{key}_scaffold", None)
     scaffold = st.selectbox(
         "Focus the series by scaffold",
         choices,
@@ -484,6 +634,10 @@ def show_field_qsar(
         "constrained": "Core-constrained conformer sampling",
     }
     controls = st.columns(2)
+    if st.session_state.get(f"{key}_route", routes[0]) not in routes:
+        st.session_state.pop(f"{key}_route", None)
+    if st.session_state.get(f"{key}_reference") not in dataset.table.molecule_id.tolist():
+        st.session_state.pop(f"{key}_reference", None)
     route = controls[0].selectbox(
         "Alignment route", routes, format_func=lambda value: route_labels[value], key=f"{key}_route"
     )
@@ -727,11 +881,29 @@ def show_field_qsar(
             "Training-label permutations", [19, 99, 199, 0], key=f"{key}_permutations"
         )
         controls = st.columns(3)
+        split_options = (
+            ["supplied", "random", "scaffold"]
+            if dataset.source.get("prescribed_split")
+            else ["random", "scaffold"]
+        )
+        if st.session_state.get(f"{key}_split", split_options[0]) not in split_options:
+            st.session_state.pop(f"{key}_split", None)
         split = controls[0].selectbox(
-            "Validation split", ["random", "scaffold"], key=f"{key}_split"
+            "Validation split",
+            split_options,
+            format_func=lambda value: (
+                "Supplied partition · random nested training CV" if value == "supplied" else value
+            ),
+            key=f"{key}_split",
         )
         test_fraction = controls[1].slider(
-            "Held-out fraction", 0.2, 0.35, 0.25, 0.05, key=f"{key}_test_fraction"
+            "Held-out fraction",
+            0.2,
+            0.35,
+            0.25,
+            0.05,
+            key=f"{key}_test_fraction",
+            disabled=split == "supplied",
         )
         folds = controls[2].selectbox(
             "CV folds (outer and component selection)", [3, 4, 5], key=f"{key}_folds"
@@ -773,6 +945,13 @@ def show_field_qsar(
             0.5,
             disabled=filter_mode != "absolute",
             key=f"{key}_sd",
+        )
+        larger_workspace = st.checkbox(
+            "Larger bounded field workspace · 20,000 points / 512 MB",
+            key=f"{key}_larger_workspace",
+            help="Opt-in for fine-grid local/offline work, including the recorded thrombin "
+            "profile. Shared Streamlit hosts may still run out of memory. The estimate "
+            "does not cap total browser/process memory. Ordinary limits remain the default.",
         )
         electrostatic_cutoff, dielectric_model, max_filled = (
             None,
@@ -849,24 +1028,40 @@ def show_field_qsar(
             "max_imputed_fraction": max_filled,
             "electrostatic_cutoff": electrostatic_cutoff,
             "dielectric_model": dielectric_model,
+            "max_grid_points": 20000 if larger_workspace else 12000,
+            "max_memory_mb": 512 if larger_workspace else 256,
         }
     )
     model = ModelParams(
-        split=cast(Literal["random", "scaffold"], split),
+        split=cast(Literal["random", "scaffold"], "random" if split == "supplied" else split),
         test_fraction=test_fraction,
         cv_folds=folds,
         seed=int(seed),
     )
-    # Do not redisplay pre-update session results with the old check/metric schema.
-    model_key = _signature(
-        ["2026-10-17-uncertainty-aware-sar", preparation_key, asdict(params), asdict(model)]
-    )
-    split_error = None
+    split_indices, split_error = None, None
     try:
-        field_split_plan(dataset.table, model)
+        if split == "supplied":
+            split_indices = prescribed_split_indices(dataset)
+            st.caption(
+                f"Supplied membership: {len(split_indices[0])} training / "
+                f"{len(split_indices[1])} held-out compounds. The fraction slider is ignored; "
+                "nested CV uses only the declared training compounds. A supplied split "
+                "is not automatically independent or prospective validation."
+            )
+        field_split_plan(dataset.table, model, split_indices=split_indices)
     except ValueError as exc:
         split_error = str(exc)
         st.warning(split_error)
+    # Do not redisplay pre-update session results with the old check/metric schema.
+    model_key = _signature(
+        [
+            "2026-10-18-reviewed-states-and-split",
+            preparation_key,
+            asdict(params),
+            asdict(model),
+            split_indices,
+        ]
+    )
     if not reviewed:
         st.info("To enable Run, tick 'I reviewed the overlay and alignment assumptions' above.")
     if st.button(
@@ -885,7 +1080,12 @@ def show_field_qsar(
             with st.spinner(
                 "Calculating fields, nested PLS, matched-split 2D baseline and permutations…"
             ):
-                result = run_field_qsar_stage(replace(prepared, params=params), model)
+                if split_indices is None:
+                    result = run_field_qsar_stage(replace(prepared, params=params), model)
+                else:
+                    result = run_field_qsar_stage(
+                        replace(prepared, params=params), model, split_indices=split_indices
+                    )
             st.session_state[f"{key}_result"] = model_key, result
         except Exception as exc:
             st.session_state[f"{key}_model_error"] = (model_key, str(exc))

@@ -2,9 +2,33 @@
 
 from __future__ import annotations
 
+import sys
+from collections.abc import Iterator
 from typing import Any
 
 import pytest
+
+
+@pytest.fixture(autouse=True)
+def restore_main_metadata() -> Iterator[None]:
+    """Keep Streamlit AppTest's temporary main script out of later spawn tests.
+
+    AppTest may leave __main__.__file__ pointing at an unguarded UI fragment.
+    A subsequent multiprocessing spawn then executes that fragment in the child,
+    without its session fixture. Restore test-process metadata, not worker logic.
+    """
+    module = sys.modules.get("__main__")
+    absent = object()
+    names = ("__file__", "__spec__", "__package__", "__loader__")
+    original = {name: getattr(module, name, absent) for name in names}
+    yield
+    if module is not None:
+        sys.modules["__main__"] = module
+        for name, value in original.items():
+            if value is absent:
+                module.__dict__.pop(name, None)
+            else:
+                setattr(module, name, value)
 
 
 def chembl_record(**overrides: Any) -> dict[str, Any]:

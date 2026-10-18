@@ -1,0 +1,15 @@
+{
+  "wrapper_corrections": [
+    "Preserve leading-zero compound IDs when reading prediction CSVs",
+    "The exposed PLS estimator predicts centred targets; restore training mean only, verified against its training exports"
+  ],
+  "models_refitted": false,
+  "original_exports_modified": false,
+  "own_vs_reference_estimator_on_own_fields_max_abs_difference": 8.881784197001252e-15,
+  "seh_calculator_test_prediction_max_abs_difference": 1.7763568394002505e-15,
+  "reference_pycomsia_fivefield_published_q2_reproduced": true,
+  "own_fivefield_historical_paper_tolerances_pass": false,
+  "prospective_validation": false,
+  "source_graph_flags_remain": true,
+  "negative_raw_estimator_R2_in_original_wrapper": "Centred-target wrapper quantities, not correctly reconstructed activity predictions; see corrected columns here"
+}

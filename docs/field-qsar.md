@@ -154,6 +154,20 @@ training R² = 0.917438 versus 0.917, with three components selected from 1–12
 All 21 training and 10 test compounds are retained. See the
 [independent evidence](../benchmarks/field_qsar/INDEPENDENT.md).
 
+The [18 October validation update](3d-qsar-validation-20261018.md) adds matched
+thrombin LOO/reference execution, primary-source graph adjudication and native
+THR/AChE prediction evidence. It includes a paper draft, generated figures and
+177 passing targeted tests. This does not override failed qualification checks
+or establish exact five-field/CoMFA equivalence.
+
+An [opt-in primary-source thrombin worked example](primary-thrombin-worked-example.md)
+is now available in the measured-example selector. It fetches the separately
+licensed original data only on request, preserves reviewed input states and
+supplied 59/29 membership, and reproduces the recorded metrics through the actual
+Streamlit modelling path. Applying its profile is explicit; review and Run
+remain separate. Fine-grid work opts into a bounded 20,000-point/512 MB workspace;
+ordinary limits stay unchanged. Failed qualification checks remain failed.
+
 This validates neither the native end-to-end workflow nor its predictive
 utility: historical reproduction uses combined-set field scales and separate
 subset centres. The exported reference test R² additionally matches a known

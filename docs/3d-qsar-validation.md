@@ -1,5 +1,19 @@
 # Qualification of SARscope's own field methods
 
+**18 October source-adjudication and matched-LOO update:**
+[new evidence](3d-qsar-validation-20261018.md) reproduces the external
+Py-CoMSIA five-field thrombin q² (0.659934 versus published 0.66), establishes
+SEH prediction agreement on that cohort and evaluates primary-source,
+closed-shell THR and AChE structures through the native pipeline. The primary
+native results are q²/R² = 0.607/0.507 (THR) and 0.052/0.489 (AChE).
+The earlier THR source files below were subsequently found to encode radicals
+in all 59 training graphs; those archived scores are not closed-shell native
+qualification evidence. The new source audit resolves this against the
+original supporting data without inferred repairs. One pose-sensitivity flag
+still fails, neither native model meets all strict checks, and full five-field
+equivalence/general predictive validation are **not established**. Older runs
+remain frozen, not overwritten or silently substituted.
+
 **17 October update:** the measured CCR5 tutorial was subjected to
 [stronger retrospective checks](ccr5-demo-validation.md). Its default positive
 score reproduces, but the historical test split gives R² = −0.683, scaffold

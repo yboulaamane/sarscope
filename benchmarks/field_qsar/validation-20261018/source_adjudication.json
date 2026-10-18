@@ -1,0 +1,10 @@
+{
+  "records": 88,
+  "activities_unchanged": true,
+  "heavy_atom_coordinates_and_connectivity_identical": true,
+  "later_radical_graphs": 59,
+  "primary_radical_graphs": 0,
+  "rows_with_changed_bond_orders": 59,
+  "rows_with_changed_formal_charge": 59,
+  "policy": "Use original source graphs, not inferred repairs or score-based exclusions"
+}

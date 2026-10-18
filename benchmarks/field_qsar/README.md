@@ -1,5 +1,15 @@
 # Field-QSAR reference reproduction
 
+The [18 October validation report](../../docs/3d-qsar-validation-20261018.md)
+and [aggregate evidence snapshot](validation-20261018/) add matched thrombin
+LOO execution, primary-source graph adjudication and native closed-shell
+THR/AChE evaluation. `primary_thrombin_probe.py` and `primary_ache_probe.py`
+reproduce these primary-data runs; `matched_loo_probe.py` executes the isolated,
+unmodified reference APIs. `summarize_20261018.py` verifies the recorded exports
+and builds aggregate tables/figures without refitting. Primary data carry the
+publisher's separate CC BY-NC 4.0 terms and are not bundled in the snapshot.
+Full five-field equivalence and general predictive qualification remain unmet.
+
 The latest [CCR5 demo validation attempt](../../docs/ccr5-demo-validation.md)
 retains both the positive random-split tutorial and failed historical/scaffold
 evaluation. Run `validate_ccr5_demo.py` with a new `--out` directory to reproduce
