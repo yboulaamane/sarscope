@@ -14,7 +14,7 @@ keywords = [
     "cheminformatics", "drug-discovery", "rdkit", "chembl", "qsar",
     "structure-activity-relationship", "activity-cliffs", "scaffold-analysis",
 ]
-authors = [{ name = "Yassir Boulaamane", email = "yassirxmail@gmail.com" }]
+authors = [{ name = "Yassir Boulaamane" }]
 
 dependencies = [
     # Standardisation, scaffolds and fingerprints come from Sorbent rather than
