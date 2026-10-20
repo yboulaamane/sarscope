@@ -44,6 +44,7 @@ sarscope run CHEMBL5145 --out report/
 [Workflow guide](docs/user-guide.md) ·
 [Methods & validation](docs/README.md#methods-and-evidence) ·
 [Paper & SI](submission_mol_inf/README.md) ·
+[Paper data](examples/paper_data/README.md) ·
 [Contributing](docs/contributing.md)
 
 Research software: assess each model's validation and applicability domain.

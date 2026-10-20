@@ -1,0 +1,23 @@
+{
+  "new_model_fit": false,
+  "live_data_fetch": false,
+  "scope": "Fresh reconstruction from frozen raw records. Held-out membership is copied from saved benchmark predictions; all curated counts, original held-out SMILES and activities and nonempty scaffold boundaries verified. Original training tables were not independently archived for byte comparison. Training rows are the curated complement.",
+  "BRAF_and_DRD2_export_environment": "RDKit 2026.9.1, Sorbent 0.1.1; both original held-out SMILES/activities verified",
+  "ER_export_packages": {
+    "sorbent": "0.1.1",
+    "rdkit": "2026.3.6",
+    "numpy": "2.5.4",
+    "pandas": "3.0.6",
+    "scipy": "1.18.1",
+    "scikit-learn": "1.9.1",
+    "joblib": "1.6.0",
+    "scikit-fingerprints": null,
+    "molfeat": null,
+    "shap": null,
+    "umap-learn": null,
+    "gemmi": "0.7.5",
+    "meeko": "0.8.0",
+    "threadpoolctl": "3.7.0"
+  },
+  "ER_required_historical_rdkit_for_exact_held_out_smiles": true
+}

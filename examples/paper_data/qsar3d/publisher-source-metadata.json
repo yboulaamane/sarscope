@@ -1,0 +1,203 @@
+{
+  "files": [
+    {
+      "id": 5158327,
+      "name": "jm0497141_si_002.zip",
+      "size": 3262400,
+      "is_link_only": false,
+      "download_url": "https://ndownloader.figshare.com/files/5158327",
+      "supplied_md5": "e1cbd0d0fe147c212fa87cb5f041fea3",
+      "computed_md5": "e1cbd0d0fe147c212fa87cb5f041fea3",
+      "mimetype": "application/zip"
+    }
+  ],
+  "folder_structure": {},
+  "authors": [
+    {
+      "id": 698432,
+      "full_name": "Jeffrey J. Sutherland",
+      "first_name": "Jeffrey J.",
+      "last_name": "Sutherland",
+      "is_active": false,
+      "url_name": "_",
+      "orcid_id": ""
+    },
+    {
+      "id": 2704633,
+      "full_name": "Lee A. O'Brien",
+      "first_name": "Lee A.",
+      "last_name": "O'Brien",
+      "is_active": false,
+      "url_name": "_",
+      "orcid_id": ""
+    },
+    {
+      "id": 1629307,
+      "full_name": "Donald F. Weaver",
+      "first_name": "Donald F.",
+      "last_name": "Weaver",
+      "is_active": false,
+      "url_name": "_",
+      "orcid_id": ""
+    }
+  ],
+  "custom_fields": [],
+  "figshare_url": "https://acs.figshare.com/articles/dataset/A_Comparison_of_Methods_for_Modeling_Quantitative_Structure_Activity_Relationships/3319567",
+  "download_disabled": false,
+  "description": "A large number of methods are available for modeling quantitative structure\u2212activity\nrelationships (QSAR). We examine the predictive accuracy of several methods applied to data\nsets of inhibitors for angiotensin converting enzyme, acetylcholinesterase, benzodiazepine\nreceptor, cyclooxygenase-2, dihydrofolate reductase, glycogen phosphorylase b, thermolysin,\nand thrombin. Descriptors calculated with CoMFA, CoMSIA, EVA, HQSAR, and traditional\n2D and 2.5D descriptors were used for developing models with partial least squares (PLS). In\naddition, the genetic function approximation algorithm, genetic PLS, and back-propagation\nneural networks were used for deriving models from 2.5D descriptors (i.e., 2D descriptors and\n3D descriptors calculated from CORINA structures and Gasteiger\u2212Marsili charges). Predictive\naccuracy was assessed using designed test sets. It was found that HQSAR generally performs\nas well as CoMFA and CoMSIA; other descriptor sets performed less well. When 2.5D\ndescriptors were used, only neural network ensembles were found to be similarly or more\npredictive than PLS models. In addition, we show that many cross-validation procedures yield\nsimilar estimates of the interpolative accuracy of methods. However, the lack of correspondence\nbetween cross-validated and test set predictive accuracy for four sets underscores the benefit\nof using designed test sets.",
+  "funding": null,
+  "funding_list": [],
+  "version": 1,
+  "status": "public",
+  "size": 3262400,
+  "created_date": "2016-05-06T18:37:54Z",
+  "modified_date": "2023-06-02T14:27:00Z",
+  "is_public": true,
+  "is_confidential": false,
+  "is_metadata_record": false,
+  "confidential_reason": "",
+  "metadata_reason": "",
+  "license": {
+    "value": 10,
+    "name": "CC BY-NC 4.0",
+    "url": "https://creativecommons.org/licenses/by-nc/4.0/"
+  },
+  "tags": [
+    "CORINA",
+    "2.5 D descriptors",
+    "EVA",
+    "function approximation algorithm",
+    "HQSAR",
+    "method",
+    "glycogen phosphorylase b",
+    "test sets",
+    "PLS",
+    "3 D descriptors",
+    "QSAR",
+    "accuracy",
+    "model"
+  ],
+  "keywords": [
+    "CORINA",
+    "2.5 D descriptors",
+    "EVA",
+    "function approximation algorithm",
+    "HQSAR",
+    "method",
+    "glycogen phosphorylase b",
+    "test sets",
+    "PLS",
+    "3 D descriptors",
+    "QSAR",
+    "accuracy",
+    "model"
+  ],
+  "categories": [
+    {
+      "id": 1,
+      "title": "Biophysics",
+      "parent_id": 48,
+      "path": "",
+      "source_id": "",
+      "taxonomy_id": 10
+    },
+    {
+      "id": 4,
+      "title": "Biochemistry",
+      "parent_id": 38,
+      "path": "",
+      "source_id": "",
+      "taxonomy_id": 10
+    },
+    {
+      "id": 12,
+      "title": "Cell Biology",
+      "parent_id": 48,
+      "path": "",
+      "source_id": "",
+      "taxonomy_id": 10
+    },
+    {
+      "id": 13,
+      "title": "Genetics",
+      "parent_id": 48,
+      "path": "",
+      "source_id": "",
+      "taxonomy_id": 10
+    },
+    {
+      "id": 14,
+      "title": "Molecular Biology",
+      "parent_id": 48,
+      "path": "",
+      "source_id": "",
+      "taxonomy_id": 10
+    },
+    {
+      "id": 873,
+      "title": "Chemical Sciences not elsewhere classified",
+      "parent_id": 38,
+      "path": "",
+      "source_id": "",
+      "taxonomy_id": 10
+    },
+    {
+      "id": 734,
+      "title": "Biological Sciences not elsewhere classified",
+      "parent_id": 48,
+      "path": "",
+      "source_id": "",
+      "taxonomy_id": 10
+    },
+    {
+      "id": 811,
+      "title": "Mathematical Sciences not elsewhere classified",
+      "parent_id": 53,
+      "path": "",
+      "source_id": "",
+      "taxonomy_id": 10
+    }
+  ],
+  "references": [
+    "https://doi.org/10.1021/jm0497141"
+  ],
+  "has_linked_file": false,
+  "citation": "Sutherland, Jeffrey J.; O'Brien, Lee A.; Weaver, Donald F. (2016). A Comparison of Methods for Modeling Quantitative Structure\u2212Activity\nRelationships. ACS Publications. Dataset. https://doi.org/10.1021/jm0497141.s002",
+  "related_materials": [
+    {
+      "id": 31577723,
+      "identifier": "10.1021/jm0497141",
+      "title": "A Comparison of Methods for Modeling Quantitative Structure\u2212Activity\nRelationships",
+      "relation": "IsSupplementTo",
+      "identifier_type": "DOI",
+      "is_linkout": true,
+      "link": "https://doi.org/10.1021/jm0497141"
+    }
+  ],
+  "is_embargoed": false,
+  "embargo_date": null,
+  "embargo_type": null,
+  "embargo_title": "",
+  "embargo_reason": "",
+  "embargo_options": [],
+  "id": 3319567,
+  "title": "A Comparison of Methods for Modeling Quantitative Structure\u2212Activity\nRelationships",
+  "doi": "10.1021/jm0497141.s002",
+  "handle": "",
+  "url": "https://api.figshare.com/v2/articles/3319567",
+  "published_date": "2004-10-21T00:00:00Z",
+  "thumb": "",
+  "defined_type": 3,
+  "defined_type_name": "dataset",
+  "group_id": 2529,
+  "url_private_api": "https://api.figshare.com/v2/account/articles/3319567",
+  "url_public_api": "https://api.figshare.com/v2/articles/3319567",
+  "url_private_html": "https://figshare.com/account/articles/3319567",
+  "url_public_html": "https://acs.figshare.com/articles/dataset/A_Comparison_of_Methods_for_Modeling_Quantitative_Structure_Activity_Relationships/3319567",
+  "timeline": {
+    "posted": "2004-10-21T00:00:00",
+    "firstOnline": "2016-05-06"
+  },
+  "resource_title": "A Comparison of Methods for Modeling Quantitative Structure\u2212Activity\nRelationships",
+  "resource_doi": "10.1021/jm0497141"
+}

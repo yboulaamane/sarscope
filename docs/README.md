@@ -17,6 +17,7 @@
 ## Methods and evidence
 
 - [Paper and Supporting Information](../submission_mol_inf/README.md)
+- [Paper datasets and demo inputs](../examples/paper_data/README.md)
 - [Extended technical methods](paper-technical-methods.md)
 - [Measured thrombin worked example](end-to-end-3d-demo.md)
 - [Generated-alignment checks](generated-alignment-validation.md)

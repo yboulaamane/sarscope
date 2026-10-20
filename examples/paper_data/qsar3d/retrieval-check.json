@@ -1,0 +1,13 @@
+{
+  "checked_on": "2026-10-20",
+  "scope": "Live public-source retrieval and SHA-256 verification only; no modelling or coordinate changes",
+  "retrieval_script_sha256": "29db339cfd443d4f8d070719f69c9b2d24a45e08a4bca7bf1ca09ac411ed100f",
+  "files": {
+    "AChE_original.sdf": "218ff88d34ab638a949c5b5863116c146c376396ec6b174be929f77954425965",
+    "STEROIDS_test.sdf": "c2c77ddc42f3be8926fe2276fffeb6251d97b0f74f279bb9b3febf172011d23a",
+    "STEROIDS_train.sdf": "65758c2794c745dc4b8361f9025aac930b30da5bb0f9f4fc2d33e5eaa2a313a0",
+    "THR_original.sdf": "7e91820c51e6b9bb62e9b542cbc906cb0555cb461033fd1226f35d9ae9c1efff"
+  },
+  "new_model_fit": false,
+  "downloaded_files_bundled": false
+}

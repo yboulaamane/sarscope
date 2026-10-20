@@ -10,3 +10,8 @@ benchmarks/field_qsar/ccr5-offline-tests-bounded-20261017.xml -whitespace
 # Matplotlib SVG paths contain trailing spaces. Keep the checksummed export
 # byte-for-byte rather than reformatting frozen scientific evidence.
 benchmarks/field_qsar/validation-20261018/held_out_predictions.svg -whitespace
+
+# Paper-data manifests cover exact bytes, including valid CSV CRLF endings.
+# Disable checkout EOL conversion so Windows/Linux copies keep the same hashes.
+examples/paper_data/** -text
+examples/paper_data/qsar3d/*.csv whitespace=cr-at-eol

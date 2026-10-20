@@ -1,0 +1,4 @@
+case_id,observed_supported,null_mean_supported,null_q025,null_q975,permutation_p_supported_count
+braf,5,4.3622,1.0,8.0,0.4527094581083783
+drd2,5,2.8872,0.0,6.0,0.13637272545490903
+esr1,7,5.8982,2.0,11.0,0.3887222555488902

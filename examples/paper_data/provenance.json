@@ -1,0 +1,74 @@
+{
+  "schema_version": 1,
+  "prepared_on": "2026-10-20",
+  "source_implementation_commit": "28bc9fbfc8d4eb044e4cb9299e26ae391a67ed5b",
+  "manuscript_snapshot_commit": "f0e6e39b2c056e198acdd7b5529f3d6b5e2b11a3",
+  "source_package_sha256": "d44e7947622151b4d586bf94c93dd1371963751b746c3e793170a364c28d0858",
+  "source_export_verification": {
+    "prepared_on": "2026-10-20",
+    "repository_commit": "f0e6e39b2c056e198acdd7b5529f3d6b5e2b11a3",
+    "documents": {
+      "SARscope_Paper.docx": {
+        "sha256": "dc8d7b50c669516f76ebacea231f2f3593aa2dcf079e43f564a35b1f6e2d4db1",
+        "unchanged_from_repository": true,
+        "images": 8,
+        "tables": 3
+      },
+      "SARscope_SI.docx": {
+        "sha256": "afa7010304867a98637a55109608dfd2a1201f1fa9bee62cc33c4581dc41911d",
+        "unchanged_from_repository": true,
+        "images": 3,
+        "tables": 9
+      }
+    },
+    "new_model_fit": false,
+    "original_data_files_hash_verified": 296,
+    "original_scientific_results_included": true,
+    "assay_cohorts": [
+      {
+        "case_id": "braf",
+        "curated": 44,
+        "selected": 16
+      },
+      {
+        "case_id": "drd2",
+        "curated": 30,
+        "selected": 23
+      },
+      {
+        "case_id": "esr1",
+        "curated": 98,
+        "selected": 53
+      }
+    ],
+    "recomputed_saved_2d_metrics": [
+      {
+        "target_id": "CHEMBL5145",
+        "n_test": 584,
+        "r2": 0.7621642494953784,
+        "rmse": 0.6463381259019063
+      },
+      {
+        "target_id": "CHEMBL217",
+        "n_test": 99,
+        "r2": 0.3102503780626684,
+        "rmse": 0.901833364513015
+      },
+      {
+        "target_id": "CHEMBL206",
+        "n_test": 651,
+        "r2": 0.6962039533503135,
+        "rmse": 0.8283128947774596
+      }
+    ],
+    "raw_primary_3d_structures_bundled": false,
+    "hash_verified_3d_retrieval_included": true,
+    "archive_or_doi_created": false,
+    "journal_submission_made": false
+  },
+  "original_chEMBL_snapshot_sha256": "f48c8aec796c8986de3938febbc95b99149355660e1c31315f98852e3395a493",
+  "new_model_fit": false,
+  "downloads_on_import_or_app_startup": false,
+  "raw_primary_3d_sdfs_bundled": false,
+  "scope": "Core paper datasets, partitions and saved predictions. Large local field arrays and duplicate source archives are not added. Existing benchmarks retain numerical and sensitivity records."
+}

@@ -1,0 +1,46 @@
+[
+  {
+    "dataset": "THR",
+    "archive_url": "https://ndownloader.figshare.com/files/5158327",
+    "archive_sha256": "e69edbb64048a243db5bce8700b198ce9a60b6f8fe5c87f30d863d1f99790ecf",
+    "nested_tar": "qsar_sets/3dqsar_sd.tar.gz",
+    "member": "./3dqsar_sd/thr_3dqsar.sd",
+    "member_sha256": "7e91820c51e6b9bb62e9b542cbc906cb0555cb461033fd1226f35d9ae9c1efff",
+    "records": 88,
+    "license": "CC-BY-NC-4.0",
+    "raw_structure_policy": "Retrieve using fetch_3d_inputs.py; raw primary SD files are not redistributed in this package."
+  },
+  {
+    "dataset": "AChE",
+    "archive_url": "https://ndownloader.figshare.com/files/5158327",
+    "archive_sha256": "e69edbb64048a243db5bce8700b198ce9a60b6f8fe5c87f30d863d1f99790ecf",
+    "nested_tar": "qsar_sets/3dqsar_sd.tar.gz",
+    "member": "./3dqsar_sd/ache_3dqsar.sd",
+    "member_sha256": "218ff88d34ab638a949c5b5863116c146c376396ec6b174be929f77954425965",
+    "records": 111,
+    "license": "CC-BY-NC-4.0",
+    "raw_structure_policy": "Retrieve using fetch_3d_inputs.py; raw primary SD files are not redistributed in this package."
+  },
+  {
+    "dataset": "STEROIDS_CBG",
+    "historical_protocol": {
+      "base_url": "https://raw.githubusercontent.com/clhaga/pycomsia/0b30179ecc20aac5a003577b4437399a8fb20bca/sdfs/",
+      "train": {
+        "file": "STEROIDS_train.sdf",
+        "sha256": "65758c2794c745dc4b8361f9025aac930b30da5bb0f9f4fc2d33e5eaa2a313a0",
+        "valid": 21,
+        "invalid": 1
+      },
+      "test": {
+        "file": "STEROIDS_test.sdf",
+        "sha256": "c2c77ddc42f3be8926fe2276fffeb6251d97b0f74f279bb9b3febf172011d23a",
+        "valid": 10,
+        "invalid": 0
+      },
+      "activity": "Activity",
+      "coordinate_policy": "Preserve deposited explicit-H coordinates, validate finite coordinates and stereochemistry, no minimisation or re-alignment",
+      "redistribution": "Fetch data only. Do not bundle upstream SDF or program code."
+    },
+    "license_note": "Consult upstream repository and article licence notices; source files are retrieved, not bundled."
+  }
+]
