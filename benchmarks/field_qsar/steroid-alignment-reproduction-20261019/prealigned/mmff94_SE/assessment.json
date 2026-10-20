@@ -1,0 +1,18 @@
+{
+  "route": "prealigned",
+  "profile": "mmff94_SE",
+  "alignment_wall_s": 0.09706387500045821,
+  "status": "ok",
+  "nested_q2": 0.7075036553924057,
+  "test_r2": -0.8826662342303531,
+  "test_rmse": 0.8451904358061947,
+  "components": 1,
+  "failed_checks": [
+    "Held-out predictive R\u00b2 > 0.6",
+    "Origin calibration (GT-style heuristic; value = Pearson r\u00b2)",
+    "Full-pipeline permutation test",
+    "Alignment thresholds met",
+    "Native end-to-end 3D-QSAR validation"
+  ],
+  "model_wall_s": 1.850705786004255
+}

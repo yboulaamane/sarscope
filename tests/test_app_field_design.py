@@ -50,7 +50,7 @@ def test_example_reset_is_explicit_and_does_not_prepare_or_train():
     ).run()
     widget(app, "checkbox", "Use measured 3D-QSAR example").check().run()
     widget(app, "button", "Prepare and review alignment").click().run()
-    assert not app.exception
+    assert not app.error and not app.exception, [item.value for item in app.error]
     widget(app, "selectbox", "Molecular fields").select("comfa").run()
     widget(app, "selectbox", "Grid spacing (Å)").select(3.0).run()
     widget(app, "button", "Restore example model defaults").click().run()

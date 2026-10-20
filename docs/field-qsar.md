@@ -1,5 +1,13 @@
 # Experimental field-based 3D QSAR
 
+For an executed positive measured-data workflow, see the
+[thrombin MMFF94 end-to-end worked example](end-to-end-3d-demo.md): original
+59/29 partition, nested q² 0.612, held-out R² 0.630, 99 permutations and
+independently replayed predictions. Choose its explicit profile under
+**Try a measured 3D-QSAR example → Thrombin**. Source alignment and failed
+pose-sensitivity checks remain explicit; this does not validate automatic
+CSV-to-pose generation or the complete package.
+
 ## Uncertainty-aware 3D SAR, not automatic lead optimisation
 
 Use a closely related series with comparable measured endpoints and a reviewed
@@ -202,6 +210,14 @@ that would change a coordinate-bearing molecular graph blocks the upload
 rather than transferring coordinates to a different molecule.
 
 ### Review geometry before fitting
+
+The generated alignment implementation has now been
+[verified in two Python/RDKit stacks](generated-alignment-validation.md):
+43 targeted tests and all 50 measured EGFR compounds in both routes. Checks
+cover independent rigid-fit geometry, stereo/identity preservation, fixed-core
+constraints, deterministic replay and bounded-worker cleanup. Rigid quality
+warnings remain visible; implementation correctness and suitability of a
+particular overlay are distinct questions.
 
 - **Pre-aligned SDF:** preserve coordinates. Uploaded alignment is a user
   assertion, not automatically an experimental pose. No energy minimisation,
@@ -454,3 +470,13 @@ No GPL 3D-QSAR source is needed or consulted for these implementations.
   3d-qsar.com and
   [Py-CoMSIA (2025)](https://pmc.ncbi.nlm.nih.gov/articles/PMC11945924/).
   Their existence rules out claiming that field QSAR in Python is new.
+
+## Native MMFF94 field option
+
+Streamlit now includes an explicit **SARscope MMFF94** field-definition choice:
+independently implemented buffered 14-7 VDW and buffered Coulomb fields using
+RDKit's public MMFF94 parameters. It requires no external executable and keeps
+the existing validation and resource limits. See the [method and reproduction
+evidence](mmff-mif.md) and [focused GitHub survey](3d-qsar-github-survey.md).
+This additional profile is not full Open3DQSAR/SYBYL compatibility or a claim
+that every fitted model passes validation.

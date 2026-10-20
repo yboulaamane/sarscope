@@ -1,0 +1,70 @@
+{
+  "scope": "Retrospective alignment sensitivity and PLS solver parity, not field equivalence",
+  "model_fits": 8,
+  "model_successes": 8,
+  "original_baselines_reproduced": true,
+  "solver_parity_both_pass": true,
+  "rf_prediction_max_changes": {
+    "THR_o3a_mmff": 3.552713678800501e-15,
+    "THR_o3a_crippen": 3.552713678800501e-15,
+    "THR_open3dalign_atom": 3.552713678800501e-15,
+    "AChE_o3a_mmff": 2.6645352591003757e-15,
+    "AChE_o3a_crippen": 3.552713678800501e-15,
+    "AChE_open3dalign_atom": 3.552713678800501e-15
+  },
+  "geometry": [
+    {
+      "cohort": "EGFR",
+      "route": "o3a_crippen",
+      "n": 50,
+      "identity_stereo_all_pass": true,
+      "max_internal_distance_error_A": 5.3290705182007506e-15,
+      "median_core_rmsd_A": 0.5798454222831351,
+      "max_core_rmsd_A": 2.9216022056586164
+    },
+    {
+      "cohort": "EGFR",
+      "route": "o3a_mmff",
+      "n": 50,
+      "identity_stereo_all_pass": true,
+      "max_internal_distance_error_A": 5.3290705182007506e-15,
+      "median_core_rmsd_A": 0.5731790249136719,
+      "max_core_rmsd_A": 2.8253394941525167
+    },
+    {
+      "cohort": "AChE",
+      "route": "open3dalign_atom",
+      "n": 111,
+      "identity_stereo_all_pass": true,
+      "max_internal_distance_error_A": 0.0001510153672015,
+      "median_core_rmsd_A": null,
+      "max_core_rmsd_A": null
+    },
+    {
+      "cohort": "EGFR",
+      "route": "open3dalign_atom",
+      "n": 50,
+      "identity_stereo_all_pass": true,
+      "max_internal_distance_error_A": 0.0001252795590138,
+      "median_core_rmsd_A": 0.5200058980576404,
+      "max_core_rmsd_A": 2.80302225810721
+    },
+    {
+      "cohort": "THR",
+      "route": "open3dalign_atom",
+      "n": 88,
+      "identity_stereo_all_pass": true,
+      "max_internal_distance_error_A": 0.0001482611392393,
+      "median_core_rmsd_A": null,
+      "max_core_rmsd_A": null
+    }
+  ],
+  "source_data_licences": {
+    "EGFR": "ChEMBL CC-BY-SA-3.0",
+    "THR_AChE": "Publisher primary data CC-BY-NC-4.0"
+  },
+  "failure_retention": "All failed interfaces retained under runs/o3a-comparison-20261019/standalone",
+  "model_selection": "No route chosen by held-out scores; no production changes",
+  "permutations": 0,
+  "interpretation": "No new validation status granted"
+}

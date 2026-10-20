@@ -788,7 +788,12 @@ def run_field_qsar(
                 if params.missing_field_policy == "training_mean"
                 else "training-only; undefined held-out CoMFA fields refuse scoring"
             ),
-            "vendor_compatibility": "Public method components only; full SYBYL parity not verified",
+            "vendor_compatibility": (
+                "Independent MMFF94 MIF implementation from public equations/RDKit parameters; "
+                "not a port of Open3DQSAR; full external workflow parity not claimed"
+                if params.field_definition == "mmff94_mif"
+                else "Public method components only; full SYBYL parity not verified"
+            ),
             "cv": "nested component selection; pooled q2 = 1 - PRESS / training SST",
             "component_selection_audit": {
                 "requested_cap": params.component_cap,

@@ -14,6 +14,7 @@ from rdkit.Chem import AllChem
 from threadpoolctl import threadpool_limits
 
 from sarscope.field_primary_example import (
+    RECORDED_MMFF_SCORES,
     RECORDED_SCORES,
     TEST_IDS,
     TRAIN_IDS,
@@ -152,8 +153,9 @@ def test_primary_reader_retains_all_source_states_values_and_frozen_partition(pr
     assert dataset.source["design_comparability_review_required"] is True
 
 
+@pytest.mark.parametrize("profile", ["gaussian", "mmff94"])
 def test_primary_ui_is_opt_in_and_actual_profile_reproduces_native_scores(
-    primary_payload, monkeypatch, request
+    primary_payload, monkeypatch, request, profile
 ):
     pytest.importorskip("streamlit")
     from streamlit.testing.v1 import AppTest
@@ -172,6 +174,7 @@ def test_primary_ui_is_opt_in_and_actual_profile_reproduces_native_scores(
         default_timeout=180,
     ).run()
     app.selectbox(key="primary3d_example_name").select("primary_thrombin").run()
+    app.selectbox(key="primary3d_primary_profile").select(profile).run()
     assert not calls and not app.exception
     app.checkbox(key="primary3d_primary_terms").check().run()
     assert not calls
@@ -191,7 +194,8 @@ def test_primary_ui_is_opt_in_and_actual_profile_reproduces_native_scores(
     assert not app.exception and not app.error
     result = app.session_state["primary3d_active_result"]
     stats = result.statistics.query("algorithm == 'field_pls'").iloc[0]
-    for metric, value in RECORDED_SCORES.items():
+    expected = RECORDED_MMFF_SCORES if profile == "mmff94" else RECORDED_SCORES
+    for metric, value in expected.items():
         assert stats[metric] == pytest.approx(value, abs=1e-6)
         request.node.user_properties.append((metric, str(float(stats[metric]))))
     request.node.user_properties.extend(
@@ -218,6 +222,9 @@ def test_primary_ui_is_opt_in_and_actual_profile_reproduces_native_scores(
         ]
     )
     assert result.prepared.params.spacing == 1
+    assert result.prepared.params.field_definition == (
+        "mmff94_mif" if profile == "mmff94" else "sarscope"
+    )
     assert result.fields.grid.n_points == 14300
     assert len(result.permutations) == 99
     assert result.prepared.dataset.source["preserve_input_states"] is True
@@ -238,5 +245,6 @@ def test_primary_ui_is_opt_in_and_actual_profile_reproduces_native_scores(
     app.button(key="primary3d_example_reset").click().run()
     assert not app.exception and not app.error
     app.button(key="primary3d_prepare").click().run()
+    assert not app.exception and not app.error, [item.value for item in app.error]
     assert app.selectbox(key="primary3d_split").value == "random"
     assert app.checkbox(key="primary3d_larger_workspace").value is False

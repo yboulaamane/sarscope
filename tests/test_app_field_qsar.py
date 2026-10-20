@@ -316,6 +316,32 @@ def test_reference_field_definition_exposes_se_only_and_explicit_overlap_policy(
     assert any("No vendor-equivalence claim" in item.value for item in app.info)
 
 
+def test_mmff_profile_exposes_only_compatible_options(field_result, monkeypatch):
+    import sarscope.field_qsar_ui as ui
+
+    monkeypatch.setattr(ui, "_assay_dataset", lambda *args: field_result.prepared.dataset)
+    app = AppTest.from_string(SCRIPT, default_timeout=30)
+    app.session_state["fixture"] = field_result
+    app.run()
+    next(b for b in app.button if b.label == "Prepare and review alignment").click().run()
+    next(s for s in app.selectbox if s.label == "Field definition").select("mmff94_mif").run()
+    assert not app.exception
+    assert next(s for s in app.selectbox if s.label == "Partial charges").value == "mmff94"
+    assert next(s for s in app.selectbox if s.label == "Molecular fields").value == "comfa"
+    assert next(s for s in app.selectbox if s.label == "Field scaling").value == "block_std"
+    assert next(s for s in app.selectbox if s.label == "PLS component selection").value == "max_q2"
+    assert next(s for s in app.multiselect if s.label == "Fields included in the model").value == [
+        "steric",
+        "electrostatic",
+    ]
+    assert not any(s.label == "Missing electrostatic descriptors" for s in app.selectbox)
+    assert (
+        next(s for s in app.selectbox if s.label == "Electrostatic plateau (± kcal/mol)").value
+        == 30
+    )
+    assert any("no Open3DQSAR installation" in item.value for item in app.info)
+
+
 def test_empty_fields_are_warned_about_and_not_offered_as_contours(field_result):
     import io
     import zipfile

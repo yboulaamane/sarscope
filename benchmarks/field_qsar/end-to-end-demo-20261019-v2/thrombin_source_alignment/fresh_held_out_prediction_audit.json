@@ -1,0 +1,9 @@
+{
+  "held_out": 29,
+  "test_properties_removed_before_descriptor_calculation": true,
+  "model_refit": false,
+  "grid_rebuilt": false,
+  "prediction_max_error": 7.105427357601002e-15,
+  "raw_field_max_error": 0.0,
+  "passed": true
+}

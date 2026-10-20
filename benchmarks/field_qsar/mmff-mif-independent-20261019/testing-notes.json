@@ -1,0 +1,8 @@
+{
+  "concurrent_full_suite": "674 passed, six skipped, two deselected, five setup errors from one existing demo MCS timeout at its unchanged five-second cap",
+  "focused_followup": "39 campaign/design/example/interpretation tests passed, with the affected example fixture included",
+  "new_profile_and_ui": "29 passed",
+  "two_version_field_controls": "13 passed on each of Python 3.13/RDKit 2026.09.1 and Python 3.12/RDKit 2024.09.6",
+  "serial_full_suite": "679 passed, six skipped, two deselected, two existing small-class CV warnings; no simultaneous benchmark jobs",
+  "safety_caps_changed": false
+}

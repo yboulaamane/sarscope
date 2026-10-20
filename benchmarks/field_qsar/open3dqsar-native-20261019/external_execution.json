@@ -1,0 +1,42 @@
+{
+  "AChE_open3dalign_atom/external/execution.json": {
+    "returncode": 0,
+    "timed_out": false,
+    "successful_completion": true,
+    "babel_unavailable": false,
+    "command_failed": false,
+    "tool": "open3dqsar",
+    "elapsed_s": 6.752222999995865,
+    "binary_sha256": "7966fbcfe9bb547c17f63f67de3dd5ade8dee9403eb753f00381068358c2d4a8"
+  },
+  "THR_original/external/execution.json": {
+    "returncode": 0,
+    "timed_out": false,
+    "successful_completion": true,
+    "babel_unavailable": false,
+    "command_failed": false,
+    "tool": "open3dqsar",
+    "elapsed_s": 4.402231373001996,
+    "binary_sha256": "7966fbcfe9bb547c17f63f67de3dd5ade8dee9403eb753f00381068358c2d4a8"
+  },
+  "AChE_original/external/execution.json": {
+    "returncode": 0,
+    "timed_out": false,
+    "successful_completion": true,
+    "babel_unavailable": false,
+    "command_failed": false,
+    "tool": "open3dqsar",
+    "elapsed_s": 6.406486911000684,
+    "binary_sha256": "7966fbcfe9bb547c17f63f67de3dd5ade8dee9403eb753f00381068358c2d4a8"
+  },
+  "THR_open3dalign_atom/external/execution.json": {
+    "returncode": 0,
+    "timed_out": false,
+    "successful_completion": true,
+    "babel_unavailable": false,
+    "command_failed": false,
+    "tool": "open3dqsar",
+    "elapsed_s": 4.302608287995099,
+    "binary_sha256": "7966fbcfe9bb547c17f63f67de3dd5ade8dee9403eb753f00381068358c2d4a8"
+  }
+}

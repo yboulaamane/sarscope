@@ -1,0 +1,26 @@
+{
+  "schema_version": 1,
+  "scope": "Tree-verified mappings after the existing public-history rewrite",
+  "public_repository": "https://github.com/yboulaamane/sarscope",
+  "public_main_when_prepared": "a79be6a235a71db79b3e1f5a410adda9d0166ca8",
+  "mappings": [
+    {
+      "scope": "Earlier field implementation and 627-test execution baseline",
+      "historical_local_commit": "08b7d2dec6f4d18815345359880330a8b1d8cebd",
+      "public_reachable_commit": "55dfeefb8baefcadf6f87f7e9a5b3a78c74d662b",
+      "identical_tree": "b166ef26acc0e5aaadf20afc8f3debdf7b8a46f7"
+    },
+    {
+      "scope": "Earlier SAR evaluation source base recorded in SI S9",
+      "historical_local_commit": "7a8e4c805d671d92bccf38673bd00bc2207ad7cd",
+      "public_reachable_commit": "cd57faed372ed4215bc184f6ecf8dc45645da567",
+      "identical_tree": "6c042abdbcf147451189d791de96d3850ec815fc"
+    }
+  ],
+  "historical_execution_evidence_modified": false,
+  "note": "Equal trees establish identical tracked contents, not a new execution of the historical tests. Later MMFF94 additions are absent from both field-baseline commits.",
+  "candidate_version": "0.2.0rc1",
+  "candidate_base": "a79be6a235a71db79b3e1f5a410adda9d0166ca8",
+  "candidate_branch": "codex/paper-reproducibility-20261020",
+  "published_or_tagged": false
+}

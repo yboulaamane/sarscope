@@ -474,6 +474,15 @@ def test_archive_records_failures_and_hashes(synthetic_result):
     assert "pactivity" in read
 
 
+def test_archive_can_replay_every_prediction_without_deserialising_a_model(synthetic_result):
+    from benchmarks.validate_end_to_end_demo import numeric_replay
+
+    replayed = numeric_replay(field_qsar_archive(synthetic_result))
+    np.testing.assert_allclose(
+        replayed, synthetic_result.predictions.prediction, atol=1e-10, rtol=0
+    )
+
+
 def test_contour_zero_information_has_no_isosurface(synthetic_result):
     result = synthetic_result
     model = SimpleNamespace(coef_=result.regression.fitted_model.coef_ * 0)

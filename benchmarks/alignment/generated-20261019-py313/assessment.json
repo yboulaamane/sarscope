@@ -1,0 +1,52 @@
+{
+  "protocol_sha256": "a8d6dedfaee1d2d44a7c1ff2510e6d55fe808e780673a0e66cbc1666bb601c87",
+  "test_exit_code": 0,
+  "routes": [
+    {
+      "route": "rigid_mcs",
+      "completed": true,
+      "molecules": 50,
+      "records_dropped": 0,
+      "implementation_checks_pass": true,
+      "checks_all_pass": {
+        "identity_preserved": true,
+        "coordinate_stereo_preserved": true,
+        "coordinates_finite": true,
+        "mapping_types_compatible": true,
+        "bond_geometry_sanity": true,
+        "reported_rmsd_matches": true,
+        "reported_coverage_matches": true,
+        "fixed_core_within_tolerance": true
+      },
+      "replay_activity_and_order_invariant": true,
+      "default_quality_warnings": 18,
+      "max_core_rmsd_A": 1.7092616014247974,
+      "min_core_coverage": 0.72,
+      "seconds": 4.007755803000691
+    },
+    {
+      "route": "constrained",
+      "completed": true,
+      "molecules": 50,
+      "records_dropped": 0,
+      "implementation_checks_pass": true,
+      "checks_all_pass": {
+        "identity_preserved": true,
+        "coordinate_stereo_preserved": true,
+        "coordinates_finite": true,
+        "mapping_types_compatible": true,
+        "bond_geometry_sanity": true,
+        "reported_rmsd_matches": true,
+        "reported_coverage_matches": true,
+        "fixed_core_within_tolerance": true
+      },
+      "replay_activity_and_order_invariant": true,
+      "default_quality_warnings": 0,
+      "max_core_rmsd_A": 0.0,
+      "min_core_coverage": 0.72,
+      "seconds": 9.601942866000172
+    }
+  ],
+  "implementation_validation_pass": true,
+  "interpretation": "Geometry/implementation validation only; actual bound alignment is an input/method assumption. Default RMSD warnings and failed attempts remain visible. No activity-model fitting, docking or threshold relaxation occurred."
+}

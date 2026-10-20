@@ -1,0 +1,103 @@
+{
+  "schema_version": 1,
+  "scope": "Post-hoc array-size audit of frozen independent MMFF94 comparisons",
+  "protocol_sha256": "2e3bc6b4d049434b001cc76875f3abe3e1614273c409553c99e6f5118f823a2b",
+  "results_sha256": "7229385f73220ebffb27d483a7e57e1e964b195f95c3c4faf62f0196bde55d56",
+  "count_definition": "molecules \u00d7 fields \u00d7 grid points; each compared scalar counted once",
+  "cases": [
+    {
+      "case": "THR_original",
+      "molecules": 88,
+      "fields": [
+        "steric",
+        "electrostatic"
+      ],
+      "grid_shape": [
+        26,
+        22,
+        25
+      ],
+      "grid_points_per_field": 14300,
+      "matrix_shape": [
+        88,
+        28600
+      ],
+      "scalar_values": 2516800,
+      "native_fields_relative_path": "THR_original/native_fields.npy",
+      "native_fields_sha256": "b6c678bfa89435869eacc51ad3b6a04b1ca5b8be2bffab5f842221e27a0f09b0",
+      "hash_matches_frozen_protocol": true
+    },
+    {
+      "case": "THR_open3dalign_atom",
+      "molecules": 88,
+      "fields": [
+        "steric",
+        "electrostatic"
+      ],
+      "grid_shape": [
+        26,
+        23,
+        25
+      ],
+      "grid_points_per_field": 14950,
+      "matrix_shape": [
+        88,
+        29900
+      ],
+      "scalar_values": 2631200,
+      "native_fields_relative_path": "THR_open3dalign_atom/native_fields.npy",
+      "native_fields_sha256": "219d3145f95d2b1d061fe790f7eeae93d759fb339964600eaa8f3bfb59915a80",
+      "hash_matches_frozen_protocol": true
+    },
+    {
+      "case": "AChE_original",
+      "molecules": 111,
+      "fields": [
+        "steric",
+        "electrostatic"
+      ],
+      "grid_shape": [
+        24,
+        25,
+        28
+      ],
+      "grid_points_per_field": 16800,
+      "matrix_shape": [
+        111,
+        33600
+      ],
+      "scalar_values": 3729600,
+      "native_fields_relative_path": "AChE_original/native_fields.npy",
+      "native_fields_sha256": "f41aa1de6e46502e14ea8918ecf226f07463d4d58fe2231be46676455aaa059a",
+      "hash_matches_frozen_protocol": true
+    },
+    {
+      "case": "AChE_open3dalign_atom",
+      "molecules": 111,
+      "fields": [
+        "steric",
+        "electrostatic"
+      ],
+      "grid_shape": [
+        24,
+        25,
+        28
+      ],
+      "grid_points_per_field": 16800,
+      "matrix_shape": [
+        111,
+        33600
+      ],
+      "scalar_values": 3729600,
+      "native_fields_relative_path": "AChE_open3dalign_atom/native_fields.npy",
+      "native_fields_sha256": "0613d5ebf16c47a2fd08aa0b246f1f45f9b3850eae4948c50c0967b09a4e37a5",
+      "hash_matches_frozen_protocol": true
+    }
+  ],
+  "total_scalar_values": 12607200,
+  "arrays_verified_against_frozen_protocol": true,
+  "fields_recomputed": false,
+  "models_refitted": false,
+  "original_protocol_and_results_modified": false,
+  "raw_array_redistribution": "Not included; upstream data licences still apply"
+}

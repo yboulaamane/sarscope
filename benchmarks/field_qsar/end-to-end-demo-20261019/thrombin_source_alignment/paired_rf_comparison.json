@@ -1,0 +1,10 @@
+{
+  "available": true,
+  "rf_rmse_minus_field_rmse": 0.281418878664932,
+  "lower_95": 0.03150125315839105,
+  "upper_95": 0.5468634950370909,
+  "repeats": 2000,
+  "scaffold_blocks": 24,
+  "seed": 42,
+  "scope": "Conditional paired scaffold-block interval on one historical test set; not general method superiority"
+}

@@ -19,6 +19,7 @@ from numpy.typing import NDArray
 from rdkit import Chem
 from rdkit.Chem import AllChem, Crippen, Lipinski
 
+from sarscope.analysis.mmff_fields import carbon_probe_parameters, energy_chunk
 from sarscope.analysis.tripos_reference import PARAMETER_SOURCE, vdw_parameters
 from sarscope.params import FieldQsarParams
 
@@ -207,6 +208,17 @@ def compute_fields(mols: Sequence[Any], grid: GridSpec, params: FieldQsarParams)
             }
         )
         reference_radii, reference_depths = None, None
+        mmff_pairs = None
+        if params.field_definition == "mmff94_mif":
+            pair_radius, pair_epsilon, atom_types = carbon_probe_parameters(mol)
+            mmff_pairs = pair_radius, pair_epsilon
+            report[-1].update(
+                {
+                    "vdw_source": "RDKit MMFF94 public mixed-pair API; Halgren buffered 14-7",
+                    "probe_mmff_type": 1,
+                    "mmff_atom_types": atom_types,
+                }
+            )
         if params.field_definition == "tripos52_se":
             reference_radii, reference_depths, classes = vdw_parameters(mol)
             report[-1].update({"vdw_source": PARAMETER_SOURCE, "parameter_classes": classes})
@@ -217,7 +229,7 @@ def compute_fields(mols: Sequence[Any], grid: GridSpec, params: FieldQsarParams)
             weights[:, 0], weights[:, 1] = reference_radii**3, charge
         elif params.method == "comsia":
             weights = _properties(mol, charge)
-        if weights is None:
+        if weights is None and mmff_pairs is None:
             if reference_radii is not None:
                 assert reference_depths is not None
                 radii = reference_radii
@@ -235,6 +247,20 @@ def compute_fields(mols: Sequence[Any], grid: GridSpec, params: FieldQsarParams)
             end = min(start + params.chunk_points, grid.n_points)
             delta = points[start:end, None, :] - xyz[None, :, :]
             distance2 = np.einsum("ijk,ijk->ij", delta, delta)
+            if mmff_pairs is not None:
+                assert params.electrostatic_cutoff is not None
+                values = energy_chunk(
+                    distance2,
+                    *mmff_pairs,
+                    charge,
+                    dielectric=params.dielectric,
+                    dielectric_model=params.dielectric_model,
+                    steric_cutoff=params.steric_cutoff,
+                    electrostatic_cutoff=params.electrostatic_cutoff,
+                )
+                for column, name in enumerate(names):
+                    result[column, start:end] = values[name]
+                continue
             if weights is not None:
                 selected_weights = weights[:, [COMSIA_FIELDS.index(name) for name in names]]
                 result[:, start:end] = (np.exp(-params.alpha * distance2) @ selected_weights).T
@@ -270,6 +296,12 @@ def compute_fields(mols: Sequence[Any], grid: GridSpec, params: FieldQsarParams)
             )
         )
         if params.field_definition == "tripos52_se"
+        else "MMFF94 buffered 14-7 VDW; RDKit mixed-pair parameters; type-1 carbon probe; "
+        f"MMFF94 charges, +1e point probe, {params.dielectric_model} dielectric; "
+        "published Coulomb distance buffer=0.05 A; "
+        f"independent energy plateaus +/-{params.steric_cutoff} and "
+        f"+/-{params.electrostatic_cutoff} kcal/mol; no cross-field NaN mask"
+        if params.field_definition == "mmff94_mif"
         else "positive-sum Gaussian; r^3/RDKit radii; Crippen logP; atom-centred H-bond features"
         if params.method == "comsia"
         else "LJ 12-6 with RDKit radii/UFF well depths; +1e carbon probe; "

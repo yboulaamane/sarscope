@@ -159,6 +159,13 @@ def field_qsar_files(result: FieldQsarResult) -> dict[str, bytes]:
         training_sd=result.regression.fitted_filter.training_sd_,
         column_scale=result.regression.fitted_filter.column_scale_,
         training_column_means=result.regression.fitted_filter.column_mean_,
+        # PLS predict centres X internally. Export its output at X=0 rather
+        # than assuming estimator.intercept_ is an uncentred linear intercept.
+        prediction_at_scaled_zero=np.asarray(
+            result.regression.fitted_model.predict(
+                np.zeros((1, int(result.regression.fitted_filter.support_.sum())))
+            )
+        ).reshape(-1),
     )
     files["fields.npz"] = matrix.getvalue()
     review = interpretation_review(result)

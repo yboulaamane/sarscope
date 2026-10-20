@@ -1,5 +1,5 @@
 cff-version: 1.2.0
-message: "If you use SARscope, cite this software by its version and repository URL. A Zenodo DOI is reserved but not yet published, and the software manuscript is in preparation."
+message: "Cite the exact software revision used. This 0.2.0rc1 release candidate is local and not yet published; no public release or archive DOI is asserted."
 type: software
 title: "SARscope: interactive, assay-aware structure-activity interpretation"
 authors:
@@ -7,7 +7,7 @@ authors:
     given-names: Yassir
 repository-code: "https://github.com/yboulaamane/sarscope"
 url: "https://sarscope.streamlit.app/"
-version: "0.1.0"
+version: "0.2.0rc1"
 license: MIT
 abstract: "A staged browser and command-line workflow for traceable assay-aware SAR analysis, activity-cliff exploration and retrospective QSAR. Evidence grades are descriptive support heuristics, not calibrated probabilities."
 keywords:

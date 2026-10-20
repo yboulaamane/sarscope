@@ -1,0 +1,17 @@
+{
+  "alignment-tests.log": "8cddcd6724f72477986abb261b0d2168ade1d76682303d6589eff46b585e464e",
+  "alignment-tests.xml": "035f10f1017f9a71598596595c563f8474dfe89f941bb2b21d436a75d70dbcd3",
+  "assessment.json": "11efd7d18da5d328b54717cc47adb1723e7b2de00b15926dd33fcc7cbc2cf6da",
+  "constrained/aligned.sdf": "9c9a4a1e39b708b2094f08b3695d44e6dc3d7594cfac60797460628eb529152c",
+  "constrained/alignment.csv": "b6670e3d9b33527b73d62366c4cf13b1c76f34562ca07a32d2a3f3a4026e3d4d",
+  "constrained/assessment.json": "73b2fe07fc783cdde0ea5d9d842eb82f148a6ffafa35393087ef2975f488cc9d",
+  "constrained/coordinate-audit.csv": "fe10beb77fe4b803cef9849fb7725a27167f81ebbe33072a0c648754c91f1029",
+  "coordinate-audit.csv": "da090c6eae3a9574ad12a48124a1ac0b0c566ebc79c24d46364d9b44e11759f1",
+  "input.csv": "e4d02f404d7434bb1cbe2853839167547064b7843915288da130ac997402421b",
+  "protocol.json": "58fb817867d7ce892480be0f8d580cde819fbdaa59555de2b1f8f1baf37526d7",
+  "rigid_mcs/aligned.sdf": "3c58c8c4719b18f96074323c1591254b648870ee00aaad9ea98dfc07af1f0504",
+  "rigid_mcs/alignment.csv": "3050d0adfc8aec176f7d31135f33306181ca666dffc56cfd017b681d0d4c1c4e",
+  "rigid_mcs/assessment.json": "ca10eda04b0bdeb9c1e51f67f01180328f40cbae682b10f3f43341a9b98dec5c",
+  "rigid_mcs/coordinate-audit.csv": "e7db021ae524b62effe8960586e4baec597388ca69fbd1da0028790797d3e5bc",
+  "source.json": "942851923aa514b0bcf02d1a2038794f92960d3bbdd494168d8e80e88c83d0f6"
+}

@@ -18,6 +18,7 @@ import httpx
 from rdkit import Chem
 
 from sarscope.field_qsar import FieldDataset, dataset_from_upload, upload_table
+from sarscope.params import FieldQsarParams
 
 EXAMPLE_ID = "primary_thrombin"
 URL = "https://ndownloader.figshare.com/files/5158327"
@@ -37,6 +38,34 @@ RECORDED_SCORES = {
     "test_r2": 0.5071821301111985,
     "test_rmse": 0.771570968908504,
 }
+RECORDED_MMFF_SCORES = {
+    "cv_pooled_q2": 0.612159452062688,
+    "test_r2": 0.6298298690930271,
+    "test_rmse": 0.6687031071765973,
+}
+
+
+def primary_mmff_settings() -> FieldQsarParams:
+    """One reproducible, explicit worked-example profile; not test-driven tuning."""
+    return FieldQsarParams(
+        method="comfa",
+        field_definition="mmff94_mif",
+        field_subset=("steric", "electrostatic"),
+        charge_model="mmff94",
+        minimum_distance=0.0001,
+        electrostatic_cutoff=30.0,
+        spacing=1.0,
+        field_scaling="block_std",
+        component_selection="max_q2",
+        alignment="prealigned",
+        assess_prealigned_core=False,
+        preserve_input_hydrogens=True,
+        permutations=99,
+        permutation_timeout=600,
+        max_grid_points=20000,
+        max_memory_mb=512,
+        seed=42,
+    )
 
 
 def fetch_primary_archive() -> bytes:

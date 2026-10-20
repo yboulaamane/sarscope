@@ -1,0 +1,22 @@
+{
+  "ccr5_generated_from_csv/assessment.json": "b059a8a9c185e658bff8a474ea1ca0c0ce62849756c056f01e8607b60272ab33",
+  "ccr5_generated_from_csv_input.csv": "2b3fccd0e589181187e854bcfe81faad2a0f05e293021095b68a26ed11849900",
+  "protocol.json": "13dbae0a9c5f60cb121e1f2186e40042925ee5b28bb84dba0c8d143ed646b4db",
+  "source-snapshot.tar.gz": "3f7d2cbc6a8e7c7e300e070832eb892d2070334f6daae6651f00cbbcc0874c6f",
+  "summary.csv": "d97adc6bd47ccdb2fc8b810bec04fcd3208652903b45d2f215e8c895ba31f3b4",
+  "thrombin_source_alignment/alignment.csv": "e66b4e4caecd0eebf21d1fb44d109bd27bdb41e55b88c3f235a67e8de03aa908",
+  "thrombin_source_alignment/assessment.json": "30109c818273240d02c21c2ed5db0d6edf6b7a4bd44f65153ec39a10e393fdc8",
+  "thrombin_source_alignment/bootstrap.csv": "15fc0cd3c9ca2098b93509b9da1dbb74daa369afb2ac83bd80a0617ece4952b6",
+  "thrombin_source_alignment/complete_evidence.zip": "67d07e4816548ad0ad1a1a8aec2057839a206def330673b52aff46668e5c4030",
+  "thrombin_source_alignment/field_contributions.csv": "0cacf877676d391e54896bc62b153848b64c16114407b7f4c72ea4a9cb9586be",
+  "thrombin_source_alignment/interpretation.json": "1a2dfa94b154826f2ae8632f9a95b9d60b07727ffcc4c176333e7613f8586182",
+  "thrombin_source_alignment/permutations.csv": "f2c009720fb24ccfe37033d2f2c404beeb0783d126ccd79fab4879aa98381c9a",
+  "thrombin_source_alignment/predictions.csv": "7eee2cc60efaee3039300222ef623bfedd5ea1ad2937b912f2806e9a30b3a555",
+  "thrombin_source_alignment/provenance.json": "bafa6d1ff45f5fc27f3e2ca0b13bc1951db98bb3e3e706210a4604da0f3f1406",
+  "thrombin_source_alignment/report.html": "e0c12047e30b3e6725c4d507e36d682c5bb97c279069447613692acc3d979533",
+  "thrombin_source_alignment/sensitivity_predictions.csv": "2570864a0e0029820229d99075e7282d15d2b019ff6881596e4e5883e009ee29",
+  "thrombin_source_alignment/statistics.csv": "64d81f6a2f2bae17c4db5baf7bb1a88a206e4df9fac1cbf8781cb7bb43577942",
+  "thrombin_source_alignment/training_sensitivity.csv": "68823b6433150cd4c5b341ffa8f4233ce4fdf34976ef719f1d01be277d0324da",
+  "thrombin_source_alignment/validation_checks.csv": "3c962b2c7adb2a51baa51576c0a42b903a11cd22772da94f75ef69c6d2f39346",
+  "thrombin_source_alignment_input.csv": "f90a90a933dbcef0fd7d58614315e643f8bcbfa806e8488c7aad4007e65e496b"
+}

@@ -202,7 +202,7 @@ class FieldQsarParams:
 
     method: Literal["comfa", "comsia"] = "comsia"
     #: Public Tripos-5.2 SE parameters, NOT a claim of full vendor parity.
-    field_definition: Literal["sarscope", "tripos52_se"] = "sarscope"
+    field_definition: Literal["sarscope", "tripos52_se", "mmff94_mif"] = "sarscope"
     #: Empty selects all fields for the method; explicit subsets support published comparisons.
     field_subset: tuple[str, ...] = ()
     field_scaling: Literal["raw", "block_std", "column_std"] = "raw"
@@ -283,8 +283,25 @@ class FieldQsarParams:
 
         if self.method not in ("comfa", "comsia"):
             raise ValueError("Choose comfa or comsia fields.")
-        if self.field_definition not in ("sarscope", "tripos52_se"):
+        if self.field_definition not in ("sarscope", "tripos52_se", "mmff94_mif"):
             raise ValueError("Unknown field definition.")
+        if self.field_definition == "mmff94_mif":
+            if self.dielectric_model != "constant":
+                raise ValueError("MMFF94 MIF currently supports constant dielectric only.")
+            if self.method != "comfa" or (
+                self.field_subset and not set(self.field_subset) <= {"steric", "electrostatic"}
+            ):
+                raise ValueError(
+                    "MMFF94 MIF requires the two-field energy method (comfa), SE only."
+                )
+            if self.charge_model != "mmff94" or self.allow_charge_fallback:
+                raise ValueError("MMFF94 MIF requires MMFF94 charges with no charge fallback.")
+            if self.electrostatic_cutoff is None:
+                raise ValueError("MMFF94 MIF requires an explicit positive electrostatic plateau.")
+            if self.missing_field_policy != "refuse":
+                raise ValueError(
+                    "MMFF94 MIF has bounded finite fields; mean filling is not applicable."
+                )
         if self.field_definition == "tripos52_se" and (
             not self.field_subset or not set(self.field_subset) <= {"steric", "electrostatic"}
         ):

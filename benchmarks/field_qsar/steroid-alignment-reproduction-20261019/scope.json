@@ -1,0 +1,28 @@
+{
+  "citation": "Haga et al. (2025), Pharmaceuticals 18:440, doi:10.3390/ph18030440",
+  "license": "Derived numerical evidence; upstream repository CC BY-SA 4.0; paper CC BY 4.0",
+  "raw_sdfs_or_algorithm_source_redistributed": false,
+  "historical_repetition_not_new_dataset": true,
+  "native_comparison": "All six frozen cases retained, including four alignment failures",
+  "constrained_failure_diagnostic": "Separate same-settings probe: EmbedMultipleConfs returned [-1], actual conformer IDs []; _generate then raised Bad Conformer Id at align3d.py:169. Failed embedding needs clearer handling; no coordinate, threshold or production code changed.",
+  "other_candidates_inspected": [
+    {
+      "doi": "10.3390/molecules26175249",
+      "supplement": "PDF only in public ZIP",
+      "blocker": "Selected MOE-aligned coordinates and SRD/FFD state unavailable"
+    },
+    {
+      "doi": "10.3390/ijms26209970",
+      "supplement": "PDF only in public ZIP",
+      "blocker": "Three selected alignment ensembles unavailable"
+    },
+    {
+      "dataset": "Primary Sutherland GPB",
+      "records": 66,
+      "train": 44,
+      "test": 22,
+      "blocker": "Three source structures have unresolved stereochemistry; no guessing"
+    }
+  ],
+  "no_prediction_qualification_or_universal_alignment_claim": true
+}

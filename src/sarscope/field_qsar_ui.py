@@ -303,7 +303,7 @@ def _fetch_primary_example(source_hash: str) -> bytes:
     return fetch_primary_archive()
 
 
-def _restore_primary_settings(key: str, reference: str) -> None:
+def _restore_primary_settings(key: str, reference: str, profile: str = "gaussian") -> None:
     _restore_example_settings(key, reference)
     st.session_state.update(
         {
@@ -321,15 +321,46 @@ def _restore_primary_settings(key: str, reference: str) -> None:
             }.items()
         }
     )
+    if profile == "mmff94":
+        st.session_state.update(
+            {
+                f"{key}_{suffix}": value
+                for suffix, value in {
+                    "field_definition": "mmff94_mif",
+                    "method_mmff": "comfa",
+                    "charge_mmff": "mmff94",
+                    "scaling_mmff94_mif": "block_std",
+                    "selection_mmff": "max_q2",
+                    "field_subset_comfa_mmff94_mif": ["steric", "electrostatic"],
+                    "filter": "percentile",
+                    "electrostatic_cutoff_mmff94_mif": 30.0,
+                    "dielectric_mmff": "constant",
+                }.items()
+            }
+        )
 
 
 def _primary_example_controls(key: str) -> FieldDataset | None:
     from sarscope.field_primary_example import (
         ARCHIVE_SHA256,
+        RECORDED_MMFF_SCORES,
         RECORDED_SCORES,
         primary_thrombin_dataset,
         primary_thrombin_sdf,
     )
+
+    profile = st.selectbox(
+        "Thrombin worked-example profile",
+        ["gaussian", "mmff94"],
+        format_func=lambda value: (
+            "Earlier Gaussian five-field comparison"
+            if value == "gaussian"
+            else "MMFF94 · positive fixed-partition worked example"
+        ),
+        key=f"{key}_primary_profile",
+        help="Explicit settings choice only; selecting a profile never fits or reviews a model.",
+    )
+    recorded = RECORDED_MMFF_SCORES if profile == "mmff94" else RECORDED_SCORES
 
     st.caption(
         "88 original, pre-aligned thrombin compounds: Böhm et al. (1999), deposited by "
@@ -367,15 +398,21 @@ def _primary_example_controls(key: str) -> FieldDataset | None:
     payload, dataset = cached
     st.caption(
         "Recorded source-partition profile (59 training / 29 held-out): "
-        f"nested q² {RECORDED_SCORES['cv_pooled_q2']:.3f}; "
-        f"test R² {RECORDED_SCORES['test_r2']:.3f}; "
-        f"RMSE {RECORDED_SCORES['test_rmse']:.3f}. These are recorded benchmarks, "
+        f"nested q² {recorded['cv_pooled_q2']:.3f}; "
+        f"test R² {recorded['test_r2']:.3f}; "
+        f"RMSE {recorded['test_rmse']:.3f}. These are recorded benchmarks, "
         "not results calculated in your session; current settings must be run separately."
     )
     st.warning(
-        "Retrospective worked example, not independent validation. Strict test R² "
-        "and alignment qualification remain failed/unassessed; one recorded pose "
-        "sensitivity flag fails. Do not select a different split to obtain a pass."
+        "Retrospective worked example, not independent validation. The source alignment "
+        "requires review and common-core qualification is unassessed. "
+        "Do not select a different split or profile using its test score. "
+        + (
+            "The earlier Gaussian pose-sensitivity check also flags instability."
+            if profile == "gaussian"
+            else "Three offline MMFF small-pose stress checks failed; contour and design "
+            "interpretations remain exploratory despite positive fixed-frame prediction."
+        )
     )
     st.download_button(
         "Download original-state example SDF",
@@ -396,7 +433,7 @@ def _primary_example_controls(key: str) -> FieldDataset | None:
     st.button(
         "Apply recorded thrombin profile (offline recommended)",
         on_click=_restore_primary_settings,
-        args=(key, dataset.source["reference_id"]),
+        args=(key, dataset.source["reference_id"], profile),
         key=f"{key}_primary_reset",
         help="Changes settings only. Requires overlay review "
         "and a separate Run click; raises the bounded workspace to 20,000 points/512 MB.",
@@ -771,14 +808,23 @@ def show_field_qsar(
     st.markdown("**2 · Choose fields and validation**")
     definition = st.selectbox(
         "Field definition",
-        ["sarscope", "tripos52_se"],
+        ["sarscope", "tripos52_se", "mmff94_mif"],
         format_func=lambda value: (
             "SARscope · RDKit/UFF/Crippen fields"
             if value == "sarscope"
+            else "SARscope MMFF94 · buffered 14-7 and Coulomb energy fields"
+            if value == "mmff94_mif"
             else "Public Tripos 5.2 · steric/electrostatic reference components"
         ),
         key=f"{key}_field_definition",
     )
+    mmff_profile = definition == "mmff94_mif"
+    if mmff_profile:
+        st.info(
+            "Native RDKit-based MMFF94 fields; no Open3DQSAR installation required. "
+            "Alkyl-carbon probe, MMFF94 charges and independently bounded steric/electrostatic "
+            "energies. This is an additional field profile, not a claim of full Open3DQSAR parity."
+        )
     if definition == "tripos52_se":
         st.info(
             "Uses published Tripos-5.2 organic-atom radius/well-depth parameters, not UFF. "
@@ -789,16 +835,22 @@ def show_field_qsar(
     controls = st.columns(3)
     method = controls[0].selectbox(
         "Molecular fields",
-        ["comsia", "comfa"],
+        ["comfa"] if mmff_profile else ["comsia", "comfa"],
         format_func=lambda v: (
-            "CoMSIA-style · selectable Gaussian fields"
+            "MMFF94 · buffered 14-7 and Coulomb"
+            if mmff_profile
+            else "CoMSIA-style · selectable Gaussian fields"
             if v == "comsia"
             else "CoMFA-style · LJ and Coulomb"
         ),
-        key=f"{key}_method",
+        key=f"{key}_method_mmff" if mmff_profile else f"{key}_method",
     )
-    charge = controls[1].selectbox("Partial charges", ["gasteiger", "mmff94"], key=f"{key}_charge")
-    if method == "comfa":
+    charge = controls[1].selectbox(
+        "Partial charges",
+        ["mmff94"] if mmff_profile else ["gasteiger", "mmff94"],
+        key=f"{key}_charge_mmff" if mmff_profile else f"{key}_charge",
+    )
+    if method == "comfa" and not mmff_profile:
         st.warning(
             "CoMFA remains experimental. Strict overlap handling can refuse scoring; "
             "the opt-in SYBYL-documented fitting-mean policy reports replaced terms explicitly."
@@ -806,31 +858,39 @@ def show_field_qsar(
     spacing = controls[2].selectbox(
         "Grid spacing (Å)", [1.0, 1.5, 2.0, 2.5, 3.0], index=2, key=f"{key}_spacing"
     )
-    st.caption(
-        (
-            "CoMSIA-style Gaussian fields: RDKit radii, partial charges, Crippen atomic logP "
-            "and atom-centred donor/acceptor features. "
-            if method == "comsia"
-            else "CoMFA-style fields: Lennard–Jones steric energy using RDKit radii/UFF "
-            "well depths and Coulomb electrostatics. No hydrophobic or H-bond fields. "
+    if mmff_profile:
+        st.caption(
+            "Published MMFF94 buffered 14-7 steric energy and point-probe Coulomb "
+            "electrostatics in kcal/mol. RDKit supplies mixed-pair parameters; all explicit "
+            "hydrogens contribute. No charge fallback or cross-field missing-value mask. "
+            "Electrostatics use the published MMFF 0.05 Å distance buffer."
         )
-        + "Not a replica of proprietary Tripos parameter tables."
-        if definition == "sarscope"
-        else (
-            "CoMSIA-style Gaussian SE fields: "
-            if method == "comsia"
-            else "CoMFA-style LJ/Coulomb SE fields: "
+    else:
+        st.caption(
+            (
+                "CoMSIA-style Gaussian fields: RDKit radii, partial charges, Crippen atomic logP "
+                "and atom-centred donor/acceptor features. "
+                if method == "comsia"
+                else "CoMFA-style fields: Lennard–Jones steric energy using RDKit radii/UFF "
+                "well depths and Coulomb electrostatics. No hydrophobic or H-bond fields. "
+            )
+            + "Not a replica of proprietary Tripos parameter tables."
+            if definition == "sarscope"
+            else (
+                "CoMSIA-style Gaussian SE fields: "
+                if method == "comsia"
+                else "CoMFA-style LJ/Coulomb SE fields: "
+            )
+            + "public Tripos-5.2 R/K parameters and explicit-H environment rules. "
+            "Block scaling is SARscope's training-only implementation; full SYBYL preprocessing "
+            "and atom-typing equivalence have not been established."
         )
-        + "public Tripos-5.2 R/K parameters and explicit-H environment rules. "
-        "Block scaling is SARscope's training-only implementation; full SYBYL preprocessing "
-        "and atom-typing equivalence have not been established."
-    )
     missing_policy = "refuse"
-    if method == "comfa":
+    if method == "comfa" and not mmff_profile:
         missing_policy = st.selectbox(
             "Missing electrostatic descriptors",
             ["refuse", "training_mean"],
-            index=1 if definition == "tripos52_se" else 0,
+            index=1 if definition in ("tripos52_se", "mmff94_mif") else 0,
             format_func=lambda value: (
                 "Refuse scoring (strict)"
                 if value == "refuse"
@@ -857,7 +917,7 @@ def show_field_qsar(
         scaling = st.selectbox(
             "Field scaling",
             ["raw", "block_std", "column_std"],
-            index=1 if definition == "tripos52_se" else 0,
+            index=1 if definition in ("tripos52_se", "mmff94_mif") else 0,
             key=f"{key}_scaling_{definition}",
             help="Fitted on training rows only. Column scaling can amplify nearly constant fields; "
             "inspect held-out predictions. Historical combined-set scaling is not offered here.",
@@ -865,7 +925,8 @@ def show_field_qsar(
         selection = st.selectbox(
             "PLS component selection",
             ["relative_improvement", "max_q2"],
-            key=f"{key}_selection",
+            index=1 if mmff_profile else 0,
+            key=f"{key}_selection_mmff" if mmff_profile else f"{key}_selection",
             format_func=lambda v: (
                 "Early-stop improvement rule"
                 if v == "relative_improvement"
@@ -962,7 +1023,7 @@ def show_field_qsar(
             controls = st.columns(3)
             electrostatic_cutoff = controls[0].selectbox(
                 "Electrostatic plateau (± kcal/mol)",
-                [None, 30.0, 50.0],
+                [30.0, 50.0] if mmff_profile else [None, 30.0, 50.0],
                 index=1 if definition == "tripos52_se" else 0,
                 format_func=lambda value: (
                     "No electrostatic plateau" if value is None else str(value)
@@ -971,11 +1032,11 @@ def show_field_qsar(
             )
             dielectric_model = controls[1].selectbox(
                 "Dielectric function",
-                ["constant", "distance"],
+                ["constant"] if mmff_profile else ["constant", "distance"],
                 format_func=lambda value: (
                     "Constant · 1/r" if value == "constant" else "Distance-dependent · 1/r²"
                 ),
-                key=f"{key}_dielectric",
+                key=f"{key}_dielectric_mmff" if mmff_profile else f"{key}_dielectric",
             )
             max_filled = (
                 controls[2].slider(
@@ -1030,6 +1091,7 @@ def show_field_qsar(
             "dielectric_model": dielectric_model,
             "max_grid_points": 20000 if larger_workspace else 12000,
             "max_memory_mb": 512 if larger_workspace else 256,
+            "permutation_timeout": 600 if larger_workspace else 120,
         }
     )
     model = ModelParams(

@@ -1,0 +1,7 @@
+route,profile,alignment_wall_s,status,nested_q2,test_r2,test_rmse,components,failed_checks,model_wall_s,error
+prealigned,gaussian_SEH,0.09706387500045821,ok,0.5111641944009302,-0.48928456972160395,0.7517211198599903,1.0,"['Held-out predictive R² > 0.6', 'Origin calibration (GT-style heuristic; value = Pearson r²)', 'Full-pipeline permutation test', 'Alignment thresholds met', 'Native end-to-end 3D-QSAR validation']",1.6938262409967138,
+prealigned,mmff94_SE,0.09706387500045821,ok,0.7075036553924057,-0.8826662342303531,0.8451904358061947,1.0,"['Held-out predictive R² > 0.6', 'Origin calibration (GT-style heuristic; value = Pearson r²)', 'Full-pipeline permutation test', 'Alignment thresholds met', 'Native end-to-end 3D-QSAR validation']",1.850705786004255,
+rigid_mcs,gaussian_SEH,,alignment_failed,,,,,,,Fewer than three common heavy atoms; no defensible core alignment.
+rigid_mcs,mmff94_SE,,alignment_failed,,,,,,,Fewer than three common heavy atoms; no defensible core alignment.
+constrained,gaussian_SEH,,alignment_failed,,,,,,,"androstanediol (compound 2/31, 1 completed): Bad Conformer Id"
+constrained,mmff94_SE,,alignment_failed,,,,,,,"androstanediol (compound 2/31, 1 completed): Bad Conformer Id"

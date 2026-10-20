@@ -1,0 +1,758 @@
+{
+  "sarscope": "0.1.0.dev0",
+  "created_utc": "2026-10-19T20:37:16+00:00",
+  "python": "3.13.13",
+  "platform": "Linux-6.18.33.1-microsoft-standard-WSL2-x86_64-with-glibc2.39",
+  "packages": {
+    "sorbent": "0.1.1",
+    "rdkit": "2026.9.1",
+    "numpy": "2.5.4",
+    "pandas": "3.0.6",
+    "scipy": "1.18.1",
+    "scikit-learn": "1.9.1",
+    "joblib": "1.6.0",
+    "scikit-fingerprints": null,
+    "molfeat": null,
+    "shap": null,
+    "umap-learn": null,
+    "gemmi": "0.7.5",
+    "meeko": "0.8.0",
+    "threadpoolctl": "3.7.0"
+  },
+  "source": {
+    "kind": "independent historical reproduction",
+    "protocol": {
+      "schema": 2,
+      "interpretation_revision": "Initial per-column scaling did not reproduce the reference. Frozen processed outputs show a population SD per complete field block and separate train/test column centres. Correction follows intermediate-array evidence, not test-score optimisation. Original run retained.",
+      "method_source": "Haga et al. (2025), doi:10.3390/ph18030440, Methods 4.4-4.7",
+      "implementation": "SARscope data loading, alignment checks, grid, fields, preprocessing, component selection, fitting, prediction and metrics; NumPy/RDKit/scikit-learn primitives only",
+      "upstream_program_required": false,
+      "data": {
+        "base_url": "https://raw.githubusercontent.com/clhaga/pycomsia/0b30179ecc20aac5a003577b4437399a8fb20bca/sdfs/",
+        "train": {
+          "file": "STEROIDS_train.sdf",
+          "sha256": "65758c2794c745dc4b8361f9025aac930b30da5bb0f9f4fc2d33e5eaa2a313a0",
+          "valid": 21,
+          "invalid": 1
+        },
+        "test": {
+          "file": "STEROIDS_test.sdf",
+          "sha256": "c2c77ddc42f3be8926fe2276fffeb6251d97b0f74f279bb9b3febf172011d23a",
+          "valid": 10,
+          "invalid": 0
+        },
+        "activity": "Activity",
+        "coordinate_policy": "Preserve deposited explicit-H coordinates, validate finite coordinates and stereochemistry, no minimisation or re-alignment",
+        "redistribution": "Fetch data only. Do not bundle upstream SDF or program code."
+      },
+      "fields": {
+        "method": "comsia",
+        "field_subset": [
+          "steric",
+          "electrostatic",
+          "hydrophobic"
+        ],
+        "charge_model": "gasteiger",
+        "spacing": 1.0,
+        "margin": 4.0,
+        "grid_convention": "rounded_extent",
+        "alpha": 0.3,
+        "preserve_input_hydrogens": true,
+        "assess_prealigned_core": false,
+        "field_scaling": "raw",
+        "keep_fraction": 1.0,
+        "max_features": 60000,
+        "component_cap": 12,
+        "component_sample_ratio": null,
+        "component_selection": "max_q2",
+        "pls_max_iter": 100,
+        "pls_tolerance": 0.0001,
+        "permutations": 0,
+        "max_grid_points": 20000,
+        "max_memory_mb": 512
+      },
+      "historical_preprocessing": {
+        "column_filter": 0.0,
+        "standardisation": "One population SD per field across all 31 molecules and grid points, followed by separate train/test column means. Methods 4.6 field-scaling interpretation checked against frozen numerical outputs. Benchmark-only, transductive; not native validation.",
+        "target_mean_diagnostic": "A separately labelled oracle-adjusted statistic adds measured test mean minus training mean. Never call it a model prediction or use it in native validation.",
+        "selection": "SARscope full maximum-q2 search over 1-12 components, original 21 training rows, LOO conditional on the historical representation",
+        "prediction": "Fit selected count on 21 original training rows; predict all 10 original test rows"
+      },
+      "native_comparison": {
+        "component_cap": 4,
+        "component_sample_ratio": 5,
+        "component_selection": "max_q2",
+        "field_scaling": "column_std",
+        "grid_convention": "rounded_extent",
+        "warning": "Grid is training-only; filtering/scaling/selection refit within CV. This is not expected to reproduce transductive historical scores. All outcomes retained; no test-based model selection."
+      },
+      "targets": {
+        "q2": 0.609,
+        "train_r2": 0.917,
+        "components": 3
+      },
+      "absolute_tolerances": {
+        "q2": 0.005,
+        "train_r2": 0.005
+      },
+      "scope": "Independent SEH historical protocol reproduction on a supplied pre-aligned cohort, not original CoMFA, five-field equivalence, new alignment validation or unbiased predictive validation"
+    }
+  },
+  "params": {
+    "curation": {
+      "standard_types": [
+        "IC50"
+      ],
+      "relations": [
+        "="
+      ],
+      "units": [
+        "nM"
+      ],
+      "assay_types": [
+        "B"
+      ],
+      "variant": null,
+      "drop_potential_duplicates": true,
+      "drop_flagged_validity": true,
+      "bao_formats": null,
+      "assay_ids": null,
+      "source_ids": null,
+      "min_confidence_score": null,
+      "max_document_year": null,
+      "aggregate": "median",
+      "max_replicate_range": null,
+      "canonical_tautomer": true
+    },
+    "classes": {
+      "bounds": [
+        [
+          "potent",
+          8.0
+        ],
+        [
+          "active",
+          7.0
+        ],
+        [
+          "intermediate",
+          6.0
+        ]
+      ],
+      "floor_label": "inactive",
+      "group1": [
+        "potent",
+        "active"
+      ]
+    },
+    "landscape": {
+      "fingerprints": [
+        "ecfp4",
+        "maccs"
+      ],
+      "similarity_threshold": 0.9,
+      "activity_threshold": 2.0,
+      "generator_sd": 2.0
+    },
+    "matched_pairs": {
+      "max_variable_heavy_atoms": 10,
+      "max_pairs": 100000
+    },
+    "model": {
+      "features": {
+        "fingerprint": "ecfp4",
+        "ecfp_bits": 2048,
+        "variance_threshold": 0.1,
+        "correlation_threshold": 0.95,
+        "representation": "fingerprint",
+        "descriptor_names": []
+      },
+      "algorithms": [
+        "extra_trees",
+        "random_forest",
+        "gradient_boosting",
+        "nearest_neighbors"
+      ],
+      "regression_algorithms": [
+        "field_pls"
+      ],
+      "test_fraction": 0.2,
+      "cv_folds": 3,
+      "regression_cv": "default",
+      "split": "random",
+      "time_cutoff": 2019,
+      "source_test_id": null,
+      "oversample": false,
+      "leakage_audit": false,
+      "seed": 42,
+      "field_qsar": {
+        "method": "comsia",
+        "field_definition": "sarscope",
+        "field_subset": [
+          "steric",
+          "electrostatic",
+          "hydrophobic"
+        ],
+        "field_scaling": "block_std",
+        "grid_convention": "enclosing",
+        "grid_phase": [
+          0.0,
+          0.0,
+          0.0
+        ],
+        "spacing": 1.0,
+        "margin": 4.0,
+        "charge_model": "gasteiger",
+        "allow_charge_fallback": false,
+        "alpha": 0.3,
+        "dielectric": 1.0,
+        "dielectric_model": "constant",
+        "electrostatic_cutoff": null,
+        "missing_field_policy": "refuse",
+        "max_imputed_fraction": 0.1,
+        "steric_cutoff": 30.0,
+        "minimum_distance": 0.3,
+        "probe_radius": 1.7,
+        "probe_epsilon": 0.107,
+        "filter_mode": "percentile",
+        "field_screen": "per_field",
+        "minimum_sd": 2.0,
+        "keep_fraction": 0.3,
+        "max_features": 2000,
+        "component_cap": 4,
+        "fixed_components": null,
+        "component_improvement": 0.05,
+        "component_selection": "max_q2",
+        "component_sample_ratio": 5,
+        "pls_max_iter": 500,
+        "pls_tolerance": 1e-06,
+        "alignment": "prealigned",
+        "assess_prealigned_core": false,
+        "preserve_input_hydrogens": false,
+        "reference_index": 0,
+        "min_core_coverage": 0.5,
+        "max_alignment_rmsd": 1.0,
+        "mcs_timeout": 5,
+        "max_mappings": 256,
+        "conformers": 8,
+        "molecule_timeout": 30,
+        "alignment_timeout": 180,
+        "permutation_timeout": 120,
+        "max_molecules": 100,
+        "max_grid_points": 40000,
+        "max_memory_mb": 512,
+        "chunk_points": 512,
+        "permutations": 0,
+        "permutation_alpha": 0.05,
+        "contour_percentile": 80.0,
+        "seed": 42
+      }
+    }
+  },
+  "field_qsar": {
+    "method": "comsia",
+    "field_definition": "sarscope",
+    "field_subset": [
+      "steric",
+      "electrostatic",
+      "hydrophobic"
+    ],
+    "field_scaling": "block_std",
+    "grid_convention": "enclosing",
+    "grid_phase": [
+      0.0,
+      0.0,
+      0.0
+    ],
+    "spacing": 1.0,
+    "margin": 4.0,
+    "charge_model": "gasteiger",
+    "allow_charge_fallback": false,
+    "alpha": 0.3,
+    "dielectric": 1.0,
+    "dielectric_model": "constant",
+    "electrostatic_cutoff": null,
+    "missing_field_policy": "refuse",
+    "max_imputed_fraction": 0.1,
+    "steric_cutoff": 30.0,
+    "minimum_distance": 0.3,
+    "probe_radius": 1.7,
+    "probe_epsilon": 0.107,
+    "filter_mode": "percentile",
+    "field_screen": "per_field",
+    "minimum_sd": 2.0,
+    "keep_fraction": 0.3,
+    "max_features": 2000,
+    "component_cap": 4,
+    "fixed_components": null,
+    "component_improvement": 0.05,
+    "component_selection": "max_q2",
+    "component_sample_ratio": 5,
+    "pls_max_iter": 500,
+    "pls_tolerance": 1e-06,
+    "alignment": "prealigned",
+    "assess_prealigned_core": false,
+    "preserve_input_hydrogens": false,
+    "reference_index": 0,
+    "min_core_coverage": 0.5,
+    "max_alignment_rmsd": 1.0,
+    "mcs_timeout": 5,
+    "max_mappings": 256,
+    "conformers": 8,
+    "molecule_timeout": 30,
+    "alignment_timeout": 180,
+    "permutation_timeout": 120,
+    "max_molecules": 100,
+    "max_grid_points": 40000,
+    "max_memory_mb": 512,
+    "chunk_points": 512,
+    "permutations": 0,
+    "permutation_alpha": 0.05,
+    "contour_percentile": 80.0,
+    "seed": 42
+  },
+  "source_graph_audit": [
+    {
+      "molecule_id": "aldosterone",
+      "radical_electrons": 0,
+      "radical_atom_indices_zero_based": "",
+      "formal_charge": 0,
+      "source_graph_review_required": false
+    },
+    {
+      "molecule_id": "androstanediol",
+      "radical_electrons": 0,
+      "radical_atom_indices_zero_based": "",
+      "formal_charge": 0,
+      "source_graph_review_required": false
+    },
+    {
+      "molecule_id": "androstenediol",
+      "radical_electrons": 0,
+      "radical_atom_indices_zero_based": "",
+      "formal_charge": 0,
+      "source_graph_review_required": false
+    },
+    {
+      "molecule_id": "androstenedione",
+      "radical_electrons": 0,
+      "radical_atom_indices_zero_based": "",
+      "formal_charge": 0,
+      "source_graph_review_required": false
+    },
+    {
+      "molecule_id": "androsterone",
+      "radical_electrons": 0,
+      "radical_atom_indices_zero_based": "",
+      "formal_charge": 0,
+      "source_graph_review_required": false
+    },
+    {
+      "molecule_id": "corticosterone",
+      "radical_electrons": 0,
+      "radical_atom_indices_zero_based": "",
+      "formal_charge": 0,
+      "source_graph_review_required": false
+    },
+    {
+      "molecule_id": "cortisol",
+      "radical_electrons": 0,
+      "radical_atom_indices_zero_based": "",
+      "formal_charge": 0,
+      "source_graph_review_required": false
+    },
+    {
+      "molecule_id": "cortisone",
+      "radical_electrons": 0,
+      "radical_atom_indices_zero_based": "",
+      "formal_charge": 0,
+      "source_graph_review_required": false
+    },
+    {
+      "molecule_id": "dehydroepiandrosterone",
+      "radical_electrons": 0,
+      "radical_atom_indices_zero_based": "",
+      "formal_charge": 0,
+      "source_graph_review_required": false
+    },
+    {
+      "molecule_id": "11-deoxycorticosterone",
+      "radical_electrons": 0,
+      "radical_atom_indices_zero_based": "",
+      "formal_charge": 0,
+      "source_graph_review_required": false
+    },
+    {
+      "molecule_id": "11-deoxycortisol",
+      "radical_electrons": 0,
+      "radical_atom_indices_zero_based": "",
+      "formal_charge": 0,
+      "source_graph_review_required": false
+    },
+    {
+      "molecule_id": "dihydrotestosterone",
+      "radical_electrons": 0,
+      "radical_atom_indices_zero_based": "",
+      "formal_charge": 0,
+      "source_graph_review_required": false
+    },
+    {
+      "molecule_id": "estradiol",
+      "radical_electrons": 0,
+      "radical_atom_indices_zero_based": "",
+      "formal_charge": 0,
+      "source_graph_review_required": false
+    },
+    {
+      "molecule_id": "estriol",
+      "radical_electrons": 0,
+      "radical_atom_indices_zero_based": "",
+      "formal_charge": 0,
+      "source_graph_review_required": false
+    },
+    {
+      "molecule_id": "estrone",
+      "radical_electrons": 0,
+      "radical_atom_indices_zero_based": "",
+      "formal_charge": 0,
+      "source_graph_review_required": false
+    },
+    {
+      "molecule_id": "etiocholanolone",
+      "radical_electrons": 0,
+      "radical_atom_indices_zero_based": "",
+      "formal_charge": 0,
+      "source_graph_review_required": false
+    },
+    {
+      "molecule_id": "pregnenolone",
+      "radical_electrons": 0,
+      "radical_atom_indices_zero_based": "",
+      "formal_charge": 0,
+      "source_graph_review_required": false
+    },
+    {
+      "molecule_id": "17-hydroxypregnenolone",
+      "radical_electrons": 0,
+      "radical_atom_indices_zero_based": "",
+      "formal_charge": 0,
+      "source_graph_review_required": false
+    },
+    {
+      "molecule_id": "progesterone",
+      "radical_electrons": 0,
+      "radical_atom_indices_zero_based": "",
+      "formal_charge": 0,
+      "source_graph_review_required": false
+    },
+    {
+      "molecule_id": "17-hydroxyprogesterone",
+      "radical_electrons": 0,
+      "radical_atom_indices_zero_based": "",
+      "formal_charge": 0,
+      "source_graph_review_required": false
+    },
+    {
+      "molecule_id": "testosterone",
+      "radical_electrons": 0,
+      "radical_atom_indices_zero_based": "",
+      "formal_charge": 0,
+      "source_graph_review_required": false
+    },
+    {
+      "molecule_id": "prednisolone",
+      "radical_electrons": 0,
+      "radical_atom_indices_zero_based": "",
+      "formal_charge": 0,
+      "source_graph_review_required": false
+    },
+    {
+      "molecule_id": "cortisol-21-acetate",
+      "radical_electrons": 0,
+      "radical_atom_indices_zero_based": "",
+      "formal_charge": -1,
+      "source_graph_review_required": false
+    },
+    {
+      "molecule_id": "4-pregnene-3,11,20-trione",
+      "radical_electrons": 0,
+      "radical_atom_indices_zero_based": "",
+      "formal_charge": 0,
+      "source_graph_review_required": false
+    },
+    {
+      "molecule_id": "epicorticosterone",
+      "radical_electrons": 0,
+      "radical_atom_indices_zero_based": "",
+      "formal_charge": 0,
+      "source_graph_review_required": false
+    },
+    {
+      "molecule_id": "19-nortestosterone",
+      "radical_electrons": 0,
+      "radical_atom_indices_zero_based": "",
+      "formal_charge": 0,
+      "source_graph_review_required": false
+    },
+    {
+      "molecule_id": "16a,17-dihydroxy-4-pregnene-3,20-dione",
+      "radical_electrons": 0,
+      "radical_atom_indices_zero_based": "",
+      "formal_charge": 0,
+      "source_graph_review_required": false
+    },
+    {
+      "molecule_id": "16a-methyl-4-pregnene-3,20-dione",
+      "radical_electrons": 0,
+      "radical_atom_indices_zero_based": "",
+      "formal_charge": 0,
+      "source_graph_review_required": false
+    },
+    {
+      "molecule_id": "19-norprogesterone",
+      "radical_electrons": 0,
+      "radical_atom_indices_zero_based": "",
+      "formal_charge": 0,
+      "source_graph_review_required": false
+    },
+    {
+      "molecule_id": "11b,17,21-trihydroxy-2a-methyl-4-pregnen-3,20-dione",
+      "radical_electrons": 0,
+      "radical_atom_indices_zero_based": "",
+      "formal_charge": 0,
+      "source_graph_review_required": false
+    },
+    {
+      "molecule_id": "11b,17,21-trihydroxy-2a-methyl-9a-fluoro-4-pregnen-3,20-dione",
+      "radical_electrons": 0,
+      "radical_atom_indices_zero_based": "",
+      "formal_charge": 0,
+      "source_graph_review_required": false
+    }
+  ],
+  "model": {
+    "features": {
+      "fingerprint": "ecfp4",
+      "ecfp_bits": 2048,
+      "variance_threshold": 0.1,
+      "correlation_threshold": 0.95,
+      "representation": "fingerprint",
+      "descriptor_names": []
+    },
+    "algorithms": [
+      "extra_trees",
+      "random_forest",
+      "gradient_boosting",
+      "nearest_neighbors"
+    ],
+    "regression_algorithms": [
+      "field_pls"
+    ],
+    "test_fraction": 0.2,
+    "cv_folds": 3,
+    "regression_cv": "default",
+    "split": "random",
+    "time_cutoff": 2019,
+    "source_test_id": null,
+    "oversample": false,
+    "leakage_audit": false,
+    "seed": 42,
+    "field_qsar": {
+      "method": "comsia",
+      "field_definition": "sarscope",
+      "field_subset": [
+        "steric",
+        "electrostatic",
+        "hydrophobic"
+      ],
+      "field_scaling": "block_std",
+      "grid_convention": "enclosing",
+      "grid_phase": [
+        0.0,
+        0.0,
+        0.0
+      ],
+      "spacing": 1.0,
+      "margin": 4.0,
+      "charge_model": "gasteiger",
+      "allow_charge_fallback": false,
+      "alpha": 0.3,
+      "dielectric": 1.0,
+      "dielectric_model": "constant",
+      "electrostatic_cutoff": null,
+      "missing_field_policy": "refuse",
+      "max_imputed_fraction": 0.1,
+      "steric_cutoff": 30.0,
+      "minimum_distance": 0.3,
+      "probe_radius": 1.7,
+      "probe_epsilon": 0.107,
+      "filter_mode": "percentile",
+      "field_screen": "per_field",
+      "minimum_sd": 2.0,
+      "keep_fraction": 0.3,
+      "max_features": 2000,
+      "component_cap": 4,
+      "fixed_components": null,
+      "component_improvement": 0.05,
+      "component_selection": "max_q2",
+      "component_sample_ratio": 5,
+      "pls_max_iter": 500,
+      "pls_tolerance": 1e-06,
+      "alignment": "prealigned",
+      "assess_prealigned_core": false,
+      "preserve_input_hydrogens": false,
+      "reference_index": 0,
+      "min_core_coverage": 0.5,
+      "max_alignment_rmsd": 1.0,
+      "mcs_timeout": 5,
+      "max_mappings": 256,
+      "conformers": 8,
+      "molecule_timeout": 30,
+      "alignment_timeout": 180,
+      "permutation_timeout": 120,
+      "max_molecules": 100,
+      "max_grid_points": 40000,
+      "max_memory_mb": 512,
+      "chunk_points": 512,
+      "permutations": 0,
+      "permutation_alpha": 0.05,
+      "contour_percentile": 80.0,
+      "seed": 42
+    }
+  },
+  "grid": {
+    "origin": [
+      -11.0,
+      -7.0,
+      -7.0
+    ],
+    "shape": [
+      23,
+      15,
+      15
+    ],
+    "spacing": 1.0
+  },
+  "field_convention": "positive-sum Gaussian; r^3/RDKit radii; Crippen logP; atom-centred H-bond features",
+  "alignment_assumption": "Supplied pre-aligned coordinates retained unchanged. Stereo and finite-coordinate checks passed; common-core RMSD/coverage were not assessed. Alignment validity must come from the declared external protocol, not this software.",
+  "alignment_settings": {
+    "method": "comsia",
+    "field_definition": "sarscope",
+    "field_subset": [],
+    "field_scaling": "block_std",
+    "grid_convention": "enclosing",
+    "grid_phase": [
+      0.0,
+      0.0,
+      0.0
+    ],
+    "spacing": 1.0,
+    "margin": 4.0,
+    "charge_model": "gasteiger",
+    "allow_charge_fallback": false,
+    "alpha": 0.3,
+    "dielectric": 1.0,
+    "dielectric_model": "constant",
+    "electrostatic_cutoff": null,
+    "missing_field_policy": "refuse",
+    "max_imputed_fraction": 0.1,
+    "steric_cutoff": 30.0,
+    "minimum_distance": 0.3,
+    "probe_radius": 1.7,
+    "probe_epsilon": 0.107,
+    "filter_mode": "percentile",
+    "field_screen": "per_field",
+    "minimum_sd": 2.0,
+    "keep_fraction": 0.3,
+    "max_features": 2000,
+    "component_cap": 4,
+    "fixed_components": null,
+    "component_improvement": 0.05,
+    "component_selection": "max_q2",
+    "component_sample_ratio": 5,
+    "pls_max_iter": 500,
+    "pls_tolerance": 1e-06,
+    "alignment": "prealigned",
+    "assess_prealigned_core": false,
+    "preserve_input_hydrogens": false,
+    "reference_index": 0,
+    "min_core_coverage": 0.5,
+    "max_alignment_rmsd": 1.0,
+    "mcs_timeout": 5,
+    "max_mappings": 256,
+    "conformers": 8,
+    "molecule_timeout": 30,
+    "alignment_timeout": 180,
+    "permutation_timeout": 120,
+    "max_molecules": 100,
+    "max_grid_points": 40000,
+    "max_memory_mb": 512,
+    "chunk_points": 512,
+    "permutations": 0,
+    "permutation_alpha": 0.05,
+    "contour_percentile": 80.0,
+    "seed": 42
+  },
+  "common_core_smarts": "",
+  "benchmark_status": "SEH steroid benchmark agreement (training/LOO) demonstrated by SARscope's own field-to-model implementation. Historical test-mean shifting is diagnostic only. Native end-to-end validation remains incomplete; this feature is experimental.",
+  "feature_mask_policy": "training-only; undefined held-out CoMFA fields refuse scoring",
+  "vendor_compatibility": "Public method components only; full SYBYL parity not verified",
+  "cv": "nested component selection; pooled q2 = 1 - PRESS / training SST",
+  "component_selection_audit": {
+    "requested_cap": 4,
+    "effective_cap": 2,
+    "selected": 1,
+    "stop_reason": "Effective search cap: 2 (requested 4); limited by smallest fitting-fold n/5, feature count/rank."
+  },
+  "split_interpretation": "supplied/prespecified partition; independence not established",
+  "split_indices": {
+    "train": [
+      0,
+      1,
+      2,
+      3,
+      4,
+      5,
+      6,
+      7,
+      8,
+      9,
+      10,
+      11,
+      12,
+      13,
+      14,
+      15,
+      16,
+      17,
+      18,
+      19,
+      20
+    ],
+    "test": [
+      21,
+      22,
+      23,
+      24,
+      25,
+      26,
+      27,
+      28,
+      29,
+      30
+    ]
+  },
+  "grid_policy": "Fixed from the complete training cohort; not regenerated per CV fold. Masks/scales/component selection refitted inside fitting partitions.",
+  "permutation_test": "training labels only; repeats nested selection; (1+C)/(1+B)",
+  "input_measurements_sha256": "b65f7fe7c4e00845d13ee0b5e8ea18d5b53dccd2c9ed137c25365bbd1cedec31",
+  "implementation_sha256": {
+    "field_qsar.py": "1aabb4f92186e56555f8178bdd31a2aac5866fb3f722e688875696ef04846e03",
+    "analysis/fields.py": "f3e79692c9bdd2d519896c667b93a18f4feac6baffd13a817e770dd067d10e4b",
+    "analysis/align3d.py": "6e3dc0bb3e666055add61f1a0c83f481f9158c9e3b1a322e1cd7ed014c722f5b",
+    "analysis/contours.py": "d3a15862bce922dd5ba2d9642309b0bf701d297393ba69ec15ecf20281c06578",
+    "analysis/field_filter.py": "2f427b9ebdc552aecfd6c128e4cdd935927fe53ded1873b6e9470e75c2e9e793",
+    "analysis/regression.py": "1b09af9ceb50151ae10b89cb36fbd05a0d121ded4b15fb6a434908a86c8c9dc6",
+    "analysis/tripos_reference.py": "9923675fcdc4da762afa9c5904959f3fbf85fd74df2eedc3a6a627c6baab5f55",
+    "params.py": "d984ac36733f15f0a18cfdb0dce4ed2a3282af5c8e883b2e8adc84c0c84b756c"
+  }
+}

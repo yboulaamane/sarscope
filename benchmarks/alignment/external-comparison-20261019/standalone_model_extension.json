@@ -1,0 +1,14 @@
+{
+  "driver_sha256": "3cb5ebd4d0071780912c7795c95ac7430adafdf10f621ae4df6f260dee4fd162",
+  "routes": [
+    "open3dalign_atom"
+  ],
+  "cohorts": [
+    "THR",
+    "AChE"
+  ],
+  "params": "Same as frozen original/RDKit routes",
+  "scope": "Retrospective sensitivity only; not independent validation",
+  "no_parameter_tuning": true,
+  "permutations": 0
+}

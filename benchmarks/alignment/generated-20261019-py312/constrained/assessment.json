@@ -1,0 +1,22 @@
+{
+  "route": "constrained",
+  "completed": true,
+  "molecules": 50,
+  "records_dropped": 0,
+  "implementation_checks_pass": true,
+  "checks_all_pass": {
+    "identity_preserved": true,
+    "coordinate_stereo_preserved": true,
+    "coordinates_finite": true,
+    "mapping_types_compatible": true,
+    "bond_geometry_sanity": true,
+    "reported_rmsd_matches": true,
+    "reported_coverage_matches": true,
+    "fixed_core_within_tolerance": true
+  },
+  "replay_activity_and_order_invariant": true,
+  "default_quality_warnings": 0,
+  "max_core_rmsd_A": 0.0,
+  "min_core_coverage": 0.72,
+  "seconds": 9.495285359000263
+}

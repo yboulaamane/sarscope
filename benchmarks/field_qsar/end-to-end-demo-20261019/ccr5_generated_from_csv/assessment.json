@@ -1,0 +1,7 @@
+{
+  "case": "ccr5_generated_from_csv",
+  "status": "failed",
+  "error": "62 (compound 9/75, 8 completed): Core-constrained embedding produced no conformer within its bounded search. The reference core may be incompatible with this molecule's stereochemistry or conformation. Review the reference or provide a reviewed pre-aligned SDF; no stereochemistry or constraints were relaxed.",
+  "passes_worked_example_predictive_criteria": false,
+  "wall_s": 17.896957601995382
+}

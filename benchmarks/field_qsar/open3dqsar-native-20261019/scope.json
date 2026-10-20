@@ -1,0 +1,13 @@
+{
+  "source_license": "Original historical structures and raw derivatives: CC-BY-NC-4.0, doi:10.1021/jm0497141",
+  "scope": "Retrospective native-field performance, not field equivalence or unseen-data validation",
+  "permutations": 0,
+  "native_cv": "LOO after outer-training pretreatment, not nested CV",
+  "common_cv": "Fold-local nested three-fold PLS",
+  "native_components": 3,
+  "common_components": "Training selected from 1-4, n/5 capped",
+  "app_defaults_changed": false,
+  "external_algorithm_source_consulted": false,
+  "raw_location": "runs/open3dqsar-native-20261019",
+  "test_scope": "12 targeted tests passed; full application suite not rerun for this benchmark-only addition"
+}

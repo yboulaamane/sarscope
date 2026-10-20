@@ -1,0 +1,17 @@
+{
+  "scope": "Native independent MMFF fields and same-engine model reproduction on two historical cohorts/two alignments",
+  "external_source": "runs/open3dqsar-native-20261019",
+  "external_code_ported": false,
+  "parameter_sources": [
+    "Halgren 1996 public equations",
+    "RDKit public MMFF94 mixed-pair API"
+  ],
+  "native_runtime_dependencies_added": false,
+  "permutations_in_diagnostic": 0,
+  "app_default_profile_changed": false,
+  "validation_gates_relaxed": false,
+  "data_license": "Original source structures and raw derivatives CC-BY-NC-4.0, doi:10.1021/jm0497141",
+  "initial_unbuffered_comparison_retained_at": "runs/mmff-mif-independent-20261019",
+  "tests": "13 field controls passed on Python 3.13/RDKit 2026.09.1 and Python 3.12/RDKit 2024.09.6; 29 combined field/UI tests passed",
+  "full_suite": "679 passed, six skipped, two deselected"
+}

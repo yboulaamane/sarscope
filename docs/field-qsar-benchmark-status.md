@@ -1,5 +1,32 @@
 # Literature benchmark status — 16 October 2026
 
+**Positive fixed-alignment worked example, 19 October:** the
+[end-to-end thrombin MMFF94 demo](end-to-end-3d-demo.md) completes with the
+original 59/29 partition, nested q² 0.612159, test R² 0.629830, RMSE 0.668703
+and 99-permutation p = 0.01. Same-split RF RMSE is 0.950122. Numerical export
+replay, separate held-out-only field generation and test-label invariance
+pass. All three relative-pose stress checks fail; source alignment QC remains
+unassessed. This is a positive retrospective fixed-frame example, not package
+certification or robust automatic alignment. The separate CCR5 CSV alignment
+attempt is retained as a failure; its misleading conformer-ID error is now
+handled explicitly.
+
+**Latest repetition, 19 October:** the
+[steroid SEH repeat and generated-alignment comparison](steroid-reproduction-20261019.md)
+again matches published training/LOO metrics (0.607851/0.917438, three
+components), but does not qualify external prediction. Native supplied-frame
+SEH/MMFF test R² values are −0.489/−0.883. Both generated routes fail series
+preparation; the constrained failure exposes missing handling of an unsuccessful
+RDKit embedding. All six cases are retained; no production fix or threshold
+relaxation was applied in that experiment.
+
+**Generated-alignment verification, 19 October:** both rigid MCS and constrained
+routes pass the [two-stack implementation checks](generated-alignment-validation.md),
+including 43 targeted tests and all 50 measured EGFR records per route/environment.
+This closes the untested-generated-alignment implementation gap for the stated
+scope. The 17/18 rigid-overlay quality warnings are retained. It does not change
+any older model score, field-definition mismatch or prediction qualification.
+
 **Latest evidence, 18 October:** see the
 [matched-LOO and primary-source validation update](3d-qsar-validation-20261018.md).
 The reference five-field THR q² now reproduces (0.659934 versus 0.66), whereas

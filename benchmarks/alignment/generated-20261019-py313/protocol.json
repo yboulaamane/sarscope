@@ -1,0 +1,113 @@
+{
+  "scope": "Generated alignment implementation; not an experimental binding-pose study",
+  "source": {
+    "target": "CHEMBL203",
+    "assay": "CHEMBL680017",
+    "doi": "10.1021/jm9503613",
+    "license": "CC-BY-SA-3.0",
+    "attribution": "ChEMBL/EMBL-EBI; Bridges et al., J Med Chem 1996, doi:10.1021/jm9503613.",
+    "csv_sha256": "e4d02f404d7434bb1cbe2853839167547064b7843915288da130ac997402421b",
+    "records": 50,
+    "reference_id": "CHEMBL29197",
+    "selection": "All 50 bundled records in source order; no potency/score selection",
+    "activities_used_for_alignment": false
+  },
+  "routes": [
+    "rigid_mcs",
+    "constrained"
+  ],
+  "base_settings": {
+    "method": "comsia",
+    "field_definition": "sarscope",
+    "field_subset": [],
+    "field_scaling": "raw",
+    "grid_convention": "enclosing",
+    "grid_phase": [
+      0.0,
+      0.0,
+      0.0
+    ],
+    "spacing": 2.0,
+    "margin": 4.0,
+    "charge_model": "gasteiger",
+    "allow_charge_fallback": false,
+    "alpha": 0.3,
+    "dielectric": 1.0,
+    "dielectric_model": "constant",
+    "electrostatic_cutoff": null,
+    "missing_field_policy": "refuse",
+    "max_imputed_fraction": 0.1,
+    "steric_cutoff": 30.0,
+    "minimum_distance": 0.3,
+    "probe_radius": 1.7,
+    "probe_epsilon": 0.107,
+    "filter_mode": "percentile",
+    "field_screen": "per_field",
+    "minimum_sd": 2.0,
+    "keep_fraction": 0.3,
+    "max_features": 2000,
+    "component_cap": 4,
+    "fixed_components": null,
+    "component_improvement": 0.05,
+    "component_selection": "relative_improvement",
+    "component_sample_ratio": 5,
+    "pls_max_iter": 500,
+    "pls_tolerance": 1e-06,
+    "alignment": "prealigned",
+    "assess_prealigned_core": true,
+    "preserve_input_hydrogens": false,
+    "reference_index": 1,
+    "min_core_coverage": 0.5,
+    "max_alignment_rmsd": 1.0,
+    "mcs_timeout": 5,
+    "max_mappings": 256,
+    "conformers": 8,
+    "molecule_timeout": 30,
+    "alignment_timeout": 180,
+    "permutation_timeout": 120,
+    "max_molecules": 100,
+    "max_grid_points": 12000,
+    "max_memory_mb": 256,
+    "chunk_points": 512,
+    "permutations": 19,
+    "permutation_alpha": 0.05,
+    "contour_percentile": 80.0,
+    "seed": 42
+  },
+  "criteria": {
+    "molecular_graph_and_coordinate_stereo": "unchanged",
+    "finite_coordinates_and_compatible_mapping": true,
+    "bond_length_over_covalent_radii_sum": [
+      0.6,
+      1.45
+    ],
+    "report_rmsd_and_coverage_absolute_tolerance": 1e-10,
+    "constrained_fixed_core_rmsd_A_max": 0.0002,
+    "constrained_reference_coordinate_displacement_A_max": 0.0002,
+    "rigid_reference_coordinates": "bitwise unchanged",
+    "rerun_coordinate_tolerance": "bitwise identical in this pinned environment",
+    "replay_records": "first four source records, including the fixed reference",
+    "default_core_quality_warnings": "reported, never silently treated as passing"
+  },
+  "oracle_tests": [
+    "tests/test_generated_alignment_validation.py",
+    "tests/test_alignment_worker.py",
+    "tests/test_conformers.py"
+  ],
+  "source_sha256": {
+    "src/sarscope/analysis/align3d.py": "6e3dc0bb3e666055add61f1a0c83f481f9158c9e3b1a322e1cd7ed014c722f5b",
+    "src/sarscope/conformers.py": "a2122ae515f9ed55cd0f2265a317c28e5533d233db566aeb88a410bae4373202",
+    "src/sarscope/ligand_states.py": "985abe080a16f6e6245f981f29ab21b524627b8081023ce0f58dc1ce309b3f6c",
+    "src/sarscope/params.py": "2bd5541eadb69982332ae943bcdc060dcdcd48f21ff82080524d78c0624e190a",
+    "tests/test_generated_alignment_validation.py": "196dcb15d45af2b4384ad9cc1b0ef987211b2cddfe5854d603ec2fa4f54052b5",
+    "tests/test_alignment_worker.py": "a0e97c6e24d67b2427af21e2a041f28bb56acef5891c73e9a489eadd92e8a81d",
+    "tests/test_conformers.py": "824b0133917c9023d4768b8426ee2c02358f4c3515e1fede0328c25edd23d25a",
+    "benchmarks/validate_generated_alignment.py": "e93dba2df296ead70d73761f21e2e2daaff6ed98642547a72aaa99812c194aec"
+  },
+  "runtime": {
+    "python": "3.13.13",
+    "rdkit": "2026.09.1",
+    "numpy": "2.5.4",
+    "platform": "Linux-6.18.33.1-microsoft-standard-WSL2-x86_64-with-glibc2.39"
+  }
+}

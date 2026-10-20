@@ -1,0 +1,7 @@
+include CITATION.cff streamlit_app.py requirements.txt packages.txt
+include .streamlit/config.toml
+graft assets
+graft benchmarks
+graft docs
+graft examples
+global-exclude *.py[cod]

@@ -1,6 +1,22 @@
 # SARscope
 
+The local **0.2.0rc1** paper-reproducibility candidate includes the independent
+MMFF94 field implementation, frozen comparison evidence and a hash-verified
+12,607,200-value count audit. It is not yet a published release. See
+[reproduction and release instructions](docs/reproducibility-release-candidate.md).
+
+**Generated-alignment checks:** rigid MCS and core-constrained alignment now have
+[two-stack implementation validation](docs/generated-alignment-validation.md):
+43 targeted tests and all 50 measured EGFR compounds in both routes, with
+unchanged geometry/stereo controls and visible quality warnings. No docking
+is run by these routes, and no existing model score was changed.
+
 **New, experimental:** optional small-series [field-based 3D QSAR](docs/field-qsar.md).
+An executed [measured thrombin MMFF94 worked example](docs/end-to-end-3d-demo.md)
+now covers the original 59/29 partition, nested q² 0.612, test R² 0.630,
+99-permutation p = 0.01 and same-split baselines. It uses a reviewed supplied
+alignment; failed pose-stress checks remain visible. This is a retrospective
+positive fixed-frame demo, not guaranteed automatic alignment or certification.
 The interface emphasises **uncertainty-aware 3D SAR**: reviewed related series,
 an always-visible same-split 2D baseline, user-triggered pose stress tests before
 contour interpretation, and exploratory candidate labels that follow the

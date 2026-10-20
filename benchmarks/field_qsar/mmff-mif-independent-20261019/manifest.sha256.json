@@ -1,0 +1,10 @@
+{
+  "raw_manifest.sha256.json": "d615583a2236a96ef1dcde81e675db4e99727bcb39df5b3c14e6c2f9559b0792",
+  "mmff-ui-tests.xml": "d50c1e7ab03c090fd3b17d43fe7aa1d346e21bbcfd10d0f58b71c126813ac57b",
+  "full-suite-concurrent-timeout.xml": "5e54c7133b635f9a7e6a8afbb91bad8d0e51ec81fc2ad35da4cefc1278395484",
+  "results.csv": "7229385f73220ebffb27d483a7e57e1e964b195f95c3c4faf62f0196bde55d56",
+  "testing-notes.json": "fc13608e2dccb919620c082e9515bcbeee91d43f2f799b9c58bf1bbb9bd78359",
+  "protocol.json": "2e3bc6b4d049434b001cc76875f3abe3e1614273c409553c99e6f5118f823a2b",
+  "full-suite.xml": "fbbf87b16c1ee618f915c6819708b3fb76252fee2303e23b303265e475650417",
+  "scope.json": "57893046e35832cac5d1bfcec417bdd0e0f258ff421a7d45f95e63ace2fa1456"
+}

@@ -1,0 +1,8 @@
+{
+  "benchmarks/analyze_external_alignment.py": "3cb5ebd4d0071780912c7795c95ac7430adafdf10f621ae4df6f260dee4fd162",
+  "benchmarks/compare_open3dtools.py": "6b763a1f2b414fc60d6613c826d771a377315cb888401b83e6ebaf4838e229bb",
+  "benchmarks/summarize_external_alignment.py": "06ab6604b8bd0213950f7fc474ba736675fc9a9132e6122d719bad323ec7df86",
+  "benchmarks/retry_open3dqsar_dx.py": "581db7072ee5d704c61c001358044a66872e78d7ead4e5ab1745603b726ee6cd",
+  "benchmarks/compare_o3a_alignment.py": "18fcc9a659970864008d22064c7903aa494fefa5a36eb818bcb9399776c1a5d5",
+  "benchmarks/audit_open3dqsar_interchange.py": "b8e054f27abffa5d7ba9d16619dcd9d0fd9b36d2f7a1abe1a515c707504dd22a"
+}

@@ -1,0 +1,3 @@
+field,absolute_contribution_percent,retained_columns,positive_level,negative_level,positive_interpretation,negative_interpretation,positive_color,negative_color
+steric,62.08302486994743,1000,0.0044720415968451,-0.0028534087287038,Higher MMFF buffered 14-7 probe energy is associated with higher pActivity; this is not an unconditional instruction to add bulk,Opposite association to the positive contour,green,yellow
+electrostatic,37.91697513005257,1000,0.0019977806179164,-0.0023264824217454,More positive local charge is associated with higher pActivity,Opposite association to the positive contour,blue,red

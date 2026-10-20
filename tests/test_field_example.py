@@ -189,7 +189,7 @@ def test_real_example_ui_passes_the_verified_native_defaults_and_displays_their_
     app.checkbox(key="positive3d_example").check().run()
     assert not calls
     app.button(key="positive3d_prepare").click().run()
-    assert not app.error and not app.exception
+    assert not app.error and not app.exception, [item.value for item in app.error]
     app.checkbox(key="positive3d_reviewed").check().run()
     app.button(key="positive3d_run").click().run()
     assert not app.exception and not app.error and calls == [True]

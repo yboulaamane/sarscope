@@ -1,0 +1,6 @@
+cohort,route,n,identity_stereo_all_pass,max_internal_distance_error_A,median_core_rmsd_A,max_core_rmsd_A
+EGFR,o3a_crippen,50,True,5.3290705182007506e-15,0.5798454222831351,2.9216022056586164
+EGFR,o3a_mmff,50,True,5.3290705182007506e-15,0.5731790249136719,2.8253394941525167
+AChE,open3dalign_atom,111,True,0.0001510153672015,,
+EGFR,open3dalign_atom,50,True,0.0001252795590138,0.5200058980576404,2.80302225810721
+THR,open3dalign_atom,88,True,0.0001482611392393,,

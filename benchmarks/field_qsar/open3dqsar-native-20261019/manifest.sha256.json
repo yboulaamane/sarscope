@@ -1,0 +1,9 @@
+{
+  "raw_manifest.sha256.json": "4810ac80f9f65bfcb9b79b845f1b8631b38dc391ffb650402ea943068853654a",
+  "results.csv": "a497a32cf452a6afc2c34684bdb260494ba0045ab2ef6f4cc06a23d048cd498b",
+  "source_sha256.json": "43804e989cbf94d5bceecd68b666034c65f0f2804c4e74df861a18a813ec8abf",
+  "protocol.json": "1552c1deb737ec67a1eff3ae2872516aeac1f7b34a3a6b8ebee354b7f7150900",
+  "targeted-tests.xml": "6af9bd5ae4a13299cd6ada93b0627de2e1e50cfd5e21758fa8ca6756046d287b",
+  "scope.json": "f3bf96569c98272e674616a84f067e64e76e48aa40eaf2e6be8b2f3d88d5b398",
+  "external_execution.json": "21e7f74a633aae80ed3879e8fe302f0beb05d02e56ddfd9d6219693982a84565"
+}

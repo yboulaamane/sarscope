@@ -1,0 +1,15 @@
+{
+  "unchanged_production_hashes": {
+    "src/sarscope/analysis/align3d.py": "6e3dc0bb3e666055add61f1a0c83f481f9158c9e3b1a322e1cd7ed014c722f5b",
+    "src/sarscope/field_qsar.py": "3130c8b1ce8aa87e71002217973d8960c44e0731f7a6e3c5dbb5cfb2ff7af9b7",
+    "src/sarscope/params.py": "2bd5541eadb69982332ae943bcdc060dcdcd48f21ff82080524d78c0624e190a",
+    "src/sarscope/analysis/fields.py": "58cd02f59bbed6985d01811ee4d7d09d7708f002368c008097b2a8c6f1bf6399",
+    "src/sarscope/analysis/regression.py": "1b09af9ceb50151ae10b89cb36fbd05a0d121ded4b15fb6a434908a86c8c9dc6"
+  },
+  "driver": {
+    "benchmarks/open3dqsar_native.py": "c2de2cce566ac13ba3fa9f3eec07d57f8b9de13a5e6b11d75e0ad0e4994dc01a"
+  },
+  "test": {
+    "tests/test_open3dqsar_native.py": "c84bb390543e112fe0a5addf11ea1ae0fafbd18fc77173015d49cf0413b971c1"
+  }
+}

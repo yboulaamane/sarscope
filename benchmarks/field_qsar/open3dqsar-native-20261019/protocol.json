@@ -1,0 +1,2674 @@
+{
+  "purpose": "Retrospective native Open3DQSAR predictive/runtime comparison; no app changes",
+  "python": "3.13.13",
+  "rdkit": "2026.09.1",
+  "driver_sha256": "c2de2cce566ac13ba3fa9f3eec07d57f8b9de13a5e6b11d75e0ad0e4994dc01a",
+  "binary_sha256": "7966fbcfe9bb547c17f63f67de3dd5ade8dee9403eb753f00381068358c2d4a8",
+  "babel_launchers_sha256": {
+    "obenergy": "b524c2ee6dad3623047c41b096fc44046d7ddffe7b45825d5595b37585858570",
+    "babel": "b4b21ed6678418655fbbf8a697f14991312bfeac82658f4030004539573ccaf7",
+    "obabel": "b4b21ed6678418655fbbf8a697f14991312bfeac82658f4030004539573ccaf7"
+  },
+  "n_cpus": 1,
+  "timeout_per_case_s": 180,
+  "seed": 42,
+  "field_definition": "Native Open3DQSAR 2.3 MMFF94 buffered 14-7 VDW (CR probe) and constant-dielectric Coulomb; unsmoothed; +/-30 kcal/mol truncation",
+  "native_model": "Training-only SD >=2 kcal/mol, BUW, three fixed PLS components, LOO CV. No test-based tuning. LOO is descriptive after fixed outer-training pretreatment, NOT nested CV.",
+  "common_model": "Reuse SARscope nested three-fold PLS; fold-local two-block variance filtering, 2000 retained features maximum, block_std, component candidates 1-4 with n/5 cap. No permutations; exploratory diagnostics, not new validation certification.",
+  "runtime_note": "Native wall time includes import, field calculation, ASCII export, pretreatment, fit, LOO and prediction. Common-engine timing is modelling only; do not compare against full SARscope app time or infer speed ratios.",
+  "cases": [
+    {
+      "cohort": "THR",
+      "route": "original",
+      "n": 88,
+      "source": {
+        "doi": "10.1021/jm0497141",
+        "licence": "CC-BY-NC-4.0",
+        "archive_sha256": "e69edbb64048a243db5bce8700b198ce9a60b6f8fe5c87f30d863d1f99790ecf",
+        "sdf_sha256": "7e91820c51e6b9bb62e9b542cbc906cb0555cb461033fd1226f35d9ae9c1efff",
+        "reference_id": "42",
+        "reference_policy": "First training molecule in previously frozen order; never activity-selected",
+        "previous_predictions_sha256": "af84b0ada046c4e3ebe0d78d84888434996698a30706e5fe9c07e0be408e58b0",
+        "field_params": {
+          "method": "comsia",
+          "field_definition": "sarscope",
+          "field_subset": [
+            "steric",
+            "electrostatic",
+            "hydrophobic",
+            "hbond_donor",
+            "hbond_acceptor"
+          ],
+          "field_scaling": "block_std",
+          "grid_convention": "enclosing",
+          "grid_phase": [
+            0.0,
+            0.0,
+            0.0
+          ],
+          "spacing": 1.0,
+          "margin": 4.0,
+          "charge_model": "gasteiger",
+          "allow_charge_fallback": false,
+          "alpha": 0.3,
+          "dielectric": 1.0,
+          "dielectric_model": "constant",
+          "electrostatic_cutoff": null,
+          "missing_field_policy": "refuse",
+          "max_imputed_fraction": 0.1,
+          "steric_cutoff": 30.0,
+          "minimum_distance": 0.3,
+          "probe_radius": 1.7,
+          "probe_epsilon": 0.107,
+          "filter_mode": "percentile",
+          "field_screen": "per_field",
+          "minimum_sd": 2.0,
+          "keep_fraction": 0.3,
+          "max_features": 2000,
+          "component_cap": 4,
+          "fixed_components": null,
+          "component_improvement": 0.05,
+          "component_selection": "max_q2",
+          "component_sample_ratio": 5,
+          "pls_max_iter": 500,
+          "pls_tolerance": 1e-06,
+          "alignment": "prealigned",
+          "assess_prealigned_core": false,
+          "preserve_input_hydrogens": true,
+          "reference_index": 0,
+          "min_core_coverage": 0.5,
+          "max_alignment_rmsd": 1.0,
+          "mcs_timeout": 5,
+          "max_mappings": 256,
+          "conformers": 8,
+          "molecule_timeout": 30,
+          "alignment_timeout": 180,
+          "permutation_timeout": 600,
+          "max_molecules": 100,
+          "max_grid_points": 80000,
+          "max_memory_mb": 512,
+          "chunk_points": 512,
+          "permutations": 0,
+          "permutation_alpha": 0.05,
+          "contour_percentile": 80.0,
+          "seed": 42
+        },
+        "membership": [
+          {
+            "molecule_id": "42",
+            "split": "train"
+          },
+          {
+            "molecule_id": "64",
+            "split": "train"
+          },
+          {
+            "molecule_id": "27",
+            "split": "train"
+          },
+          {
+            "molecule_id": "17",
+            "split": "train"
+          },
+          {
+            "molecule_id": "86",
+            "split": "train"
+          },
+          {
+            "molecule_id": "48",
+            "split": "train"
+          },
+          {
+            "molecule_id": "06",
+            "split": "train"
+          },
+          {
+            "molecule_id": "13",
+            "split": "train"
+          },
+          {
+            "molecule_id": "12",
+            "split": "train"
+          },
+          {
+            "molecule_id": "63",
+            "split": "train"
+          },
+          {
+            "molecule_id": "76",
+            "split": "train"
+          },
+          {
+            "molecule_id": "38",
+            "split": "train"
+          },
+          {
+            "molecule_id": "41",
+            "split": "train"
+          },
+          {
+            "molecule_id": "04",
+            "split": "train"
+          },
+          {
+            "molecule_id": "53",
+            "split": "train"
+          },
+          {
+            "molecule_id": "84",
+            "split": "train"
+          },
+          {
+            "molecule_id": "85",
+            "split": "train"
+          },
+          {
+            "molecule_id": "88",
+            "split": "train"
+          },
+          {
+            "molecule_id": "75",
+            "split": "train"
+          },
+          {
+            "molecule_id": "83",
+            "split": "train"
+          },
+          {
+            "molecule_id": "22",
+            "split": "train"
+          },
+          {
+            "molecule_id": "08",
+            "split": "train"
+          },
+          {
+            "molecule_id": "28",
+            "split": "train"
+          },
+          {
+            "molecule_id": "03",
+            "split": "train"
+          },
+          {
+            "molecule_id": "40",
+            "split": "train"
+          },
+          {
+            "molecule_id": "47",
+            "split": "train"
+          },
+          {
+            "molecule_id": "15",
+            "split": "train"
+          },
+          {
+            "molecule_id": "43",
+            "split": "train"
+          },
+          {
+            "molecule_id": "25",
+            "split": "train"
+          },
+          {
+            "molecule_id": "36",
+            "split": "train"
+          },
+          {
+            "molecule_id": "24",
+            "split": "train"
+          },
+          {
+            "molecule_id": "18",
+            "split": "train"
+          },
+          {
+            "molecule_id": "50",
+            "split": "train"
+          },
+          {
+            "molecule_id": "02",
+            "split": "train"
+          },
+          {
+            "molecule_id": "26",
+            "split": "train"
+          },
+          {
+            "molecule_id": "23",
+            "split": "train"
+          },
+          {
+            "molecule_id": "33",
+            "split": "train"
+          },
+          {
+            "molecule_id": "66",
+            "split": "train"
+          },
+          {
+            "molecule_id": "68",
+            "split": "train"
+          },
+          {
+            "molecule_id": "59",
+            "split": "train"
+          },
+          {
+            "molecule_id": "45",
+            "split": "train"
+          },
+          {
+            "molecule_id": "87",
+            "split": "train"
+          },
+          {
+            "molecule_id": "34",
+            "split": "train"
+          },
+          {
+            "molecule_id": "80",
+            "split": "train"
+          },
+          {
+            "molecule_id": "37",
+            "split": "train"
+          },
+          {
+            "molecule_id": "57",
+            "split": "train"
+          },
+          {
+            "molecule_id": "32",
+            "split": "train"
+          },
+          {
+            "molecule_id": "19",
+            "split": "train"
+          },
+          {
+            "molecule_id": "78",
+            "split": "train"
+          },
+          {
+            "molecule_id": "09",
+            "split": "train"
+          },
+          {
+            "molecule_id": "79",
+            "split": "train"
+          },
+          {
+            "molecule_id": "73",
+            "split": "train"
+          },
+          {
+            "molecule_id": "62",
+            "split": "train"
+          },
+          {
+            "molecule_id": "74",
+            "split": "train"
+          },
+          {
+            "molecule_id": "60",
+            "split": "train"
+          },
+          {
+            "molecule_id": "69",
+            "split": "train"
+          },
+          {
+            "molecule_id": "55",
+            "split": "train"
+          },
+          {
+            "molecule_id": "52",
+            "split": "train"
+          },
+          {
+            "molecule_id": "77",
+            "split": "train"
+          },
+          {
+            "molecule_id": "29",
+            "split": "held_out"
+          },
+          {
+            "molecule_id": "20",
+            "split": "held_out"
+          },
+          {
+            "molecule_id": "05",
+            "split": "held_out"
+          },
+          {
+            "molecule_id": "65",
+            "split": "held_out"
+          },
+          {
+            "molecule_id": "07",
+            "split": "held_out"
+          },
+          {
+            "molecule_id": "51",
+            "split": "held_out"
+          },
+          {
+            "molecule_id": "11",
+            "split": "held_out"
+          },
+          {
+            "molecule_id": "30",
+            "split": "held_out"
+          },
+          {
+            "molecule_id": "10",
+            "split": "held_out"
+          },
+          {
+            "molecule_id": "49",
+            "split": "held_out"
+          },
+          {
+            "molecule_id": "61",
+            "split": "held_out"
+          },
+          {
+            "molecule_id": "44",
+            "split": "held_out"
+          },
+          {
+            "molecule_id": "82",
+            "split": "held_out"
+          },
+          {
+            "molecule_id": "46",
+            "split": "held_out"
+          },
+          {
+            "molecule_id": "31",
+            "split": "held_out"
+          },
+          {
+            "molecule_id": "67",
+            "split": "held_out"
+          },
+          {
+            "molecule_id": "81",
+            "split": "held_out"
+          },
+          {
+            "molecule_id": "39",
+            "split": "held_out"
+          },
+          {
+            "molecule_id": "72",
+            "split": "held_out"
+          },
+          {
+            "molecule_id": "21",
+            "split": "held_out"
+          },
+          {
+            "molecule_id": "56",
+            "split": "held_out"
+          },
+          {
+            "molecule_id": "54",
+            "split": "held_out"
+          },
+          {
+            "molecule_id": "14",
+            "split": "held_out"
+          },
+          {
+            "molecule_id": "58",
+            "split": "held_out"
+          },
+          {
+            "molecule_id": "16",
+            "split": "held_out"
+          },
+          {
+            "molecule_id": "71",
+            "split": "held_out"
+          },
+          {
+            "molecule_id": "01",
+            "split": "held_out"
+          },
+          {
+            "molecule_id": "70",
+            "split": "held_out"
+          },
+          {
+            "molecule_id": "35",
+            "split": "held_out"
+          }
+        ]
+      },
+      "grid": {
+        "origin": [
+          -6.0,
+          -17.0,
+          -1.0
+        ],
+        "shape": [
+          26,
+          22,
+          25
+        ],
+        "spacing": 1.0
+      },
+      "train": [
+        0,
+        1,
+        2,
+        3,
+        4,
+        5,
+        6,
+        7,
+        8,
+        9,
+        10,
+        11,
+        12,
+        13,
+        14,
+        15,
+        16,
+        17,
+        18,
+        19,
+        20,
+        21,
+        22,
+        23,
+        24,
+        25,
+        26,
+        27,
+        28,
+        29,
+        30,
+        31,
+        32,
+        33,
+        34,
+        35,
+        36,
+        37,
+        38,
+        39,
+        40,
+        41,
+        42,
+        43,
+        44,
+        45,
+        46,
+        47,
+        48,
+        49,
+        50,
+        51,
+        52,
+        53,
+        54,
+        55,
+        56,
+        57,
+        58
+      ],
+      "test": [
+        59,
+        60,
+        61,
+        62,
+        63,
+        64,
+        65,
+        66,
+        67,
+        68,
+        69,
+        70,
+        71,
+        72,
+        73,
+        74,
+        75,
+        76,
+        77,
+        78,
+        79,
+        80,
+        81,
+        82,
+        83,
+        84,
+        85,
+        86,
+        87
+      ],
+      "input_sha256": {
+        "membership.csv": "6835fac8ae7684b937d2af660789eb4c60cfac0fcd8eb4876712a0ec9b31e4f0",
+        "commands.inp": "78571b288be34c036ea4807da19629eea57207a287ccca167fd4e78dbd71ad45",
+        "activities.txt": "c44784346ecbcec586d0ca20ea4fcf6157e2d4d2559d529c29398b5c84a8d541",
+        "input.sdf": "f17154c9d37e0c234565140bb01fbad71712454e303f764792a56f991fe95ae5"
+      },
+      "common_engine_params": {
+        "method": "comfa",
+        "field_definition": "sarscope",
+        "field_subset": [
+          "steric",
+          "electrostatic"
+        ],
+        "field_scaling": "block_std",
+        "grid_convention": "enclosing",
+        "grid_phase": [
+          0.0,
+          0.0,
+          0.0
+        ],
+        "spacing": 1.0,
+        "margin": 4.0,
+        "charge_model": "mmff94",
+        "allow_charge_fallback": false,
+        "alpha": 0.3,
+        "dielectric": 1.0,
+        "dielectric_model": "constant",
+        "electrostatic_cutoff": null,
+        "missing_field_policy": "refuse",
+        "max_imputed_fraction": 0.1,
+        "steric_cutoff": 30.0,
+        "minimum_distance": 0.3,
+        "probe_radius": 1.7,
+        "probe_epsilon": 0.107,
+        "filter_mode": "percentile",
+        "field_screen": "per_field",
+        "minimum_sd": 2.0,
+        "keep_fraction": 0.3,
+        "max_features": 2000,
+        "component_cap": 4,
+        "fixed_components": null,
+        "component_improvement": 0.05,
+        "component_selection": "max_q2",
+        "component_sample_ratio": 5,
+        "pls_max_iter": 500,
+        "pls_tolerance": 1e-06,
+        "alignment": "prealigned",
+        "assess_prealigned_core": false,
+        "preserve_input_hydrogens": true,
+        "reference_index": 0,
+        "min_core_coverage": 0.5,
+        "max_alignment_rmsd": 1.0,
+        "mcs_timeout": 5,
+        "max_mappings": 256,
+        "conformers": 8,
+        "molecule_timeout": 30,
+        "alignment_timeout": 180,
+        "permutation_timeout": 600,
+        "max_molecules": 100,
+        "max_grid_points": 80000,
+        "max_memory_mb": 512,
+        "chunk_points": 512,
+        "permutations": 0,
+        "permutation_alpha": 0.05,
+        "contour_percentile": 80.0,
+        "seed": 42
+      },
+      "common_engine_note": "method=comfa selects two-block filtering only; descriptors supplied by native Open3DQSAR, NOT computed with SARscope's LJ equations"
+    },
+    {
+      "cohort": "THR",
+      "route": "open3dalign_atom",
+      "n": 88,
+      "source": {
+        "doi": "10.1021/jm0497141",
+        "licence": "CC-BY-NC-4.0",
+        "archive_sha256": "e69edbb64048a243db5bce8700b198ce9a60b6f8fe5c87f30d863d1f99790ecf",
+        "sdf_sha256": "7e91820c51e6b9bb62e9b542cbc906cb0555cb461033fd1226f35d9ae9c1efff",
+        "reference_id": "42",
+        "reference_policy": "First training molecule in previously frozen order; never activity-selected",
+        "previous_predictions_sha256": "af84b0ada046c4e3ebe0d78d84888434996698a30706e5fe9c07e0be408e58b0",
+        "field_params": {
+          "method": "comsia",
+          "field_definition": "sarscope",
+          "field_subset": [
+            "steric",
+            "electrostatic",
+            "hydrophobic",
+            "hbond_donor",
+            "hbond_acceptor"
+          ],
+          "field_scaling": "block_std",
+          "grid_convention": "enclosing",
+          "grid_phase": [
+            0.0,
+            0.0,
+            0.0
+          ],
+          "spacing": 1.0,
+          "margin": 4.0,
+          "charge_model": "gasteiger",
+          "allow_charge_fallback": false,
+          "alpha": 0.3,
+          "dielectric": 1.0,
+          "dielectric_model": "constant",
+          "electrostatic_cutoff": null,
+          "missing_field_policy": "refuse",
+          "max_imputed_fraction": 0.1,
+          "steric_cutoff": 30.0,
+          "minimum_distance": 0.3,
+          "probe_radius": 1.7,
+          "probe_epsilon": 0.107,
+          "filter_mode": "percentile",
+          "field_screen": "per_field",
+          "minimum_sd": 2.0,
+          "keep_fraction": 0.3,
+          "max_features": 2000,
+          "component_cap": 4,
+          "fixed_components": null,
+          "component_improvement": 0.05,
+          "component_selection": "max_q2",
+          "component_sample_ratio": 5,
+          "pls_max_iter": 500,
+          "pls_tolerance": 1e-06,
+          "alignment": "prealigned",
+          "assess_prealigned_core": false,
+          "preserve_input_hydrogens": true,
+          "reference_index": 0,
+          "min_core_coverage": 0.5,
+          "max_alignment_rmsd": 1.0,
+          "mcs_timeout": 5,
+          "max_mappings": 256,
+          "conformers": 8,
+          "molecule_timeout": 30,
+          "alignment_timeout": 180,
+          "permutation_timeout": 600,
+          "max_molecules": 100,
+          "max_grid_points": 80000,
+          "max_memory_mb": 512,
+          "chunk_points": 512,
+          "permutations": 0,
+          "permutation_alpha": 0.05,
+          "contour_percentile": 80.0,
+          "seed": 42
+        },
+        "membership": [
+          {
+            "molecule_id": "42",
+            "split": "train"
+          },
+          {
+            "molecule_id": "64",
+            "split": "train"
+          },
+          {
+            "molecule_id": "27",
+            "split": "train"
+          },
+          {
+            "molecule_id": "17",
+            "split": "train"
+          },
+          {
+            "molecule_id": "86",
+            "split": "train"
+          },
+          {
+            "molecule_id": "48",
+            "split": "train"
+          },
+          {
+            "molecule_id": "06",
+            "split": "train"
+          },
+          {
+            "molecule_id": "13",
+            "split": "train"
+          },
+          {
+            "molecule_id": "12",
+            "split": "train"
+          },
+          {
+            "molecule_id": "63",
+            "split": "train"
+          },
+          {
+            "molecule_id": "76",
+            "split": "train"
+          },
+          {
+            "molecule_id": "38",
+            "split": "train"
+          },
+          {
+            "molecule_id": "41",
+            "split": "train"
+          },
+          {
+            "molecule_id": "04",
+            "split": "train"
+          },
+          {
+            "molecule_id": "53",
+            "split": "train"
+          },
+          {
+            "molecule_id": "84",
+            "split": "train"
+          },
+          {
+            "molecule_id": "85",
+            "split": "train"
+          },
+          {
+            "molecule_id": "88",
+            "split": "train"
+          },
+          {
+            "molecule_id": "75",
+            "split": "train"
+          },
+          {
+            "molecule_id": "83",
+            "split": "train"
+          },
+          {
+            "molecule_id": "22",
+            "split": "train"
+          },
+          {
+            "molecule_id": "08",
+            "split": "train"
+          },
+          {
+            "molecule_id": "28",
+            "split": "train"
+          },
+          {
+            "molecule_id": "03",
+            "split": "train"
+          },
+          {
+            "molecule_id": "40",
+            "split": "train"
+          },
+          {
+            "molecule_id": "47",
+            "split": "train"
+          },
+          {
+            "molecule_id": "15",
+            "split": "train"
+          },
+          {
+            "molecule_id": "43",
+            "split": "train"
+          },
+          {
+            "molecule_id": "25",
+            "split": "train"
+          },
+          {
+            "molecule_id": "36",
+            "split": "train"
+          },
+          {
+            "molecule_id": "24",
+            "split": "train"
+          },
+          {
+            "molecule_id": "18",
+            "split": "train"
+          },
+          {
+            "molecule_id": "50",
+            "split": "train"
+          },
+          {
+            "molecule_id": "02",
+            "split": "train"
+          },
+          {
+            "molecule_id": "26",
+            "split": "train"
+          },
+          {
+            "molecule_id": "23",
+            "split": "train"
+          },
+          {
+            "molecule_id": "33",
+            "split": "train"
+          },
+          {
+            "molecule_id": "66",
+            "split": "train"
+          },
+          {
+            "molecule_id": "68",
+            "split": "train"
+          },
+          {
+            "molecule_id": "59",
+            "split": "train"
+          },
+          {
+            "molecule_id": "45",
+            "split": "train"
+          },
+          {
+            "molecule_id": "87",
+            "split": "train"
+          },
+          {
+            "molecule_id": "34",
+            "split": "train"
+          },
+          {
+            "molecule_id": "80",
+            "split": "train"
+          },
+          {
+            "molecule_id": "37",
+            "split": "train"
+          },
+          {
+            "molecule_id": "57",
+            "split": "train"
+          },
+          {
+            "molecule_id": "32",
+            "split": "train"
+          },
+          {
+            "molecule_id": "19",
+            "split": "train"
+          },
+          {
+            "molecule_id": "78",
+            "split": "train"
+          },
+          {
+            "molecule_id": "09",
+            "split": "train"
+          },
+          {
+            "molecule_id": "79",
+            "split": "train"
+          },
+          {
+            "molecule_id": "73",
+            "split": "train"
+          },
+          {
+            "molecule_id": "62",
+            "split": "train"
+          },
+          {
+            "molecule_id": "74",
+            "split": "train"
+          },
+          {
+            "molecule_id": "60",
+            "split": "train"
+          },
+          {
+            "molecule_id": "69",
+            "split": "train"
+          },
+          {
+            "molecule_id": "55",
+            "split": "train"
+          },
+          {
+            "molecule_id": "52",
+            "split": "train"
+          },
+          {
+            "molecule_id": "77",
+            "split": "train"
+          },
+          {
+            "molecule_id": "29",
+            "split": "held_out"
+          },
+          {
+            "molecule_id": "20",
+            "split": "held_out"
+          },
+          {
+            "molecule_id": "05",
+            "split": "held_out"
+          },
+          {
+            "molecule_id": "65",
+            "split": "held_out"
+          },
+          {
+            "molecule_id": "07",
+            "split": "held_out"
+          },
+          {
+            "molecule_id": "51",
+            "split": "held_out"
+          },
+          {
+            "molecule_id": "11",
+            "split": "held_out"
+          },
+          {
+            "molecule_id": "30",
+            "split": "held_out"
+          },
+          {
+            "molecule_id": "10",
+            "split": "held_out"
+          },
+          {
+            "molecule_id": "49",
+            "split": "held_out"
+          },
+          {
+            "molecule_id": "61",
+            "split": "held_out"
+          },
+          {
+            "molecule_id": "44",
+            "split": "held_out"
+          },
+          {
+            "molecule_id": "82",
+            "split": "held_out"
+          },
+          {
+            "molecule_id": "46",
+            "split": "held_out"
+          },
+          {
+            "molecule_id": "31",
+            "split": "held_out"
+          },
+          {
+            "molecule_id": "67",
+            "split": "held_out"
+          },
+          {
+            "molecule_id": "81",
+            "split": "held_out"
+          },
+          {
+            "molecule_id": "39",
+            "split": "held_out"
+          },
+          {
+            "molecule_id": "72",
+            "split": "held_out"
+          },
+          {
+            "molecule_id": "21",
+            "split": "held_out"
+          },
+          {
+            "molecule_id": "56",
+            "split": "held_out"
+          },
+          {
+            "molecule_id": "54",
+            "split": "held_out"
+          },
+          {
+            "molecule_id": "14",
+            "split": "held_out"
+          },
+          {
+            "molecule_id": "58",
+            "split": "held_out"
+          },
+          {
+            "molecule_id": "16",
+            "split": "held_out"
+          },
+          {
+            "molecule_id": "71",
+            "split": "held_out"
+          },
+          {
+            "molecule_id": "01",
+            "split": "held_out"
+          },
+          {
+            "molecule_id": "70",
+            "split": "held_out"
+          },
+          {
+            "molecule_id": "35",
+            "split": "held_out"
+          }
+        ]
+      },
+      "grid": {
+        "origin": [
+          -6.0,
+          -18.0,
+          -1.0
+        ],
+        "shape": [
+          26,
+          23,
+          25
+        ],
+        "spacing": 1.0
+      },
+      "train": [
+        0,
+        1,
+        2,
+        3,
+        4,
+        5,
+        6,
+        7,
+        8,
+        9,
+        10,
+        11,
+        12,
+        13,
+        14,
+        15,
+        16,
+        17,
+        18,
+        19,
+        20,
+        21,
+        22,
+        23,
+        24,
+        25,
+        26,
+        27,
+        28,
+        29,
+        30,
+        31,
+        32,
+        33,
+        34,
+        35,
+        36,
+        37,
+        38,
+        39,
+        40,
+        41,
+        42,
+        43,
+        44,
+        45,
+        46,
+        47,
+        48,
+        49,
+        50,
+        51,
+        52,
+        53,
+        54,
+        55,
+        56,
+        57,
+        58
+      ],
+      "test": [
+        59,
+        60,
+        61,
+        62,
+        63,
+        64,
+        65,
+        66,
+        67,
+        68,
+        69,
+        70,
+        71,
+        72,
+        73,
+        74,
+        75,
+        76,
+        77,
+        78,
+        79,
+        80,
+        81,
+        82,
+        83,
+        84,
+        85,
+        86,
+        87
+      ],
+      "input_sha256": {
+        "membership.csv": "6835fac8ae7684b937d2af660789eb4c60cfac0fcd8eb4876712a0ec9b31e4f0",
+        "commands.inp": "b2392fc9ffea6f9f08fdea6fd85ae24c4979d86aabe6f07ceff01e5ebe470470",
+        "activities.txt": "c44784346ecbcec586d0ca20ea4fcf6157e2d4d2559d529c29398b5c84a8d541",
+        "input.sdf": "416ee18811879a810a92162a39d0df9cfc5b00fae63d12dca8cb28747f7da9f0"
+      },
+      "common_engine_params": {
+        "method": "comfa",
+        "field_definition": "sarscope",
+        "field_subset": [
+          "steric",
+          "electrostatic"
+        ],
+        "field_scaling": "block_std",
+        "grid_convention": "enclosing",
+        "grid_phase": [
+          0.0,
+          0.0,
+          0.0
+        ],
+        "spacing": 1.0,
+        "margin": 4.0,
+        "charge_model": "mmff94",
+        "allow_charge_fallback": false,
+        "alpha": 0.3,
+        "dielectric": 1.0,
+        "dielectric_model": "constant",
+        "electrostatic_cutoff": null,
+        "missing_field_policy": "refuse",
+        "max_imputed_fraction": 0.1,
+        "steric_cutoff": 30.0,
+        "minimum_distance": 0.3,
+        "probe_radius": 1.7,
+        "probe_epsilon": 0.107,
+        "filter_mode": "percentile",
+        "field_screen": "per_field",
+        "minimum_sd": 2.0,
+        "keep_fraction": 0.3,
+        "max_features": 2000,
+        "component_cap": 4,
+        "fixed_components": null,
+        "component_improvement": 0.05,
+        "component_selection": "max_q2",
+        "component_sample_ratio": 5,
+        "pls_max_iter": 500,
+        "pls_tolerance": 1e-06,
+        "alignment": "prealigned",
+        "assess_prealigned_core": false,
+        "preserve_input_hydrogens": true,
+        "reference_index": 0,
+        "min_core_coverage": 0.5,
+        "max_alignment_rmsd": 1.0,
+        "mcs_timeout": 5,
+        "max_mappings": 256,
+        "conformers": 8,
+        "molecule_timeout": 30,
+        "alignment_timeout": 180,
+        "permutation_timeout": 600,
+        "max_molecules": 100,
+        "max_grid_points": 80000,
+        "max_memory_mb": 512,
+        "chunk_points": 512,
+        "permutations": 0,
+        "permutation_alpha": 0.05,
+        "contour_percentile": 80.0,
+        "seed": 42
+      },
+      "common_engine_note": "method=comfa selects two-block filtering only; descriptors supplied by native Open3DQSAR, NOT computed with SARscope's LJ equations"
+    },
+    {
+      "cohort": "AChE",
+      "route": "original",
+      "n": 111,
+      "source": {
+        "doi": "10.1021/jm0497141",
+        "licence": "CC-BY-NC-4.0",
+        "archive_sha256": "e69edbb64048a243db5bce8700b198ce9a60b6f8fe5c87f30d863d1f99790ecf",
+        "sdf_sha256": "218ff88d34ab638a949c5b5863116c146c376396ec6b174be929f77954425965",
+        "reference_id": "1-1",
+        "reference_policy": "First training molecule in previously frozen order; never activity-selected",
+        "previous_predictions_sha256": "95d30226fc32fc841d3e636120bba8901dde6341c5a7bd938f5ba3df49891571",
+        "field_params": {
+          "method": "comsia",
+          "field_definition": "sarscope",
+          "field_subset": [
+            "steric",
+            "electrostatic",
+            "hydrophobic",
+            "hbond_donor",
+            "hbond_acceptor"
+          ],
+          "field_scaling": "block_std",
+          "grid_convention": "enclosing",
+          "grid_phase": [
+            0.0,
+            0.0,
+            0.0
+          ],
+          "spacing": 1.0,
+          "margin": 4.0,
+          "charge_model": "gasteiger",
+          "allow_charge_fallback": false,
+          "alpha": 0.3,
+          "dielectric": 1.0,
+          "dielectric_model": "constant",
+          "electrostatic_cutoff": null,
+          "missing_field_policy": "refuse",
+          "max_imputed_fraction": 0.1,
+          "steric_cutoff": 30.0,
+          "minimum_distance": 0.3,
+          "probe_radius": 1.7,
+          "probe_epsilon": 0.107,
+          "filter_mode": "percentile",
+          "field_screen": "per_field",
+          "minimum_sd": 2.0,
+          "keep_fraction": 0.3,
+          "max_features": 2000,
+          "component_cap": 4,
+          "fixed_components": null,
+          "component_improvement": 0.05,
+          "component_selection": "max_q2",
+          "component_sample_ratio": 5,
+          "pls_max_iter": 500,
+          "pls_tolerance": 1e-06,
+          "alignment": "prealigned",
+          "assess_prealigned_core": false,
+          "preserve_input_hydrogens": true,
+          "reference_index": 0,
+          "min_core_coverage": 0.5,
+          "max_alignment_rmsd": 1.0,
+          "mcs_timeout": 5,
+          "max_mappings": 256,
+          "conformers": 8,
+          "molecule_timeout": 30,
+          "alignment_timeout": 180,
+          "permutation_timeout": 600,
+          "max_molecules": 150,
+          "max_grid_points": 80000,
+          "max_memory_mb": 768,
+          "chunk_points": 512,
+          "permutations": 0,
+          "permutation_alpha": 0.05,
+          "contour_percentile": 80.0,
+          "seed": 42
+        },
+        "membership": [
+          {
+            "molecule_id": "1-1",
+            "split": "train"
+          },
+          {
+            "molecule_id": "1-10",
+            "split": "train"
+          },
+          {
+            "molecule_id": "1-12",
+            "split": "train"
+          },
+          {
+            "molecule_id": "1-13",
+            "split": "train"
+          },
+          {
+            "molecule_id": "1-14",
+            "split": "train"
+          },
+          {
+            "molecule_id": "1-15",
+            "split": "train"
+          },
+          {
+            "molecule_id": "1-16",
+            "split": "train"
+          },
+          {
+            "molecule_id": "1-18",
+            "split": "train"
+          },
+          {
+            "molecule_id": "1-19",
+            "split": "train"
+          },
+          {
+            "molecule_id": "1-2",
+            "split": "train"
+          },
+          {
+            "molecule_id": "1-20",
+            "split": "train"
+          },
+          {
+            "molecule_id": "1-24",
+            "split": "train"
+          },
+          {
+            "molecule_id": "1-29",
+            "split": "train"
+          },
+          {
+            "molecule_id": "1-31a",
+            "split": "train"
+          },
+          {
+            "molecule_id": "1-31b",
+            "split": "train"
+          },
+          {
+            "molecule_id": "1-35",
+            "split": "train"
+          },
+          {
+            "molecule_id": "1-37",
+            "split": "train"
+          },
+          {
+            "molecule_id": "1-3a",
+            "split": "train"
+          },
+          {
+            "molecule_id": "1-3b",
+            "split": "train"
+          },
+          {
+            "molecule_id": "1-3c",
+            "split": "train"
+          },
+          {
+            "molecule_id": "1-3d",
+            "split": "train"
+          },
+          {
+            "molecule_id": "1-3f",
+            "split": "train"
+          },
+          {
+            "molecule_id": "1-3g",
+            "split": "train"
+          },
+          {
+            "molecule_id": "1-3h",
+            "split": "train"
+          },
+          {
+            "molecule_id": "1-3i",
+            "split": "train"
+          },
+          {
+            "molecule_id": "1-3l",
+            "split": "train"
+          },
+          {
+            "molecule_id": "1-3m",
+            "split": "train"
+          },
+          {
+            "molecule_id": "1-3n",
+            "split": "train"
+          },
+          {
+            "molecule_id": "1-9",
+            "split": "train"
+          },
+          {
+            "molecule_id": "2-12",
+            "split": "train"
+          },
+          {
+            "molecule_id": "2-14",
+            "split": "train"
+          },
+          {
+            "molecule_id": "2-15",
+            "split": "train"
+          },
+          {
+            "molecule_id": "2-21",
+            "split": "train"
+          },
+          {
+            "molecule_id": "2-22",
+            "split": "train"
+          },
+          {
+            "molecule_id": "2-24",
+            "split": "train"
+          },
+          {
+            "molecule_id": "2-25",
+            "split": "train"
+          },
+          {
+            "molecule_id": "2-26",
+            "split": "train"
+          },
+          {
+            "molecule_id": "2-27",
+            "split": "train"
+          },
+          {
+            "molecule_id": "2-28",
+            "split": "train"
+          },
+          {
+            "molecule_id": "2-30",
+            "split": "train"
+          },
+          {
+            "molecule_id": "2-33",
+            "split": "train"
+          },
+          {
+            "molecule_id": "2-34",
+            "split": "train"
+          },
+          {
+            "molecule_id": "2-35",
+            "split": "train"
+          },
+          {
+            "molecule_id": "2-3c",
+            "split": "train"
+          },
+          {
+            "molecule_id": "2-3d",
+            "split": "train"
+          },
+          {
+            "molecule_id": "2-3f",
+            "split": "train"
+          },
+          {
+            "molecule_id": "2-3g",
+            "split": "train"
+          },
+          {
+            "molecule_id": "2-3i",
+            "split": "train"
+          },
+          {
+            "molecule_id": "2-3j",
+            "split": "train"
+          },
+          {
+            "molecule_id": "2-3k",
+            "split": "train"
+          },
+          {
+            "molecule_id": "2-3l",
+            "split": "train"
+          },
+          {
+            "molecule_id": "2-3m",
+            "split": "train"
+          },
+          {
+            "molecule_id": "2-3n",
+            "split": "train"
+          },
+          {
+            "molecule_id": "2-3p",
+            "split": "train"
+          },
+          {
+            "molecule_id": "2-3r",
+            "split": "train"
+          },
+          {
+            "molecule_id": "3-13c",
+            "split": "train"
+          },
+          {
+            "molecule_id": "3-13d",
+            "split": "train"
+          },
+          {
+            "molecule_id": "3-13e_E2020",
+            "split": "train"
+          },
+          {
+            "molecule_id": "3-13g",
+            "split": "train"
+          },
+          {
+            "molecule_id": "3-13h",
+            "split": "train"
+          },
+          {
+            "molecule_id": "3-13i",
+            "split": "train"
+          },
+          {
+            "molecule_id": "3-13j",
+            "split": "train"
+          },
+          {
+            "molecule_id": "3-13k",
+            "split": "train"
+          },
+          {
+            "molecule_id": "3-13l",
+            "split": "train"
+          },
+          {
+            "molecule_id": "3-13n",
+            "split": "train"
+          },
+          {
+            "molecule_id": "3-13o",
+            "split": "train"
+          },
+          {
+            "molecule_id": "3-15a",
+            "split": "train"
+          },
+          {
+            "molecule_id": "3-16a",
+            "split": "train"
+          },
+          {
+            "molecule_id": "3-16b",
+            "split": "train"
+          },
+          {
+            "molecule_id": "3-16c",
+            "split": "train"
+          },
+          {
+            "molecule_id": "3-16d",
+            "split": "train"
+          },
+          {
+            "molecule_id": "3-16f",
+            "split": "train"
+          },
+          {
+            "molecule_id": "3-16g",
+            "split": "train"
+          },
+          {
+            "molecule_id": "3-9",
+            "split": "train"
+          },
+          {
+            "molecule_id": "1-11",
+            "split": "held_out"
+          },
+          {
+            "molecule_id": "1-17",
+            "split": "held_out"
+          },
+          {
+            "molecule_id": "1-21",
+            "split": "held_out"
+          },
+          {
+            "molecule_id": "1-22",
+            "split": "held_out"
+          },
+          {
+            "molecule_id": "1-23",
+            "split": "held_out"
+          },
+          {
+            "molecule_id": "1-25",
+            "split": "held_out"
+          },
+          {
+            "molecule_id": "1-26",
+            "split": "held_out"
+          },
+          {
+            "molecule_id": "1-31c",
+            "split": "held_out"
+          },
+          {
+            "molecule_id": "1-31d",
+            "split": "held_out"
+          },
+          {
+            "molecule_id": "1-34",
+            "split": "held_out"
+          },
+          {
+            "molecule_id": "1-38",
+            "split": "held_out"
+          },
+          {
+            "molecule_id": "1-39",
+            "split": "held_out"
+          },
+          {
+            "molecule_id": "1-3e",
+            "split": "held_out"
+          },
+          {
+            "molecule_id": "1-3j",
+            "split": "held_out"
+          },
+          {
+            "molecule_id": "1-3k",
+            "split": "held_out"
+          },
+          {
+            "molecule_id": "1-3o",
+            "split": "held_out"
+          },
+          {
+            "molecule_id": "1-40",
+            "split": "held_out"
+          },
+          {
+            "molecule_id": "2-23",
+            "split": "held_out"
+          },
+          {
+            "molecule_id": "2-29",
+            "split": "held_out"
+          },
+          {
+            "molecule_id": "2-31",
+            "split": "held_out"
+          },
+          {
+            "molecule_id": "2-32",
+            "split": "held_out"
+          },
+          {
+            "molecule_id": "2-36",
+            "split": "held_out"
+          },
+          {
+            "molecule_id": "2-3b",
+            "split": "held_out"
+          },
+          {
+            "molecule_id": "2-3e",
+            "split": "held_out"
+          },
+          {
+            "molecule_id": "2-3h",
+            "split": "held_out"
+          },
+          {
+            "molecule_id": "2-3o",
+            "split": "held_out"
+          },
+          {
+            "molecule_id": "2-9",
+            "split": "held_out"
+          },
+          {
+            "molecule_id": "3-12a",
+            "split": "held_out"
+          },
+          {
+            "molecule_id": "3-13a",
+            "split": "held_out"
+          },
+          {
+            "molecule_id": "3-13b",
+            "split": "held_out"
+          },
+          {
+            "molecule_id": "3-13f",
+            "split": "held_out"
+          },
+          {
+            "molecule_id": "3-13m",
+            "split": "held_out"
+          },
+          {
+            "molecule_id": "3-15b",
+            "split": "held_out"
+          },
+          {
+            "molecule_id": "3-16e",
+            "split": "held_out"
+          },
+          {
+            "molecule_id": "3-16h",
+            "split": "held_out"
+          },
+          {
+            "molecule_id": "3-17",
+            "split": "held_out"
+          },
+          {
+            "molecule_id": "3-18",
+            "split": "held_out"
+          }
+        ]
+      },
+      "grid": {
+        "origin": [
+          -11.0,
+          52.0,
+          54.0
+        ],
+        "shape": [
+          24,
+          25,
+          28
+        ],
+        "spacing": 1.0
+      },
+      "train": [
+        0,
+        1,
+        2,
+        3,
+        4,
+        5,
+        6,
+        7,
+        8,
+        9,
+        10,
+        11,
+        12,
+        13,
+        14,
+        15,
+        16,
+        17,
+        18,
+        19,
+        20,
+        21,
+        22,
+        23,
+        24,
+        25,
+        26,
+        27,
+        28,
+        29,
+        30,
+        31,
+        32,
+        33,
+        34,
+        35,
+        36,
+        37,
+        38,
+        39,
+        40,
+        41,
+        42,
+        43,
+        44,
+        45,
+        46,
+        47,
+        48,
+        49,
+        50,
+        51,
+        52,
+        53,
+        54,
+        55,
+        56,
+        57,
+        58,
+        59,
+        60,
+        61,
+        62,
+        63,
+        64,
+        65,
+        66,
+        67,
+        68,
+        69,
+        70,
+        71,
+        72,
+        73
+      ],
+      "test": [
+        74,
+        75,
+        76,
+        77,
+        78,
+        79,
+        80,
+        81,
+        82,
+        83,
+        84,
+        85,
+        86,
+        87,
+        88,
+        89,
+        90,
+        91,
+        92,
+        93,
+        94,
+        95,
+        96,
+        97,
+        98,
+        99,
+        100,
+        101,
+        102,
+        103,
+        104,
+        105,
+        106,
+        107,
+        108,
+        109,
+        110
+      ],
+      "input_sha256": {
+        "membership.csv": "1360a798f0c69a494b8ffb8eb816fff14640ef2226d2e8e37e618e549b99650b",
+        "commands.inp": "aae15d4cf047bd93d9373064305e283a44c9de51cfa9edaf1af67e4e3b18f247",
+        "activities.txt": "139e773179fdf0c29da694dcd8588294889de99427ac632d63cded23979d5ffd",
+        "input.sdf": "c1c1e5fe2df54d8c503b2336ab9ece3571c4c07049340158847ea7a57da6d49d"
+      },
+      "common_engine_params": {
+        "method": "comfa",
+        "field_definition": "sarscope",
+        "field_subset": [
+          "steric",
+          "electrostatic"
+        ],
+        "field_scaling": "block_std",
+        "grid_convention": "enclosing",
+        "grid_phase": [
+          0.0,
+          0.0,
+          0.0
+        ],
+        "spacing": 1.0,
+        "margin": 4.0,
+        "charge_model": "mmff94",
+        "allow_charge_fallback": false,
+        "alpha": 0.3,
+        "dielectric": 1.0,
+        "dielectric_model": "constant",
+        "electrostatic_cutoff": null,
+        "missing_field_policy": "refuse",
+        "max_imputed_fraction": 0.1,
+        "steric_cutoff": 30.0,
+        "minimum_distance": 0.3,
+        "probe_radius": 1.7,
+        "probe_epsilon": 0.107,
+        "filter_mode": "percentile",
+        "field_screen": "per_field",
+        "minimum_sd": 2.0,
+        "keep_fraction": 0.3,
+        "max_features": 2000,
+        "component_cap": 4,
+        "fixed_components": null,
+        "component_improvement": 0.05,
+        "component_selection": "max_q2",
+        "component_sample_ratio": 5,
+        "pls_max_iter": 500,
+        "pls_tolerance": 1e-06,
+        "alignment": "prealigned",
+        "assess_prealigned_core": false,
+        "preserve_input_hydrogens": true,
+        "reference_index": 0,
+        "min_core_coverage": 0.5,
+        "max_alignment_rmsd": 1.0,
+        "mcs_timeout": 5,
+        "max_mappings": 256,
+        "conformers": 8,
+        "molecule_timeout": 30,
+        "alignment_timeout": 180,
+        "permutation_timeout": 600,
+        "max_molecules": 150,
+        "max_grid_points": 80000,
+        "max_memory_mb": 768,
+        "chunk_points": 512,
+        "permutations": 0,
+        "permutation_alpha": 0.05,
+        "contour_percentile": 80.0,
+        "seed": 42
+      },
+      "common_engine_note": "method=comfa selects two-block filtering only; descriptors supplied by native Open3DQSAR, NOT computed with SARscope's LJ equations"
+    },
+    {
+      "cohort": "AChE",
+      "route": "open3dalign_atom",
+      "n": 111,
+      "source": {
+        "doi": "10.1021/jm0497141",
+        "licence": "CC-BY-NC-4.0",
+        "archive_sha256": "e69edbb64048a243db5bce8700b198ce9a60b6f8fe5c87f30d863d1f99790ecf",
+        "sdf_sha256": "218ff88d34ab638a949c5b5863116c146c376396ec6b174be929f77954425965",
+        "reference_id": "1-1",
+        "reference_policy": "First training molecule in previously frozen order; never activity-selected",
+        "previous_predictions_sha256": "95d30226fc32fc841d3e636120bba8901dde6341c5a7bd938f5ba3df49891571",
+        "field_params": {
+          "method": "comsia",
+          "field_definition": "sarscope",
+          "field_subset": [
+            "steric",
+            "electrostatic",
+            "hydrophobic",
+            "hbond_donor",
+            "hbond_acceptor"
+          ],
+          "field_scaling": "block_std",
+          "grid_convention": "enclosing",
+          "grid_phase": [
+            0.0,
+            0.0,
+            0.0
+          ],
+          "spacing": 1.0,
+          "margin": 4.0,
+          "charge_model": "gasteiger",
+          "allow_charge_fallback": false,
+          "alpha": 0.3,
+          "dielectric": 1.0,
+          "dielectric_model": "constant",
+          "electrostatic_cutoff": null,
+          "missing_field_policy": "refuse",
+          "max_imputed_fraction": 0.1,
+          "steric_cutoff": 30.0,
+          "minimum_distance": 0.3,
+          "probe_radius": 1.7,
+          "probe_epsilon": 0.107,
+          "filter_mode": "percentile",
+          "field_screen": "per_field",
+          "minimum_sd": 2.0,
+          "keep_fraction": 0.3,
+          "max_features": 2000,
+          "component_cap": 4,
+          "fixed_components": null,
+          "component_improvement": 0.05,
+          "component_selection": "max_q2",
+          "component_sample_ratio": 5,
+          "pls_max_iter": 500,
+          "pls_tolerance": 1e-06,
+          "alignment": "prealigned",
+          "assess_prealigned_core": false,
+          "preserve_input_hydrogens": true,
+          "reference_index": 0,
+          "min_core_coverage": 0.5,
+          "max_alignment_rmsd": 1.0,
+          "mcs_timeout": 5,
+          "max_mappings": 256,
+          "conformers": 8,
+          "molecule_timeout": 30,
+          "alignment_timeout": 180,
+          "permutation_timeout": 600,
+          "max_molecules": 150,
+          "max_grid_points": 80000,
+          "max_memory_mb": 768,
+          "chunk_points": 512,
+          "permutations": 0,
+          "permutation_alpha": 0.05,
+          "contour_percentile": 80.0,
+          "seed": 42
+        },
+        "membership": [
+          {
+            "molecule_id": "1-1",
+            "split": "train"
+          },
+          {
+            "molecule_id": "1-10",
+            "split": "train"
+          },
+          {
+            "molecule_id": "1-12",
+            "split": "train"
+          },
+          {
+            "molecule_id": "1-13",
+            "split": "train"
+          },
+          {
+            "molecule_id": "1-14",
+            "split": "train"
+          },
+          {
+            "molecule_id": "1-15",
+            "split": "train"
+          },
+          {
+            "molecule_id": "1-16",
+            "split": "train"
+          },
+          {
+            "molecule_id": "1-18",
+            "split": "train"
+          },
+          {
+            "molecule_id": "1-19",
+            "split": "train"
+          },
+          {
+            "molecule_id": "1-2",
+            "split": "train"
+          },
+          {
+            "molecule_id": "1-20",
+            "split": "train"
+          },
+          {
+            "molecule_id": "1-24",
+            "split": "train"
+          },
+          {
+            "molecule_id": "1-29",
+            "split": "train"
+          },
+          {
+            "molecule_id": "1-31a",
+            "split": "train"
+          },
+          {
+            "molecule_id": "1-31b",
+            "split": "train"
+          },
+          {
+            "molecule_id": "1-35",
+            "split": "train"
+          },
+          {
+            "molecule_id": "1-37",
+            "split": "train"
+          },
+          {
+            "molecule_id": "1-3a",
+            "split": "train"
+          },
+          {
+            "molecule_id": "1-3b",
+            "split": "train"
+          },
+          {
+            "molecule_id": "1-3c",
+            "split": "train"
+          },
+          {
+            "molecule_id": "1-3d",
+            "split": "train"
+          },
+          {
+            "molecule_id": "1-3f",
+            "split": "train"
+          },
+          {
+            "molecule_id": "1-3g",
+            "split": "train"
+          },
+          {
+            "molecule_id": "1-3h",
+            "split": "train"
+          },
+          {
+            "molecule_id": "1-3i",
+            "split": "train"
+          },
+          {
+            "molecule_id": "1-3l",
+            "split": "train"
+          },
+          {
+            "molecule_id": "1-3m",
+            "split": "train"
+          },
+          {
+            "molecule_id": "1-3n",
+            "split": "train"
+          },
+          {
+            "molecule_id": "1-9",
+            "split": "train"
+          },
+          {
+            "molecule_id": "2-12",
+            "split": "train"
+          },
+          {
+            "molecule_id": "2-14",
+            "split": "train"
+          },
+          {
+            "molecule_id": "2-15",
+            "split": "train"
+          },
+          {
+            "molecule_id": "2-21",
+            "split": "train"
+          },
+          {
+            "molecule_id": "2-22",
+            "split": "train"
+          },
+          {
+            "molecule_id": "2-24",
+            "split": "train"
+          },
+          {
+            "molecule_id": "2-25",
+            "split": "train"
+          },
+          {
+            "molecule_id": "2-26",
+            "split": "train"
+          },
+          {
+            "molecule_id": "2-27",
+            "split": "train"
+          },
+          {
+            "molecule_id": "2-28",
+            "split": "train"
+          },
+          {
+            "molecule_id": "2-30",
+            "split": "train"
+          },
+          {
+            "molecule_id": "2-33",
+            "split": "train"
+          },
+          {
+            "molecule_id": "2-34",
+            "split": "train"
+          },
+          {
+            "molecule_id": "2-35",
+            "split": "train"
+          },
+          {
+            "molecule_id": "2-3c",
+            "split": "train"
+          },
+          {
+            "molecule_id": "2-3d",
+            "split": "train"
+          },
+          {
+            "molecule_id": "2-3f",
+            "split": "train"
+          },
+          {
+            "molecule_id": "2-3g",
+            "split": "train"
+          },
+          {
+            "molecule_id": "2-3i",
+            "split": "train"
+          },
+          {
+            "molecule_id": "2-3j",
+            "split": "train"
+          },
+          {
+            "molecule_id": "2-3k",
+            "split": "train"
+          },
+          {
+            "molecule_id": "2-3l",
+            "split": "train"
+          },
+          {
+            "molecule_id": "2-3m",
+            "split": "train"
+          },
+          {
+            "molecule_id": "2-3n",
+            "split": "train"
+          },
+          {
+            "molecule_id": "2-3p",
+            "split": "train"
+          },
+          {
+            "molecule_id": "2-3r",
+            "split": "train"
+          },
+          {
+            "molecule_id": "3-13c",
+            "split": "train"
+          },
+          {
+            "molecule_id": "3-13d",
+            "split": "train"
+          },
+          {
+            "molecule_id": "3-13e_E2020",
+            "split": "train"
+          },
+          {
+            "molecule_id": "3-13g",
+            "split": "train"
+          },
+          {
+            "molecule_id": "3-13h",
+            "split": "train"
+          },
+          {
+            "molecule_id": "3-13i",
+            "split": "train"
+          },
+          {
+            "molecule_id": "3-13j",
+            "split": "train"
+          },
+          {
+            "molecule_id": "3-13k",
+            "split": "train"
+          },
+          {
+            "molecule_id": "3-13l",
+            "split": "train"
+          },
+          {
+            "molecule_id": "3-13n",
+            "split": "train"
+          },
+          {
+            "molecule_id": "3-13o",
+            "split": "train"
+          },
+          {
+            "molecule_id": "3-15a",
+            "split": "train"
+          },
+          {
+            "molecule_id": "3-16a",
+            "split": "train"
+          },
+          {
+            "molecule_id": "3-16b",
+            "split": "train"
+          },
+          {
+            "molecule_id": "3-16c",
+            "split": "train"
+          },
+          {
+            "molecule_id": "3-16d",
+            "split": "train"
+          },
+          {
+            "molecule_id": "3-16f",
+            "split": "train"
+          },
+          {
+            "molecule_id": "3-16g",
+            "split": "train"
+          },
+          {
+            "molecule_id": "3-9",
+            "split": "train"
+          },
+          {
+            "molecule_id": "1-11",
+            "split": "held_out"
+          },
+          {
+            "molecule_id": "1-17",
+            "split": "held_out"
+          },
+          {
+            "molecule_id": "1-21",
+            "split": "held_out"
+          },
+          {
+            "molecule_id": "1-22",
+            "split": "held_out"
+          },
+          {
+            "molecule_id": "1-23",
+            "split": "held_out"
+          },
+          {
+            "molecule_id": "1-25",
+            "split": "held_out"
+          },
+          {
+            "molecule_id": "1-26",
+            "split": "held_out"
+          },
+          {
+            "molecule_id": "1-31c",
+            "split": "held_out"
+          },
+          {
+            "molecule_id": "1-31d",
+            "split": "held_out"
+          },
+          {
+            "molecule_id": "1-34",
+            "split": "held_out"
+          },
+          {
+            "molecule_id": "1-38",
+            "split": "held_out"
+          },
+          {
+            "molecule_id": "1-39",
+            "split": "held_out"
+          },
+          {
+            "molecule_id": "1-3e",
+            "split": "held_out"
+          },
+          {
+            "molecule_id": "1-3j",
+            "split": "held_out"
+          },
+          {
+            "molecule_id": "1-3k",
+            "split": "held_out"
+          },
+          {
+            "molecule_id": "1-3o",
+            "split": "held_out"
+          },
+          {
+            "molecule_id": "1-40",
+            "split": "held_out"
+          },
+          {
+            "molecule_id": "2-23",
+            "split": "held_out"
+          },
+          {
+            "molecule_id": "2-29",
+            "split": "held_out"
+          },
+          {
+            "molecule_id": "2-31",
+            "split": "held_out"
+          },
+          {
+            "molecule_id": "2-32",
+            "split": "held_out"
+          },
+          {
+            "molecule_id": "2-36",
+            "split": "held_out"
+          },
+          {
+            "molecule_id": "2-3b",
+            "split": "held_out"
+          },
+          {
+            "molecule_id": "2-3e",
+            "split": "held_out"
+          },
+          {
+            "molecule_id": "2-3h",
+            "split": "held_out"
+          },
+          {
+            "molecule_id": "2-3o",
+            "split": "held_out"
+          },
+          {
+            "molecule_id": "2-9",
+            "split": "held_out"
+          },
+          {
+            "molecule_id": "3-12a",
+            "split": "held_out"
+          },
+          {
+            "molecule_id": "3-13a",
+            "split": "held_out"
+          },
+          {
+            "molecule_id": "3-13b",
+            "split": "held_out"
+          },
+          {
+            "molecule_id": "3-13f",
+            "split": "held_out"
+          },
+          {
+            "molecule_id": "3-13m",
+            "split": "held_out"
+          },
+          {
+            "molecule_id": "3-15b",
+            "split": "held_out"
+          },
+          {
+            "molecule_id": "3-16e",
+            "split": "held_out"
+          },
+          {
+            "molecule_id": "3-16h",
+            "split": "held_out"
+          },
+          {
+            "molecule_id": "3-17",
+            "split": "held_out"
+          },
+          {
+            "molecule_id": "3-18",
+            "split": "held_out"
+          }
+        ]
+      },
+      "grid": {
+        "origin": [
+          -11.0,
+          52.0,
+          54.0
+        ],
+        "shape": [
+          24,
+          25,
+          28
+        ],
+        "spacing": 1.0
+      },
+      "train": [
+        0,
+        1,
+        2,
+        3,
+        4,
+        5,
+        6,
+        7,
+        8,
+        9,
+        10,
+        11,
+        12,
+        13,
+        14,
+        15,
+        16,
+        17,
+        18,
+        19,
+        20,
+        21,
+        22,
+        23,
+        24,
+        25,
+        26,
+        27,
+        28,
+        29,
+        30,
+        31,
+        32,
+        33,
+        34,
+        35,
+        36,
+        37,
+        38,
+        39,
+        40,
+        41,
+        42,
+        43,
+        44,
+        45,
+        46,
+        47,
+        48,
+        49,
+        50,
+        51,
+        52,
+        53,
+        54,
+        55,
+        56,
+        57,
+        58,
+        59,
+        60,
+        61,
+        62,
+        63,
+        64,
+        65,
+        66,
+        67,
+        68,
+        69,
+        70,
+        71,
+        72,
+        73
+      ],
+      "test": [
+        74,
+        75,
+        76,
+        77,
+        78,
+        79,
+        80,
+        81,
+        82,
+        83,
+        84,
+        85,
+        86,
+        87,
+        88,
+        89,
+        90,
+        91,
+        92,
+        93,
+        94,
+        95,
+        96,
+        97,
+        98,
+        99,
+        100,
+        101,
+        102,
+        103,
+        104,
+        105,
+        106,
+        107,
+        108,
+        109,
+        110
+      ],
+      "input_sha256": {
+        "membership.csv": "1360a798f0c69a494b8ffb8eb816fff14640ef2226d2e8e37e618e549b99650b",
+        "commands.inp": "6b4c8f317a5ae2245ebb681d000aae85aa309569321df9d5c418bfb7c44a05e3",
+        "activities.txt": "139e773179fdf0c29da694dcd8588294889de99427ac632d63cded23979d5ffd",
+        "input.sdf": "1350f502a23194cd0b6b73462cb545e63415b80b239a625fb4d01fda3a1b12db"
+      },
+      "common_engine_params": {
+        "method": "comfa",
+        "field_definition": "sarscope",
+        "field_subset": [
+          "steric",
+          "electrostatic"
+        ],
+        "field_scaling": "block_std",
+        "grid_convention": "enclosing",
+        "grid_phase": [
+          0.0,
+          0.0,
+          0.0
+        ],
+        "spacing": 1.0,
+        "margin": 4.0,
+        "charge_model": "mmff94",
+        "allow_charge_fallback": false,
+        "alpha": 0.3,
+        "dielectric": 1.0,
+        "dielectric_model": "constant",
+        "electrostatic_cutoff": null,
+        "missing_field_policy": "refuse",
+        "max_imputed_fraction": 0.1,
+        "steric_cutoff": 30.0,
+        "minimum_distance": 0.3,
+        "probe_radius": 1.7,
+        "probe_epsilon": 0.107,
+        "filter_mode": "percentile",
+        "field_screen": "per_field",
+        "minimum_sd": 2.0,
+        "keep_fraction": 0.3,
+        "max_features": 2000,
+        "component_cap": 4,
+        "fixed_components": null,
+        "component_improvement": 0.05,
+        "component_selection": "max_q2",
+        "component_sample_ratio": 5,
+        "pls_max_iter": 500,
+        "pls_tolerance": 1e-06,
+        "alignment": "prealigned",
+        "assess_prealigned_core": false,
+        "preserve_input_hydrogens": true,
+        "reference_index": 0,
+        "min_core_coverage": 0.5,
+        "max_alignment_rmsd": 1.0,
+        "mcs_timeout": 5,
+        "max_mappings": 256,
+        "conformers": 8,
+        "molecule_timeout": 30,
+        "alignment_timeout": 180,
+        "permutation_timeout": 600,
+        "max_molecules": 150,
+        "max_grid_points": 80000,
+        "max_memory_mb": 768,
+        "chunk_points": 512,
+        "permutations": 0,
+        "permutation_alpha": 0.05,
+        "contour_percentile": 80.0,
+        "seed": 42
+      },
+      "common_engine_note": "method=comfa selects two-block filtering only; descriptors supplied by native Open3DQSAR, NOT computed with SARscope's LJ equations"
+    }
+  ],
+  "no_exclusions": true,
+  "source_manual_sha256": "d4d2e64195af523ba53f2b52ea6ceacc827d2d14b124eac8f56ddfcc3a057a40",
+  "source_policy": "Public bundled user documentation and command examples only; no GPL algorithm source"
+}

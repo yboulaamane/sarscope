@@ -1,0 +1,25 @@
+{
+  "policy_version": 1,
+  "purpose": "Interactive, uncertainty-aware 3D SAR; not automatic lead optimisation",
+  "pose_status": "sensitive",
+  "pose_message": "Alignment-sensitive predictions: 3 completed pose stress check(s) exceed the declared limits. Treat contour interpretations and proposed potency gains as unstable hypotheses, not optimisation recommendations.",
+  "interpretation_message": "Alignment-sensitive predictions: 3 completed pose stress check(s) exceed the declared limits. Treat contour interpretations and proposed potency gains as unstable hypotheses, not optimisation recommendations.",
+  "other_sensitivity_failures": 0,
+  "complete_pose_protocol": true,
+  "failed_pose_checks": 3,
+  "maximum_training_oof_pose_change": 1.7381615753006345,
+  "pose_thresholds": {
+    "p95_log_units": 0.5,
+    "maximum_log_units": 1.0
+  },
+  "limits": "Training-only refitted OOF prediction sensitivity; not a new-compound uncertainty interval, contour-location stability test or universal validity criterion.",
+  "requires_exploratory_consent": true,
+  "baseline": {
+    "field_rmse": 0.6687031071765973,
+    "rf_rmse": 0.9501219858415288,
+    "mean_rmse": 1.1189038706152454,
+    "field_minus_rf_rmse": -0.28141887866493154,
+    "interpretation": "Same-split point estimates only; not a test of superiority."
+  },
+  "dominant_field": null
+}

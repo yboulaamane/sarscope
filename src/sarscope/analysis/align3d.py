@@ -163,8 +163,17 @@ def _generate(
     if hasattr(embedding, "timeout"):
         embedding.timeout = min(params.molecule_timeout, 10)
     conformers = AllChem.EmbedMultipleConfs(molecule, params.conformers, embedding)
+    available = {conf.GetId() for conf in molecule.GetConformers()}
+    valid_ids = [int(conf_id) for conf_id in conformers if int(conf_id) in available]
+    if not valid_ids:
+        raise ValueError(
+            "Core-constrained embedding produced no conformer within its bounded search. "
+            "The reference core may be incompatible with this molecule's stereochemistry "
+            "or conformation. Review the reference or provide a reviewed pre-aligned SDF; "
+            "no stereochemistry or constraints were relaxed."
+        )
     best_mol, best_energy = None, float("inf")
-    for conf_id in conformers:
+    for conf_id in valid_ids:
         candidate = Chem.Mol(molecule)
         conf = Chem.Conformer(candidate.GetConformer(int(conf_id)))
         candidate.RemoveAllConformers()

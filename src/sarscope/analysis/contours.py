@@ -72,9 +72,10 @@ def contribution_maps(
         }[name]
         if name == "steric" and params.method == "comfa":
             positive_meaning = (
-                "Higher LJ probe energy is associated with higher pActivity; "
-                "this is not an unconditional instruction to add bulk"
-            )
+                "Higher MMFF buffered 14-7 probe energy is associated with higher pActivity; "
+                if params.field_definition == "mmff94_mif"
+                else "Higher LJ probe energy is associated with higher pActivity; "
+            ) + "this is not an unconditional instruction to add bulk"
         rows.append(
             {
                 "field": name,
