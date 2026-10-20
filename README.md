@@ -1,9 +1,13 @@
 # SARscope
 
-The local **0.2.0rc1** paper-reproducibility candidate includes the independent
+The public **0.2.0rc1** paper-reproducibility snapshot includes the independent
 MMFF94 field implementation, frozen comparison evidence and a hash-verified
-12,607,200-value count audit. It is not yet a published release. See
+12,607,200-value count audit. The tested implementation is commit
+`28bc9fb`; a formal tagged release and permanent archival deposit remain pending. See
 [reproduction and release instructions](docs/reproducibility-release-candidate.md).
+
+The current [paper and Supporting Information](submission_mol_inf/README.md)
+include synchronized Word files, editable text sources and figure artwork.
 
 **Generated-alignment checks:** rigid MCS and core-constrained alignment now have
 [two-stack implementation validation](docs/generated-alignment-validation.md):

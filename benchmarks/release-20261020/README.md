@@ -1,5 +1,10 @@
 # Local 0.2.0rc1 candidate check record
 
+Historical preparation record: commit `28bc9fb` was subsequently pushed to
+public main on 20 October 2026. The execution outcomes and preparation-state
+descriptions below are preserved as recorded, not rewritten as new runs.
+Current publication status is in `docs/reproducibility-release-candidate.md`.
+
 Prepared on Python 3.13.13 / Linux, with NumPy 2.5.4, pandas 3.0.6,
 SciPy 1.18.1, scikit-learn 1.9.1, RDKit 2026.09.1, Streamlit 1.66.0
 and Sorbent 0.1.1. This is a candidate engineering/reproducibility check,

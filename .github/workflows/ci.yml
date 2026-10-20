@@ -14,7 +14,9 @@ jobs:
         with:
           python-version: "3.12"
           cache: pip
-      - run: pip install -e ".[dev]"
+      # The full suite imports the browser ML stage and exercises AppTest.
+      # Install its declared extra instead of skipping or weakening those tests.
+      - run: pip install -e ".[dev,app]"
       - run: ruff check .
       - run: ruff format --check .
       - run: mypy src/sarscope
