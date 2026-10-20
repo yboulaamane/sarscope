@@ -1,0 +1,26 @@
+{
+  "captured_on": "2026-10-20",
+  "source": "Actual local Streamlit app; current working tree",
+  "base_commit": "0b7b76a6fbc8578b62cbb4dd8cab3146158bb7b2",
+  "entrypoint": "streamlit_app.py",
+  "entrypoint_sha256": "e94a7eff5304f0f285420806557e655c632c3dc394ef8606751f9ac4f8767ef2",
+  "route": "ChEMBL potency & SAR landing page",
+  "capture_url": "http://127.0.0.1:8512",
+  "browser": "153.0.8010.12",
+  "viewport": {
+    "width": 1600,
+    "height": 960
+  },
+  "http_status": 200,
+  "page_errors": [],
+  "console_errors": [],
+  "failed_requests": [],
+  "postprocessing": "None",
+  "data_note": "No target lookup, dataset download, model fit or docking was triggered.",
+  "screenshot_sha256": "86ca8cdc47e8ffc6a9d4b6501ac96daeeb5644188cf9d92cff717fb203f21a6e",
+  "brand_assets": {
+    "sarscope-logo.svg": "e3db8d01f357b4eede9689590de739a075f0be76634d3d7f3f833357ac1e7832",
+    "sarscope-mark.svg": "0e88a4076180056e885ba09ea0b35153c71338985bc31ca2927bdc6b3691a125"
+  },
+  "deployment_note": "Captured from a local preview before the branding changes were committed or deployed; this is not a capture of the hosted deployment."
+}

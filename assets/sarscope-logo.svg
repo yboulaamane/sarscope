@@ -1,0 +1,26 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 640 160" role="img" aria-labelledby="title desc">
+  <title id="title">SARscope</title>
+  <desc id="desc">A molecular ring inside a teal scope, with amber and coral substituent nodes. SARscope: from structure to insight.</desc>
+  <defs>
+    <linearGradient id="surface" x2="1" y2="1">
+      <stop stop-color="#252133"/>
+      <stop offset="1" stop-color="#14131d"/>
+    </linearGradient>
+    <linearGradient id="lens" x2="1" y2="1">
+      <stop stop-color="#7aefd3"/>
+      <stop offset="1" stop-color="#39bfa2"/>
+    </linearGradient>
+  </defs>
+  <rect width="640" height="160" rx="24" fill="url(#surface)"/>
+  <g transform="translate(20 16)">
+    <circle cx="58" cy="56" r="37" fill="#213d3b" opacity=".72"/>
+    <path d="m84 83 25 25" stroke="#c59bff" stroke-width="10" stroke-linecap="round"/>
+    <circle cx="58" cy="56" r="35" fill="none" stroke="url(#lens)" stroke-width="7"/>
+    <path d="m58 34 19 11v22L58 78 39 67V45Z" fill="none" stroke="#f5f1f9" stroke-width="3.5" stroke-linejoin="round"/>
+    <path d="m58 41 13 8M71 63l-13 8M45 63V49" fill="none" stroke="#f5f1f9" stroke-width="2" stroke-linecap="round"/>
+    <circle cx="77" cy="45" r="6" fill="#ffca76"/>
+    <circle cx="39" cy="67" r="5" fill="#ff8194"/>
+  </g>
+  <text x="166" y="96" font-family="Arial, Helvetica, sans-serif" font-size="70" font-weight="700" letter-spacing="-2.5" fill="#f5f1f9">SAR<tspan fill="#65e0c0">scope</tspan></text>
+  <text x="170" y="125" font-family="Arial, Helvetica, sans-serif" font-size="12" font-weight="600" letter-spacing="3" fill="#d1c4dc">FROM STRUCTURE TO INSIGHT</text>
+</svg>

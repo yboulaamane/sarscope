@@ -1,0 +1,12 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 128 128" role="img" aria-labelledby="title desc">
+  <title id="title">SARscope icon</title>
+  <desc id="desc">A molecular ring inside a teal scope with amber and coral nodes.</desc>
+  <rect width="128" height="128" rx="28" fill="#211d2d"/>
+  <circle cx="58" cy="56" r="37" fill="#213d3b" opacity=".72"/>
+  <path d="m84 83 25 25" stroke="#c59bff" stroke-width="10" stroke-linecap="round"/>
+  <circle cx="58" cy="56" r="35" fill="none" stroke="#65e0c0" stroke-width="7"/>
+  <path d="m58 34 19 11v22L58 78 39 67V45Z" fill="none" stroke="#f5f1f9" stroke-width="3.5" stroke-linejoin="round"/>
+  <path d="m58 41 13 8M71 63l-13 8M45 63V49" fill="none" stroke="#f5f1f9" stroke-width="2" stroke-linecap="round"/>
+  <circle cx="77" cy="45" r="6" fill="#ffca76"/>
+  <circle cx="39" cy="67" r="5" fill="#ff8194"/>
+</svg>

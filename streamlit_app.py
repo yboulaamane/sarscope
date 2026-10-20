@@ -2510,6 +2510,11 @@ def main() -> None:
     else:
         _startup_notice.empty()
     apply_visual_theme()
+    st.logo(
+        str(Path(__file__).parent / "assets" / "sarscope-logo.svg"),
+        size="large",
+        icon_image=str(Path(__file__).parent / "assets" / "sarscope-mark.svg"),
+    )
     with st.sidebar:
         workflow = st.radio(
             "Workflow",
