@@ -1,5 +1,9 @@
 # Task: add field-based 3D-QSAR (CoMFA / CoMSIA) to SARscope
 
+Historical development prompt, retained for transparency. Its descriptions of
+the then-current code and proposed methods are not current user documentation,
+the final scientific protocol, or a claim that every proposed item was implemented.
+
 You are adding a new analysis capability to **SARscope**
 (`github.com/yboulaamane/sarscope`, MIT). Work inside the existing repository
 and follow its conventions. Do not create a separate application.

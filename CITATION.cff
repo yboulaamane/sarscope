@@ -1,5 +1,5 @@
 cff-version: 1.2.0
-message: "Cite the exact software revision used. This 0.2.0rc1 release candidate is local and not yet published; no public release or archive DOI is asserted."
+message: "Cite the exact software revision used. The 0.2.0rc1 implementation is a public source snapshot; no formal tagged release or archive DOI is asserted."
 type: software
 title: "SARscope: interactive, assay-aware structure-activity interpretation"
 authors:
