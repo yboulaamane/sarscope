@@ -84,8 +84,8 @@ The exact implementation commit is now public and the manuscript availability
 statements identify it. The original history and pending files were preserved
 locally before reconciling the original checkout with public main; no force-push
 was used. Unused draft modules and local input drafts were not published as
-tested features. Current manuscript Word files and sources are tracked in
-`submission_mol_inf/`; its README distinguishes the larger supporting package.
+tested features. Unpublished manuscript and submission materials are kept
+outside the public source tree.
 
 Before submission, assign an appropriate release tag and archive the permitted
 code/evidence under a persistent identifier. Update availability statements only

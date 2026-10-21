@@ -8,8 +8,8 @@ The useful paper claim is an independently checked implementation with source
 auditing, honest baseline comparisons and explicit model-level qualification.
 Neither test thresholds nor failed sensitivity checks were relaxed.
 
-The [historical paper draft](development/3d-qsar-paper-draft.md) separates historical reproduction from
-native prediction. The small, generated [evidence snapshot](../benchmarks/field_qsar/validation-20261018/)
+Historical reproduction is assessed separately from native prediction.
+The small, generated [evidence snapshot](../benchmarks/field_qsar/validation-20261018/)
 contains aggregate tables, protocols, checksums, figures and test records.
 Raw source structures and external program code are not bundled there.
 
@@ -264,7 +264,5 @@ manuscript's author, funding, conflict and case-review checks. The paper must
 retain model failures and the H-bond-field non-equivalence. None of these is
 resolved by renaming a metric, lowering a threshold or using a favourable demo.
 
-The [independent-review handoff](development/3d-qsar-external-review.md) specifies what a
-reviewer should reproduce and what must be frozen before new labels are seen.
-It is a prepared request, not a claim that review or external validation has
-already taken place.
+External review should reproduce the recorded protocols with settings frozen
+before new labels are seen; no independent review is claimed here.

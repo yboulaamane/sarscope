@@ -48,3 +48,12 @@ data/
 # ChEMBL response cache and run outputs
 .sarscope-cache/
 runs/
+
+# Private, unpublished manuscript and submission materials: never publish.
+/submission_mol_inf/
+/docs/paper-technical-methods.md
+/docs/paper-model-settings.md
+/docs/development/3d-qsar-paper-draft.md
+/docs/development/3d-qsar-external-review.md
+/tests/test_submission_sources.py
+/tests/test_submission_packaging.py

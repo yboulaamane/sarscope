@@ -13,9 +13,6 @@ MMFF94 field implementation, frozen comparison evidence and a hash-verified
 `28bc9fb`; a formal tagged release and permanent archival deposit remain pending. See
 [reproduction and release instructions](reproducibility-release-candidate.md).
 
-The current [paper and Supporting Information](../submission_mol_inf/README.md)
-include synchronized Word files, editable text sources and figure artwork.
-
 **Generated-alignment checks:** rigid MCS and core-constrained alignment now have
 [two-stack implementation validation](generated-alignment-validation.md):
 43 targeted tests and all 50 measured EGFR compounds in both routes, with
