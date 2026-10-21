@@ -50,7 +50,10 @@ data/
 runs/
 
 # Private, unpublished manuscript and submission materials: never publish.
+/paper/
 /submission_mol_inf/
+/docs/3d-qsar-paper-draft.md
+/docs/3d-qsar-external-review.md
 /docs/paper-technical-methods.md
 /docs/paper-model-settings.md
 /docs/development/3d-qsar-paper-draft.md
